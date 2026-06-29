@@ -610,10 +610,14 @@ window.CloudSync = {
             try {
                 return JSON.parse(saved);
             } catch (e) {
-                return null;
+                // fall through
             }
         }
-        return null;
+        // スマホ側で設定が空の場合でも、自動的に作成されたCloudflareへ接続するように初期値を定義
+        return {
+            url: 'https://daily-report-sync.tokoro-toko1166.workers.dev',
+            token: 'TokoroEdgeOneAuthToken2026'
+        };
     },
     saveConfig: function(config) {
         localStorage.setItem('cloudflare_config', JSON.stringify(config));
