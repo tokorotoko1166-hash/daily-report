@@ -182,17 +182,33 @@ const DEMO_PURCHASES = [
  * データベースの初期化
  */
 function initDatabase() {
-    // 工事番号形式が変更された際や、見積り番号(estimateCode)フィールドが不足している場合もリセットします。
-    const sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
-    const hasOldCodes = sites.length > 0 && sites.some(s => s.code.includes('-'));
-    const missingEstimateField = sites.length > 0 && !sites[0].hasOwnProperty('estimateCode');
-    
-    const reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
-    const hasNewFields = reports.length > 0 && reports[0].hasOwnProperty('departureTime');
-    
-    const purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
-    const missingSupplierField = purchases.length > 0 && !purchases[0].hasOwnProperty('supplier');
-    
+    let sites = [];
+    let reports = [];
+    let purchases = [];
+
+    try {
+        sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+    } catch(e) {
+        localStorage.removeItem(STORAGE_KEYS.SITES);
+    }
+
+    try {
+        reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+    } catch(e) {
+        localStorage.removeItem(STORAGE_KEYS.REPORTS);
+    }
+
+    try {
+        purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+    } catch(e) {
+        localStorage.removeItem(STORAGE_KEYS.PURCHASES);
+    }
+
+    const hasOldCodes = sites.length > 0 && sites.some(s => s && s.code && s.code.includes('-'));
+    const missingEstimateField = sites.length > 0 && (!sites[0] || !sites[0].hasOwnProperty('estimateCode'));
+    const hasNewFields = reports.length > 0 && reports[0] && reports[0].hasOwnProperty('departureTime');
+    const missingSupplierField = purchases.length > 0 && (!purchases[0] || !purchases[0].hasOwnProperty('supplier'));
+
     if (!localStorage.getItem(STORAGE_KEYS.PURCHASES) || !hasNewFields || hasOldCodes || missingEstimateField || missingSupplierField || sites.length === 0) {
         localStorage.removeItem(STORAGE_KEYS.SITES);
         localStorage.removeItem(STORAGE_KEYS.REPORTS);
@@ -216,25 +232,33 @@ function initDatabase() {
 
 const SiteDB = {
     getAll(filter = {}) {
-        let sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
-        
+        let sites = [];
+        try {
+            sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+        } catch(e) {
+            sites = [];
+        }
+
+        // 不正データ(nullやレコード破損)のクリーニング
+        sites = sites.filter(s => s && typeof s === 'object' && s.id);
+
         if (filter.search) {
             const query = filter.search.toLowerCase();
             sites = sites.filter(s => 
-                s.name.toLowerCase().includes(query) || 
-                s.code.toLowerCase().includes(query) ||
+                (s.name && s.name.toLowerCase().includes(query)) || 
+                (s.code && s.code.toLowerCase().includes(query)) ||
                 (s.client && s.client.toLowerCase().includes(query)) ||
                 (s.clientManager && s.clientManager.toLowerCase().includes(query)) ||
                 (s.estimateCode && s.estimateCode.toLowerCase().includes(query)) ||
                 (s.manager && s.manager.toLowerCase().includes(query))
             );
         }
-        
+
         if (filter.status && filter.status !== 'all') {
             sites = sites.filter(s => s.status === filter.status);
         }
-        
-        return sites.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        return sites.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     },
 
     getById(id) {
@@ -258,13 +282,13 @@ const SiteDB = {
         let sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
         const index = sites.findIndex(s => s.id === id);
         if (index === -1) return null;
-        
+
         sites[index] = {
             ...sites[index],
             ...siteData,
             updatedAt: new Date().toISOString()
         };
-        
+
         localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
         return sites[index];
     },
@@ -273,12 +297,17 @@ const SiteDB = {
         let sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
         const filtered = sites.filter(s => s.id !== id);
         localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(filtered));
-        
+
         // 関連する材料仕入れデータも削除
         let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
         purchases = purchases.filter(p => p.siteId !== id);
         localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
-        
+
+        return true;
+    },
+
+    clearAll() {
+        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify([]));
         return true;
     }
 };
@@ -289,35 +318,43 @@ const SiteDB = {
 
 const ReportDB = {
     getAll(filter = {}) {
-        let reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
-        
+        let reports = [];
+        try {
+            reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+        } catch(e) {
+            reports = [];
+        }
+
+        // 破損レコードのクリーニング
+        reports = reports.filter(r => r && typeof r === 'object' && r.id);
+
         if (filter.search) {
             const query = filter.search.toLowerCase();
             reports = reports.filter(r => 
-                r.writer.toLowerCase().includes(query) || 
-                r.workContent.toLowerCase().includes(query) ||
+                (r.writer && r.writer.toLowerCase().includes(query)) || 
+                (r.workContent && r.workContent.toLowerCase().includes(query)) ||
                 (r.companions && r.companions.toLowerCase().includes(query)) ||
                 (r.memo && r.memo.toLowerCase().includes(query))
             );
         }
-        
+
         if (filter.siteId && filter.siteId !== 'all') {
             reports = reports.filter(r => r.siteId === filter.siteId);
         }
-        
+
         if (filter.startDate) {
             reports = reports.filter(r => r.date >= filter.startDate);
         }
-        
+
         if (filter.endDate) {
             reports = reports.filter(r => r.date <= filter.endDate);
         }
-        
-        return reports.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        return reports.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     },
 
     getById(id) {
-        const reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+        const reports = this.getAll();
         return reports.find(r => r.id === id) || null;
     },
 
@@ -326,7 +363,12 @@ const ReportDB = {
     },
 
     add(reportData) {
-        const reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+        let reports = [];
+        try {
+            reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+        } catch(e) {
+            reports = [];
+        }
         const newReport = {
             ...reportData,
             id: 'rep_' + Date.now(),
@@ -341,13 +383,13 @@ const ReportDB = {
         let reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
         const index = reports.findIndex(r => r.id === id);
         if (index === -1) return null;
-        
+
         reports[index] = {
             ...reports[index],
             ...reportData,
             updatedAt: new Date().toISOString()
         };
-        
+
         localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
         return reports[index];
     },
@@ -367,7 +409,7 @@ const ReportDB = {
 const PurchaseDB = {
     getAll(filter = {}) {
         let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
-        
+
         if (filter.search) {
             const query = filter.search.toLowerCase();
             purchases = purchases.filter(p => 
@@ -376,11 +418,11 @@ const PurchaseDB = {
                 (p.orderedBy && p.orderedBy.toLowerCase().includes(query))
             );
         }
-        
+
         if (filter.siteId && filter.siteId !== 'all') {
             purchases = purchases.filter(p => p.siteId === filter.siteId);
         }
-        
+
         return purchases.sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
@@ -395,14 +437,14 @@ const PurchaseDB = {
 
     add(purchaseData) {
         const purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
-        
+
         const quantity = parseFloat(purchaseData.quantity) || 0;
         const unitPrice = parseFloat(purchaseData.unitPrice) || 0;
         const listPrice = parseFloat(purchaseData.listPrice) || 0;
-        
+
         const totalPrice = quantity * unitPrice;
         const multiplier = listPrice > 0 ? parseFloat((unitPrice / listPrice).toFixed(4)) : 0;
-        
+
         const newPurchase = {
             ...purchaseData,
             id: 'pur_' + Date.now(),
@@ -410,7 +452,7 @@ const PurchaseDB = {
             multiplier,
             createdAt: new Date().toISOString()
         };
-        
+
         purchases.push(newPurchase);
         localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         return newPurchase;
@@ -420,14 +462,14 @@ const PurchaseDB = {
         let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
         const index = purchases.findIndex(p => p.id === id);
         if (index === -1) return null;
-        
+
         const quantity = parseFloat(purchaseData.quantity) || 0;
         const unitPrice = parseFloat(purchaseData.unitPrice) || 0;
         const listPrice = parseFloat(purchaseData.listPrice) || 0;
-        
+
         const totalPrice = quantity * unitPrice;
         const multiplier = listPrice > 0 ? parseFloat((unitPrice / listPrice).toFixed(4)) : 0;
-        
+
         purchases[index] = {
             ...purchases[index],
             ...purchaseData,
@@ -435,7 +477,7 @@ const PurchaseDB = {
             multiplier,
             updatedAt: new Date().toISOString()
         };
-        
+
         localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         return purchases[index];
     },
@@ -457,20 +499,20 @@ const StatsDB = {
         const sites = SiteDB.getAll();
         const reports = ReportDB.getAll();
         const purchases = PurchaseDB.getAll();
-        
+
         const activeSitesCount = sites.filter(s => s.status === 'active').length;
-        
+
         const currentMonthPrefix = '2026-06';
         const currentMonthReports = reports.filter(r => r.date.startsWith(currentMonthPrefix));
         const monthlyReportsCount = currentMonthReports.length;
-        
+
         const currentMonthPurchases = purchases.filter(p => p.date.startsWith(currentMonthPrefix));
         const monthlyPurchasesSum = currentMonthPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
-        
+
         const todayStr = '2026-06-13';
         const todayReports = reports.filter(r => r.date === todayStr);
         let todayWorkersCount = 0;
-        
+
         const countWorkers = (rep) => {
             let count = 1;
             if (rep.companions) {
@@ -480,7 +522,7 @@ const StatsDB = {
             }
             return count;
         };
-        
+
         if (todayReports.length > 0) {
             todayWorkersCount = todayReports.reduce((sum, r) => sum + countWorkers(r), 0);
         } else {
@@ -489,15 +531,15 @@ const StatsDB = {
                 todayWorkersCount = countWorkers(latestReports[0]);
             }
         }
-        
+
         const siteChartData = sites.map(site => {
             const siteReports = reports.filter(r => r.siteId === site.id);
             const totalDays = siteReports.length;
             const totalManPower = siteReports.reduce((sum, r) => sum + countWorkers(r), 0);
-            
+
             const sitePurchases = purchases.filter(p => p.siteId === site.id);
             const totalPurchaseAmount = sitePurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
-            
+
             return {
                 name: site.name,
                 days: totalDays,
@@ -505,9 +547,9 @@ const StatsDB = {
                 purchases: totalPurchaseAmount
             };
         }).filter(d => d.days > 0 || d.purchases > 0);
-        
+
         const activities = [];
-        
+
         sites.forEach(s => {
             activities.push({
                 type: 'site_create',
@@ -516,7 +558,7 @@ const StatsDB = {
                 detail: `現場「<strong>[${s.code}] ${s.name}</strong>」が登録されました。`
             });
         });
-        
+
         reports.forEach(r => {
             const site = sites.find(s => s.id === r.siteId);
             const siteName = site ? site.name : '不明な現場';
@@ -538,11 +580,11 @@ const StatsDB = {
                 detail: `現場「<strong>${siteName}</strong>」に材料「<strong>${p.itemName}</strong>」の仕入れが手入力されました。(¥${(p.totalPrice || 0).toLocaleString()})`
             });
         });
-        
+
         const recentActivities = activities
             .sort((a, b) => new Date(b.time) - new Date(a.time))
             .slice(0, 5);
-            
+
         return {
             activeSitesCount,
             monthlyReportsCount,
@@ -642,17 +684,20 @@ window.CloudSync = {
         this.init();
         const self = this;
         const config = this.config;
-        
+
         if (!this.isMock && config && config.url) {
             // Tencent EdgeOne Makers 本番API接続
             return {
                 get: async function() {
                     const headers = { 'Authorization': `Bearer ${config.token}` };
-                    
+
                     if (name === 'sites') {
                         // 現場リストの取得 (一括)
                         const res = await fetch(`${config.url}/api/sites`, { headers });
-                        if (!res.ok) throw new Error('API error on GET sites');
+                        if (!res.ok) {
+                            const errText = await res.text().catch(() => '');
+                            throw new Error(`GET sites failed with status ${res.status}: ${errText}`);
+                        }
                         const encryptedText = await res.text();
                         if (!encryptedText || encryptedText === '[]') return [];
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
@@ -666,7 +711,10 @@ window.CloudSync = {
                     } else {
                         // 未処理日報リストの取得
                         const res = await fetch(`${config.url}/api/reports`, { headers });
-                        if (!res.ok) throw new Error('API error on GET reports');
+                        if (!res.ok) {
+                            const errText = await res.text().catch(() => '');
+                            throw new Error(`GET reports failed with status ${res.status}: ${errText}`);
+                        }
                         const list = await res.json();
                         return list.map(item => ({
                             id: item.id,
@@ -684,7 +732,10 @@ window.CloudSync = {
                         },
                         body: JSON.stringify(data)
                     });
-                    if (!res.ok) throw new Error('API error on POST report');
+                    if (!res.ok) {
+                        const errText = await res.text().catch(() => '');
+                        throw new Error(`POST report failed with status ${res.status}: ${errText}`);
+                    }
                     return await res.json();
                 },
                 doc: function(docId) {
@@ -702,7 +753,10 @@ window.CloudSync = {
                                     },
                                     body: encryptedAll
                                 });
-                                if (!res.ok) throw new Error('API error on POST sites');
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`POST sites failed with status ${res.status}: ${errText}`);
+                                }
                                 return true;
                             }
                             return false;
@@ -720,7 +774,10 @@ window.CloudSync = {
                                     },
                                     body: encryptedAll
                                 });
-                                if (!res.ok) throw new Error('API error on POST sites');
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`POST sites delete failed with status ${res.status}: ${errText}`);
+                                }
                                 return true;
                             } else {
                                 // 同期完了した日報を消去 (DELETE)
@@ -732,7 +789,10 @@ window.CloudSync = {
                                     },
                                     body: JSON.stringify({ ids: [docId] })
                                 });
-                                if (!res.ok) throw new Error('API error on DELETE report');
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`DELETE report failed with status ${res.status}: ${errText}`);
+                                }
                                 return true;
                             }
                         }
