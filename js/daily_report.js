@@ -77,6 +77,7 @@ async function syncSitesFromCloud() {
         }
     } catch (e) {
         console.error('Failed to sync sites from cloud:', e);
+        alert(`【現場データのダウンロードに失敗しました】\n理由: ${e.message}`);
     }
 }
 
@@ -552,6 +553,7 @@ function renderBatchInputForm(container) {
                     }
                 } catch (e) {
                     console.error('Cloud submit failed, falling back to local:', e);
+                    alert(`【日報のクラウド送信に失敗しました】\n理由: ${e.message}\n\n※この日報データは消えずに、携帯内に一時保存(ローカル保存)されます。`);
                 }
             }
             window.ReportDB.add(rep);
