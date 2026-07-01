@@ -481,9 +481,8 @@ function renderBatchInputForm(container) {
                     nameSuggestDiv.style.display = 'none';
                 };
                 
-                // モバイルとPCの両方で確実に反応するようにイベントを登録
-                item.addEventListener('mousedown', selectItem);
-                item.addEventListener('touchstart', selectItem, { passive: false });
+                // タップ(クリック)した時のみ決定するように click イベントを紐付けます
+                item.addEventListener('click', selectItem);
             });
         };
 
