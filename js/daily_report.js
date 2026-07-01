@@ -81,6 +81,34 @@ async function syncSitesFromCloud() {
     }
 }
 
+// 送信済み日報の本日一時保存ヘルパー (日付が変わったら自動消去)
+function getTodaySentReports() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let sentList = [];
+    try {
+        sentList = JSON.parse(localStorage.getItem('sent_reports_today') || '[]');
+    } catch (e) {
+        sentList = [];
+    }
+    // 今日の日付のものだけ残す（日付が変わっていたら自動的に消える）
+    const filtered = sentList.filter(item => item.date === todayStr);
+    if (filtered.length !== sentList.length) {
+        localStorage.setItem('sent_reports_today', JSON.stringify(filtered));
+    }
+    return filtered;
+}
+
+function addSentReport(siteName) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sentList = getTodaySentReports();
+    sentList.push({
+        siteName: siteName,
+        date: todayStr,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    localStorage.setItem('sent_reports_today', JSON.stringify(sentList));
+}
+
 function initDailyReportApp() {
     window.initDatabase();
     
@@ -228,9 +256,34 @@ function renderNameRegistrationForm(container) {
  */
 function renderBatchInputForm(container) {
     nextRowId = 1;
-    const today = '2026-06-27'; // システム基準日付
+    
+    // スマホのシステム日付を自動で今日にセット (本日の日付を動的取得)
+    const todayObj = new Date();
+    const today = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+    
+    const sentReports = getTodaySentReports();
+    let sentReportsHtml = '';
+    if (sentReports.length > 0) {
+        sentReportsHtml = `
+            <div class="card no-print" style="padding: 1rem; margin-bottom: 1rem; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 12px;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-success); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i data-lucide="check-circle" style="width: 1rem; height: 1rem; color: var(--color-success);"></i>
+                    <span>本日送信済みの日報 (${sentReports.length} 件)</span>
+                </div>
+                <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.6; color: var(--text-main); list-style-type: decimal;">
+                    ${sentReports.map(r => `
+                        <li style="margin-bottom: 0.25rem;">
+                            <strong>${r.siteName}</strong>
+                            <span style="color: var(--text-muted); font-size: 0.75rem; margin-left: 0.35rem;">(${r.time} 送信完了)</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
     
     container.innerHTML = `
+        ${sentReportsHtml}
         <div class="card" style="padding: 1.25rem 1rem; margin-bottom: 1rem;">
             <div class="form-group" style="margin-bottom: 0;">
                 <label for="batch-date" style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary);">作業日を選択 <span style="color: var(--color-danger);">*</span></label>
@@ -269,6 +322,7 @@ function renderBatchInputForm(container) {
         card.style.padding = '1.25rem 1rem';
         card.style.position = 'relative';
         card.style.borderLeft = '4px solid var(--color-success)';
+        card.style.overflow = 'visible'; // 候補プルダウンがカード枠外にはみ出して表示されるようにする
         
         card.innerHTML = `
             <!-- 行削除ボタン -->
@@ -293,9 +347,10 @@ function renderBatchInputForm(container) {
                 </div>
             </div>
             
-            <div class="form-group" style="margin-bottom: 1rem;">
+            <div class="form-group" style="margin-bottom: 1rem; position: relative;">
                 <label style="font-size: 0.85rem; font-weight: 600;">現場名称 <span style="color: var(--color-danger);">*</span></label>
-                <input type="text" class="txt-row-name" list="suggest-site-names" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;">
+                <input type="text" class="txt-row-name" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;" autocomplete="off">
+                <div class="suggest-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 2px;"></div>
             </div>
             
             <!-- 出発時間 (直行) / 開始時間 -->
@@ -352,12 +407,11 @@ function renderBatchInputForm(container) {
         const codeInput = card.querySelector('.txt-row-code');
         const nameInput = card.querySelector('.txt-row-name');
         const clientInput = card.querySelector('.txt-row-client');
+        const nameSuggestDiv = card.querySelector('.suggest-dropdown');
         
         // 3項目相互サジェスト自動補完処理 (全角半角の表記揺れ吸収)
         const checkAutoCompletion = (sourceField) => {
             const codeVal = codeInput.value.trim();
-            const nameVal = nameInput.value.trim();
-            const clientVal = clientInput.value.trim();
             const sites = window.SiteDB.getAll();
             
             let match = null;
@@ -366,12 +420,6 @@ function renderBatchInputForm(container) {
             if (sourceField === 'code' && codeVal) {
                 const normVal = norm(codeVal);
                 match = sites.find(s => norm(s.code) === normVal);
-            } else if (sourceField === 'name' && nameVal) {
-                const normVal = norm(nameVal);
-                match = sites.find(s => norm(s.name) === normVal);
-            } else if (sourceField === 'client' && clientVal) {
-                const normVal = norm(clientVal);
-                match = sites.find(s => norm(s.client) === normVal);
             }
             
             if (match) {
@@ -381,14 +429,85 @@ function renderBatchInputForm(container) {
                 if (norm(clientInput.value) !== norm(match.client || '')) clientInput.value = match.client || '';
             }
         };
+
+        // 現場名称のあいまい検索カスタムプルダウンの動作 (携帯・スマホ環境での動作を保証)
+        const showSuggestions = () => {
+            const query = normalizeText(nameInput.value);
+            if (!query) {
+                nameSuggestDiv.style.display = 'none';
+                return;
+            }
+
+            const sites = window.SiteDB.getAll() || [];
+            // 表記揺れを考慮した部分一致検索
+            const matchedSites = sites.filter(s => 
+                normalizeText(s.name).includes(query) ||
+                normalizeText(s.code).includes(query) ||
+                (s.client && normalizeText(s.client).includes(query))
+            );
+
+            if (matchedSites.length === 0) {
+                nameSuggestDiv.style.display = 'none';
+                return;
+            }
+
+            // 候補リストを生成（クリックしやすいように十分なタップ領域を確保）
+            nameSuggestDiv.innerHTML = matchedSites.slice(0, 8).map(s => `
+                <div class="suggest-item" data-code="${s.code}" data-name="${s.name}" data-client="${s.client || ''}" style="padding: 0.9rem 1rem; border-bottom: 1px solid var(--border-light); cursor: pointer; text-align: left; background: var(--bg-card);">
+                    <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-main);">${s.name}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 0.6rem; margin-top: 0.2rem;">
+                        <span>工事番号: ${s.code}</span>
+                        ${s.client ? `<span>元請: ${s.client}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            nameSuggestDiv.style.display = 'block';
+
+            // 各候補アイテムのクリック/タップ時の自動決定処理 (スマホのタップ遅延や競合を回避するため touchstart/mousedown を使用)
+            const items = nameSuggestDiv.querySelectorAll('.suggest-item');
+            items.forEach(item => {
+                const selectItem = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const code = item.getAttribute('data-code');
+                    const name = item.getAttribute('data-name');
+                    const client = item.getAttribute('data-client');
+
+                    nameInput.value = name;
+                    codeInput.value = code;
+                    clientInput.value = client;
+
+                    nameSuggestDiv.style.display = 'none';
+                };
+                
+                // モバイルとPCの両方で確実に反応するようにイベントを登録
+                item.addEventListener('mousedown', selectItem);
+                item.addEventListener('touchstart', selectItem, { passive: false });
+            });
+        };
+
+        // 携帯でのフリック入力中や日本語確定イベントに追従
+        nameInput.addEventListener('input', showSuggestions);
+        nameInput.addEventListener('keyup', showSuggestions);
+        nameInput.addEventListener('compositionend', showSuggestions);
+
+        // フォーカスが外れたときは少し時間差(250ms)を置いて閉じる (タップイベントが先に走るようにするため)
+        nameInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                nameSuggestDiv.style.display = 'none';
+            }, 250);
+        });
+
+        // 画面のどこかをタップした時に候補リストを閉じる
+        document.addEventListener('click', (e) => {
+            if (e.target !== nameInput) {
+                nameSuggestDiv.style.display = 'none';
+            }
+        });
         
         codeInput.addEventListener('input', () => checkAutoCompletion('code'));
-        nameInput.addEventListener('input', () => checkAutoCompletion('name'));
-        clientInput.addEventListener('input', () => checkAutoCompletion('client'));
-        
         codeInput.addEventListener('change', () => checkAutoCompletion('code'));
-        nameInput.addEventListener('change', () => checkAutoCompletion('name'));
-        clientInput.addEventListener('change', () => checkAutoCompletion('client'));
         
         // 削除ボタンと連動イベントハンドラ
         const delBtn = card.querySelector('.btn-delete-row');
@@ -564,6 +683,13 @@ function renderBatchInputForm(container) {
             const cloudCount = results.filter(r => r).length;
             const localCount = results.filter(r => !r).length;
             
+            // 送信した各日報の現場名を本日送信済みリストに記録
+            reportsToSubmit.forEach(rep => {
+                const site = window.SiteDB.getById(rep.siteId);
+                const sName = site ? site.name : '不明な現場';
+                addSentReport(sName);
+            });
+
             let msg = '';
             if (cloudCount > 0) {
                 msg += `${cloudCount}件の日報をクラウドへ送信しました！(暗号化済) `;
