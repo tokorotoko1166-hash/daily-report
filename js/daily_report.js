@@ -350,7 +350,7 @@ function renderBatchInputForm(container) {
             <div class="form-group" style="margin-bottom: 1rem; position: relative;">
                 <label style="font-size: 0.85rem; font-weight: 600;">現場名称 <span style="color: var(--color-danger);">*</span></label>
                 <input type="text" class="txt-row-name" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;" autocomplete="off">
-                <div class="suggest-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 2px;"></div>
+                <div class="suggest-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; max-height: 135px; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 2px;"></div>
             </div>
             
             <!-- 出発時間 (直行) / 開始時間 -->
@@ -492,16 +492,24 @@ function renderBatchInputForm(container) {
         nameInput.addEventListener('keyup', showSuggestions);
         nameInput.addEventListener('compositionend', showSuggestions);
 
-        // フォーカスが外れたときは少し時間差(250ms)を置いて閉じる (タップイベントが先に走るようにするため)
-        nameInput.addEventListener('blur', () => {
-            setTimeout(() => {
+        // リストスクロール時にキーボードを自動で閉じて画面を広くする
+        nameSuggestDiv.addEventListener('touchmove', () => {
+            nameInput.blur(); // キーボードを引っ込めて隠れた候補を見せる
+        }, { passive: true });
+
+        nameSuggestDiv.addEventListener('scroll', () => {
+            nameInput.blur();
+        }, { passive: true });
+
+        // 画面のどこかをタップした時に候補リストを閉じる (入力欄や候補リスト自体をタップした時は閉じない)
+        document.addEventListener('click', (e) => {
+            if (e.target !== nameInput && !nameSuggestDiv.contains(e.target)) {
                 nameSuggestDiv.style.display = 'none';
-            }, 250);
+            }
         });
 
-        // 画面のどこかをタップした時に候補リストを閉じる
-        document.addEventListener('click', (e) => {
-            if (e.target !== nameInput) {
+        document.addEventListener('touchstart', (e) => {
+            if (e.target !== nameInput && !nameSuggestDiv.contains(e.target)) {
                 nameSuggestDiv.style.display = 'none';
             }
         });
