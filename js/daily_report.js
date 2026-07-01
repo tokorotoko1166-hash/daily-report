@@ -622,8 +622,27 @@ function renderBatchInputForm(container) {
                 return;
             }
             
-            // 既存現場との紐付けチェック
-            let site = sites.find(s => (code && s.code === code) || s.name === name);
+            // 既存現場との紐付けチェック (工事番号がない場合は事務所作業/その他としてダミー現場 OFFICE に紐付け)
+            let site = null;
+            if (!code) {
+                const finalName = name || '事務所作業';
+                site = sites.find(s => s.code === 'OFFICE' && s.name === finalName);
+                if (!site) {
+                    site = window.SiteDB.add({
+                        code: 'OFFICE',
+                        name: finalName,
+                        client: client || '社内業務',
+                        clientManager: '',
+                        estimateCode: '',
+                        isBilled: false,
+                        isPaid: false,
+                        status: 'active',
+                        memo: '工事番号なしの自動登録現場です。'
+                    });
+                }
+            } else {
+                site = sites.find(s => (code && s.code === code) || s.name === name);
+            }
             
             // 既存に存在しない新規の現場名が手入力された場合は、裏側で自動的に新規現場登録する
             if (!site) {
