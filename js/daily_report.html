@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>業務日報 入力（携帯・スマホ用）</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css?v=20260627">
+    <style>
+        /* 携帯特化用の追加スタイル */
+        .mobile-layout {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .mobile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .mobile-title-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .mobile-title-group i {
+            color: var(--color-success);
+        }
+        .mobile-title-group h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-layout">
+        <!-- 上部ヘッダー -->
+        <header class="mobile-header">
+            <div class="mobile-title-group">
+                <i data-lucide="smartphone"></i>
+                <h1>業務日報入力 (現場用) <span style="font-size:0.65rem; color:var(--text-muted); font-weight:normal; margin-left:0.25rem;">ver 06.30</span></h1>
+            </div>
+            <a href="index.html" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                <i data-lucide="home" style="width:0.85rem; height:0.85rem;"></i>
+                <span>ポータル</span>
+            </a>
+        </header>
+
+        <!-- メイン画面（日報フォームが直接描画されます） -->
+        <div id="view-container">
+            <!-- 動的スクリプトにより描画 -->
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Crypto-JS SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="js/db.js?v=20260701_v5"></script>
+    <script src="js/daily_report.js?v=20260701_v5"></script>
+</body>
+</html>
