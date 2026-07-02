@@ -660,8 +660,8 @@ function renderBatchInputForm(container) {
                 });
             } else {
                 // 既存現場がある場合、手入力された受注先(client)が既存と異なっており、かつ空でないなら、
-                // 台帳側の情報も親切にアップデートする
-                if (client && site.client !== client) {
+                // 台帳側の情報も親切にアップデートする（ただし、工事番号なしの OFFICE は共有現場マスタのため上書きしない）
+                if (site.code !== 'OFFICE' && client && site.client !== client) {
                     site.client = client;
                     window.SiteDB.update(site.id, site);
                 }
@@ -679,7 +679,8 @@ function renderBatchInputForm(container) {
                 returnTime: isDirectBack ? '' : returnTime,
                 isDirectBack,
                 workContent,
-                companions
+                companions,
+                client // 個別に入力された受注先も保存
             });
         }
         
