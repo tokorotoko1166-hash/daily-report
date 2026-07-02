@@ -390,15 +390,9 @@ function renderBatchInputForm(container) {
             </div>
             
             <!-- 作業内容 -->
-            <div class="form-group" style="position: relative;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0;">作業内容 <span style="color: var(--color-danger);">*</span></label>
-                    <!-- 音声入力用マイクボタン -->
-                    <button type="button" class="btn-voice-input" style="background: transparent; border: none; color: var(--color-primary); cursor: pointer; padding: 2px 6px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; outline: none;">
-                        <span class="mic-icon">🎙️</span> <span class="mic-text" style="font-size: 0.75rem; color: var(--text-muted);">音声入力</span>
-                    </button>
-                </div>
-                <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans); width: 100%; box-sizing: border-box;"></textarea>
+            <div class="form-group">
+                <label style="font-size: 0.85rem; font-weight: 600;">作業内容 <span style="color: var(--color-danger);">*</span></label>
+                <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
             </div>
             
             <!-- 同行者 -->
@@ -558,81 +552,6 @@ function renderBatchInputForm(container) {
             }
         });
         
-        // --- 音声入力機能の制御 ---
-        const voiceBtn = card.querySelector('.btn-voice-input');
-        const micIcon = voiceBtn.querySelector('.mic-icon');
-        const micText = voiceBtn.querySelector('.mic-text');
-        const workContentInput = card.querySelector('.txt-row-content');
-        
-        let recognition = null;
-        let isListening = false;
-        
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            // 音声認識に対応していないブラウザの場合はマイクボタンを非表示にする
-            voiceBtn.style.display = 'none';
-        } else {
-            recognition = new SpeechRecognition();
-            recognition.lang = 'ja-JP';
-            recognition.continuous = true;
-            recognition.interimResults = false;
-            
-            recognition.onstart = () => {
-                isListening = true;
-                voiceBtn.style.color = 'var(--color-danger)';
-                micIcon.textContent = '🛑';
-                micText.textContent = '録音中...';
-                micText.style.color = 'var(--color-danger)';
-                window.app.showToast('音声入力を開始しました。お話しください。', 'success');
-            };
-            
-            recognition.onend = () => {
-                isListening = false;
-                voiceBtn.style.color = 'var(--color-primary)';
-                micIcon.textContent = '🎙️';
-                micText.textContent = '音声入力';
-                micText.style.color = 'var(--text-muted)';
-            };
-            
-            recognition.onerror = (e) => {
-                console.error('Speech recognition error:', e);
-                isListening = false;
-                voiceBtn.style.color = 'var(--color-primary)';
-                micIcon.textContent = '🎙️';
-                micText.textContent = '音声入力';
-                micText.style.color = 'var(--text-muted)';
-            };
-            
-            recognition.onresult = (event) => {
-                const results = event.results;
-                let transcript = '';
-                for (let i = event.resultIndex; i < results.length; i++) {
-                    if (results[i].isFinal) {
-                        transcript += results[i][0].transcript;
-                    }
-                }
-                if (transcript) {
-                    const currentVal = workContentInput.value;
-                    if (currentVal) {
-                        workContentInput.value = currentVal.trim() + '\n' + transcript.trim();
-                    } else {
-                        workContentInput.value = transcript.trim();
-                    }
-                    workContentInput.dispatchEvent(new Event('input'));
-                }
-            };
-            
-            voiceBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (isListening) {
-                    recognition.stop();
-                } else {
-                    recognition.start();
-                }
-            });
-        }
-
         updateRowNumbers();
         if (window.lucide) {
             window.lucide.createIcons();
