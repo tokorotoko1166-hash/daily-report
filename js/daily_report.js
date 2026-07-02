@@ -680,7 +680,9 @@ function renderBatchInputForm(container) {
                 isDirectBack,
                 workContent,
                 companions,
-                client // 個別に入力された受注先も保存
+                client, // 個別に入力された受注先も保存
+                siteName: name, // スマホ側で手入力された現場名称を保存
+                siteCode: code || '' // スマホ側で手入力された工事番号を保存
             });
         }
         
