@@ -102,6 +102,10 @@ function formatDateMD(dateStr) { return dateStr; }
 // ==========================================
 // 仕入れ一覧表の描画 (アコーディオン ＆ 照合機能つき)
 // ==========================================
+
+// ==========================================
+// 仕入れ一覧表の描画 (アコーディオン、照合機能、期/年度フィルターつき)
+// ==========================================
 function renderPurchaseListTable(container) {
     container.innerHTML = `
         <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
@@ -109,6 +113,13 @@ function renderPurchaseListTable(container) {
                 <div class="input-search-wrapper" style="position: relative; min-width: 250px; flex: 1;">
                     <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted);"></i>
                     <input type="text" id="list-purchase-search" class="input-search" placeholder="品名、仕入れ先、発注者、現場名などで検索..." style="padding-left: 2.2rem; width: 100%;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">表示対象:</span>
+                    <select id="list-purchase-period-filter" class="form-control" style="width: 155px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="current">今期の仕入れのみ</option>
+                        <option value="all">すべての仕入れ</option>
+                    </select>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">期間:</span>
@@ -152,6 +163,7 @@ function renderPurchaseListTable(container) {
     `;
 
     const searchInput = document.getElementById('list-purchase-search');
+    const periodFilter = document.getElementById('list-purchase-period-filter');
     const startDateInput = document.getElementById('list-purchase-start-date');
     const endDateInput = document.getElementById('list-purchase-end-date');
     const newPurchaseBtn = document.getElementById('btn-list-new-purchase');
@@ -160,6 +172,7 @@ function renderPurchaseListTable(container) {
     const updateTable = () => {
         const filter = {
             search: searchInput.value,
+            period: periodFilter.value,
             startDate: startDateInput.value,
             endDate: endDateInput.value
         };
@@ -167,6 +180,7 @@ function renderPurchaseListTable(container) {
     };
 
     searchInput.addEventListener('input', updateTable);
+    periodFilter.addEventListener('change', updateTable);
     startDateInput.addEventListener('change', updateTable);
     endDateInput.addEventListener('change', updateTable);
     
@@ -193,11 +207,13 @@ function renderPurchaseListTable(container) {
 
 function generatePrintPurchaseTableHtml() {
     const searchInput = document.getElementById('list-purchase-search');
+    const periodFilter = document.getElementById('list-purchase-period-filter');
     const startDateInput = document.getElementById('list-purchase-start-date');
     const endDateInput = document.getElementById('list-purchase-end-date');
 
     const filter = {
         search: searchInput ? searchInput.value : '',
+        period: periodFilter ? periodFilter.value : 'current',
         startDate: startDateInput ? startDateInput.value : '',
         endDate: endDateInput ? endDateInput.value : ''
     };
@@ -205,6 +221,25 @@ function generatePrintPurchaseTableHtml() {
     let purchases = window.PurchaseDB.getAll() || [];
     const sites = window.SiteDB.getAll() || [];
     const siteMap = new Map(sites.map(s => [s.id, s]));
+
+    // 10月期切り替え判定ヘルパー
+    const getFiscalYear = (dateStr) => {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        return m >= 10 ? y + 1 : y;
+    };
+    const targetFY = getFiscalYear(new Date()) || 2026;
+
+    // 年度フィルターの適用
+    if (filter.period === 'current') {
+        purchases = purchases.filter(p => {
+            const fy = getFiscalYear(p.date);
+            return fy === targetFY;
+        });
+    }
 
     if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
     if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
@@ -260,6 +295,7 @@ function generatePrintPurchaseTableHtml() {
             <h2 style="font-size: 1.6rem; font-weight: bold; text-align: center; color: #000; letter-spacing: 0.1em; margin-bottom: 0.5rem;">仕 入 れ 一 覧 表</h2>
             <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #333;">
                 <span>出力日: ${new Date().toLocaleDateString('ja-JP')}</span>
+                <span>期間: ${filter.period === 'current' ? '今期分のみ' : 'すべての期間'}</span>
                 <span>総合計: ¥${Math.round(grandTotal).toLocaleString()}</span>
             </div>
         </div>
@@ -332,6 +368,26 @@ function refreshPurchaseListTable(filter) {
     let purchases = window.PurchaseDB.getAll() || [];
     const sites = window.SiteDB.getAll() || [];
     const siteMap = new Map(sites.map(s => [s.id, s]));
+
+    // 10月期切り替え判定ヘルパー
+    const getFiscalYear = (dateStr) => {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        return m >= 10 ? y + 1 : y;
+    };
+    const targetFY = getFiscalYear(new Date()) || 2026;
+
+    // 年度フィルターの適用
+    const periodFilterVal = filter.period || 'current';
+    if (periodFilterVal === 'current') {
+        purchases = purchases.filter(p => {
+            const fy = getFiscalYear(p.date);
+            return fy === targetFY;
+        });
+    }
 
     if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
     if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
@@ -586,6 +642,9 @@ function refreshPurchaseListTable(filter) {
 
     if (window.lucide) window.lucide.createIcons();
 }
+
+
+
 // ==========================================
 
 

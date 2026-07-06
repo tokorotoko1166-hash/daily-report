@@ -306,6 +306,11 @@ const SiteDB = {
         return true;
     },
 
+    saveAll(sites) {
+        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+        return true;
+    },
+
     clearAll() {
         localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify([]));
         return true;
@@ -399,6 +404,11 @@ const ReportDB = {
         const filtered = reports.filter(r => r.id !== id);
         localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(filtered));
         return true;
+    },
+
+    saveAll(reports) {
+        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+        return true;
     }
 };
 
@@ -486,6 +496,11 @@ const PurchaseDB = {
         let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
         const filtered = purchases.filter(p => p.id !== id);
         localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(filtered));
+        return true;
+    },
+
+    saveAll(purchases) {
+        localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         return true;
     }
 };
