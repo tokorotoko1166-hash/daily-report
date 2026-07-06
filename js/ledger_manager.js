@@ -84,6 +84,14 @@ function router() {
             return;
         }
 
+        if (hash === '#invoice-match') {
+            pageTitle.textContent = '仕入れ先別 請求書突合';
+            if (typeof renderInvoiceMatchView === 'function') {
+                renderInvoiceMatchView(container);
+            }
+            return;
+        }
+
         if (hash === '#partner-ledger') {
             pageTitle.textContent = '協力業者台帳';
             renderPartnerLedger(container);
@@ -5030,5 +5038,274 @@ function refreshPartnerLedgerTable(filter = {}) {
 
     if (window.lucide) {
         window.lucide.createIcons();
+    }
+}
+
+// ==========================================
+// 請求書突合（月次照合）機能
+// ==========================================
+
+function renderInvoiceMatchView(container) {
+    container.innerHTML = `
+        <div class="card" style="padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
+            <div style="display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 1; min-width: 200px; margin: 0;">
+                    <label for="match-month-select" style="font-weight: 600;">対象月 (年月)</label>
+                    <input type="month" id="match-month-select" class="form-control" style="font-size: 1.1rem; padding: 0.6rem;">
+                </div>
+                <div class="form-group" style="flex: 2; min-width: 250px; margin: 0;">
+                    <label for="match-supplier-select" style="font-weight: 600;">仕入れ先 (業者)</label>
+                    <select id="match-supplier-select" class="form-control" style="font-size: 1.1rem; padding: 0.6rem;">
+                        <option value="">-- 仕入れ先を選択 --</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <button class="btn btn-primary" id="btn-run-match" style="width: 100%; height: 2.8rem; font-size: 1rem;">
+                        <i data-lucide="search"></i> 照合データを表示
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 突合パネル (データ検索後に表示) -->
+        <div id="invoice-match-panel" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- システム上の金額 -->
+                <div class="card" style="padding: 1.5rem; text-align: center; border-left: 5px solid var(--color-primary);">
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; font-weight: 600;">システム上の合計金額 (伝票入力済)</div>
+                    <div id="match-sys-total" style="font-size: 2rem; font-weight: bold; color: var(--text-main); font-family: 'Inter';">¥0</div>
+                    <div id="match-sys-count" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">0件の仕入れ明細</div>
+                </div>
+
+                <!-- 請求書の金額入力 -->
+                <div class="card" style="padding: 1.5rem; text-align: center; border-left: 5px solid #f59e0b; background: rgba(245, 158, 11, 0.05);">
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; font-weight: 600;">請求書の合計金額 (税込/税抜調整可)</div>
+                    <div style="position: relative; display: inline-block; width: 80%;">
+                        <span style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.5rem; color: var(--text-muted);">¥</span>
+                        <input type="number" id="match-invoice-input" class="form-control" style="font-size: 1.8rem; font-weight: bold; text-align: right; padding-left: 2.5rem; width: 100%; font-family: 'Inter'; background: white; border: 2px solid #f59e0b;" placeholder="0">
+                    </div>
+                </div>
+
+                <!-- 差額判定 -->
+                <div class="card" id="match-result-card" style="padding: 1.5rem; text-align: center; border-left: 5px solid var(--border-light); display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; font-weight: 600;">差額 (システム - 請求書)</div>
+                    <div id="match-diff-amount" style="font-size: 2rem; font-weight: bold; color: var(--text-muted); font-family: 'Inter';">¥0</div>
+                    <div id="match-status-badge" style="margin-top: 0.5rem; padding: 0.25rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold; background: var(--bg-body); color: var(--text-muted);">
+                        未入力
+                    </div>
+                </div>
+            </div>
+
+            <!-- 明細リスト -->
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div style="padding: 1rem 1.5rem; background: rgba(0,0,0,0.02); border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: 1.1rem;">対象月の仕入れ明細</h3>
+                    <button class="btn btn-secondary" id="btn-check-all-matched" style="font-size: 0.8rem; padding: 0.4rem 1rem;">
+                        <i data-lucide="check-square"></i> すべて照合済にする
+                    </button>
+                </div>
+                <div class="table-responsive" style="margin: 0; max-height: 500px; overflow-y: auto;">
+                    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card); box-shadow: 0 1px 0 var(--border-light);">
+                            <tr>
+                                <th style="width: 60px; text-align: center; padding: 0.75rem;">照合</th>
+                                <th style="width: 90px; text-align: left; padding: 0.75rem;">日付</th>
+                                <th style="text-align: left; padding: 0.75rem;">現場名称</th>
+                                <th style="width: 100px; text-align: left; padding: 0.75rem;">発注者</th>
+                                <th style="text-align: left; padding: 0.75rem;">品名・型式</th>
+                                <th style="text-align: right; width: 60px; padding: 0.75rem;">数量</th>
+                                <th style="text-align: right; width: 80px; padding: 0.75rem;">単価</th>
+                                <th style="text-align: right; width: 100px; padding: 0.75rem; font-weight: 600;">金額</th>
+                            </tr>
+                        </thead>
+                        <tbody id="match-details-tbody">
+                            <!-- 明細が動的に挿入されます -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 初期化処理
+    const today = new Date();
+    const monthInput = document.getElementById('match-month-select');
+    monthInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+    // 仕入れ先ドロップダウンの構築
+    const purchases = window.PurchaseDB.getAll() || [];
+    const suppliers = new Set();
+    purchases.forEach(p => {
+        if (p.supplier && p.supplier.trim()) suppliers.add(p.supplier.trim());
+    });
+    
+    const supplierSelect = document.getElementById('match-supplier-select');
+    Array.from(suppliers).sort().forEach(sup => {
+        const opt = document.createElement('option');
+        opt.value = sup;
+        opt.textContent = sup;
+        supplierSelect.appendChild(opt);
+    });
+
+    const btnRun = document.getElementById('btn-run-match');
+    const invoiceInput = document.getElementById('match-invoice-input');
+    const btnCheckAll = document.getElementById('btn-check-all-matched');
+
+    let currentMatchData = [];
+
+    btnRun.addEventListener('click', () => {
+        const targetMonth = monthInput.value; // YYYY-MM
+        const targetSupplier = supplierSelect.value;
+        if (!targetMonth || !targetSupplier) {
+            window.app.showToast('対象月と仕入れ先を選択してください', 'error');
+            return;
+        }
+        
+        currentMatchData = purchases.filter(p => {
+            return p.supplier === targetSupplier && p.date && p.date.startsWith(targetMonth);
+        });
+
+        refreshInvoiceMatchView(currentMatchData);
+    });
+
+    invoiceInput.addEventListener('input', () => {
+        calculateMatchDiff(currentMatchData);
+    });
+
+    btnCheckAll.addEventListener('click', () => {
+        if (currentMatchData.length === 0) return;
+        const confirmAll = confirm('表示されているすべての明細を「照合済」にしてもよろしいですか？');
+        if (!confirmAll) return;
+
+        currentMatchData.forEach(p => {
+            p.matched = true;
+            window.PurchaseDB.update(p.id, p);
+        });
+        
+        window.app.showToast('すべての明細を照合済にしました', 'success');
+        refreshInvoiceMatchView(currentMatchData);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function refreshInvoiceMatchView(matchData) {
+    const panel = document.getElementById('invoice-match-panel');
+    panel.style.display = 'block';
+
+    const tbody = document.getElementById('match-details-tbody');
+    const sysTotalEl = document.getElementById('match-sys-total');
+    const sysCountEl = document.getElementById('match-sys-count');
+    
+    let sysTotal = 0;
+    
+    matchData.sort((a, b) => a.date.localeCompare(b.date));
+
+    const sites = window.SiteDB.getAll() || [];
+    const siteMap = new Map(sites.map(s => [s.id, s]));
+
+    if (matchData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">該当月の仕入れデータがありません</td></tr>`;
+        sysTotalEl.textContent = '¥0';
+        sysCountEl.textContent = '0件の仕入れ明細';
+        calculateMatchDiff(matchData);
+        return;
+    }
+
+    tbody.innerHTML = matchData.map(pur => {
+        const site = siteMap.get(pur.siteId);
+        const siteName = site ? site.name : '不明な現場';
+        const total = (pur.quantity || 0) * (pur.unitPrice || 0);
+        sysTotal += total;
+
+        const checkedAttr = pur.matched ? 'checked' : '';
+        const rowOpacity = pur.matched ? '0.6' : '1';
+        const bgStyle = pur.matched ? 'background: rgba(16, 185, 129, 0.05);' : '';
+
+        return `
+            <tr style="border-bottom: 1px solid var(--border-light); opacity: ${rowOpacity}; ${bgStyle}">
+                <td style="text-align: center; padding: 0.75rem;">
+                    <input type="checkbox" class="cb-match-row" data-id="${pur.id}" ${checkedAttr} style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                </td>
+                <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${pur.date.replace(/-/g, '/')}</td>
+                <td style="font-size: 0.85rem; padding: 0.75rem;"><strong>${siteName}</strong></td>
+                <td style="font-size: 0.85rem; padding: 0.75rem;">${pur.orderedBy || '-'}</td>
+                <td style="font-size: 0.85rem; padding: 0.75rem;">${pur.itemName}</td>
+                <td style="font-family: 'Inter', sans-serif; text-align: right; font-size: 0.85rem; padding: 0.75rem;">${pur.quantity || 0}</td>
+                <td style="font-family: 'Inter', sans-serif; text-align: right; font-size: 0.85rem; padding: 0.75rem;">¥${Math.round(pur.unitPrice).toLocaleString()}</td>
+                <td style="font-family: 'Inter', sans-serif; text-align: right; font-weight: 600; padding: 0.75rem; color: var(--color-primary);">¥${Math.round(total).toLocaleString()}</td>
+            </tr>
+        `;
+    }).join('');
+
+    sysTotalEl.textContent = `¥${Math.round(sysTotal).toLocaleString()}`;
+    sysTotalEl.setAttribute('data-val', sysTotal);
+    sysCountEl.textContent = `${matchData.length}件の仕入れ明細`;
+
+    // チェックボックスイベント
+    tbody.querySelectorAll('.cb-match-row').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            const id = e.target.getAttribute('data-id');
+            const isMatched = e.target.checked;
+            
+            const pur = matchData.find(p => p.id === id);
+            if (pur) {
+                pur.matched = isMatched;
+                window.PurchaseDB.update(id, pur);
+                
+                // 行の見た目更新
+                const tr = e.target.closest('tr');
+                if (isMatched) {
+                    tr.style.opacity = '0.6';
+                    tr.style.background = 'rgba(16, 185, 129, 0.05)';
+                } else {
+                    tr.style.opacity = '1';
+                    tr.style.background = 'transparent';
+                }
+            }
+        });
+    });
+
+    calculateMatchDiff(matchData);
+}
+
+function calculateMatchDiff(matchData) {
+    const sysTotalEl = document.getElementById('match-sys-total');
+    const invoiceInput = document.getElementById('match-invoice-input');
+    const diffAmountEl = document.getElementById('match-diff-amount');
+    const badgeEl = document.getElementById('match-status-badge');
+    const resultCard = document.getElementById('match-result-card');
+
+    if (!sysTotalEl || !invoiceInput || !diffAmountEl) return;
+
+    const sysTotal = parseFloat(sysTotalEl.getAttribute('data-val')) || 0;
+    const invTotal = parseFloat(invoiceInput.value);
+
+    if (isNaN(invTotal)) {
+        diffAmountEl.textContent = '¥-';
+        diffAmountEl.style.color = 'var(--text-muted)';
+        badgeEl.textContent = '未入力';
+        badgeEl.style.background = 'var(--bg-body)';
+        badgeEl.style.color = 'var(--text-muted)';
+        resultCard.style.borderLeftColor = 'var(--border-light)';
+        return;
+    }
+
+    const diff = sysTotal - invTotal;
+    const sign = diff > 0 ? '+' : '';
+    diffAmountEl.textContent = `${sign}¥${Math.round(diff).toLocaleString()}`;
+
+    if (Math.abs(diff) < 1) { // 誤差吸収 (0円)
+        diffAmountEl.style.color = 'var(--color-success)';
+        badgeEl.textContent = '✨ 完全に一致しました';
+        badgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        badgeEl.style.color = 'var(--color-success)';
+        resultCard.style.borderLeftColor = 'var(--color-success)';
+    } else {
+        diffAmountEl.style.color = 'var(--color-danger)';
+        badgeEl.textContent = '⚠️ 差額があります';
+        badgeEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        badgeEl.style.color = 'var(--color-danger)';
+        resultCard.style.borderLeftColor = 'var(--color-danger)';
     }
 }
