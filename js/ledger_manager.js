@@ -2150,10 +2150,10 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             ` : ''}
 
             <div class="form-group" style="margin-bottom: 1rem;">
-                <label for="form-pur-site">対象の工事番号・現場名</label>
-                <select id="form-pur-site" disabled style="background: rgba(255,255,255,0.05); color: var(--text-muted);">
-                    <!-- 現場DBから自動選択 -->
-                </select>
+                <label for="form-pur-site-input">対象の工事番号・現場名</label>
+                <input type="text" id="form-pur-site-input" class="form-control" list="site-list-datalist" placeholder="文字を入力して現場を検索・選択" required autocomplete="off">
+                <datalist id="site-list-datalist"></datalist>
+                <input type="hidden" id="form-pur-site" required>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
@@ -2185,7 +2185,8 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                 </div>
                 <div class="form-group">
                     <label for="form-pur-maker">メーカー名</label>
-                    <input type="text" id="form-pur-maker" value="${pur ? (pur.maker || '') : ''}" placeholder="積水化学">
+                    <input type="text" id="form-pur-maker" value="${pur ? (pur.maker || '') : ''}" placeholder="積水化学" list="maker-datalist" autocomplete="off">
+                    <datalist id="maker-datalist"></datalist>
                 </div>
             </div>
 
@@ -2196,7 +2197,8 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                 </div>
                 <div class="form-group">
                     <label for="form-pur-unit">単位 <span style="color:var(--color-danger);">*</span></label>
-                    <input type="text" id="form-pur-unit" required value="${pur ? pur.unit : '本'}" placeholder="本">
+                    <input type="text" id="form-pur-unit" required value="${pur ? pur.unit : '本'}" placeholder="本" list="unit-datalist" autocomplete="off">
+                    <datalist id="unit-datalist"></datalist>
                 </div>
                 <div class="form-group">
                     <label for="form-pur-uprice">仕入れ単価 <span style="color:var(--color-danger);">*</span></label>
