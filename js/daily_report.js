@@ -65,6 +65,9 @@ async function syncSitesFromCloud() {
         
         if (cloudSites.length > 0) {
             const localSites = window.SiteDB.getAll();
+            const cloudIds = cloudSites.map(cs => cs.id);
+            
+            // 1. クラウド側のデータをローカルに追加・更新
             cloudSites.forEach(cs => {
                 const exist = localSites.find(ls => ls.id === cs.id || ls.code === cs.code);
                 if (exist) {
@@ -73,6 +76,14 @@ async function syncSitesFromCloud() {
                     window.SiteDB.add(cs);
                 }
             });
+            
+            // 2. クラウドに存在しない（PC側で削除された）現場をスマホのローカルから削除
+            localSites.forEach(ls => {
+                if (!cloudIds.includes(ls.id)) {
+                    window.SiteDB.delete(ls.id);
+                }
+            });
+            
             renderDatalists();
         }
     } catch (e) {
