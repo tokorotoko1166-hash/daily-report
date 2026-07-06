@@ -2149,11 +2149,14 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             </details>
             ` : ''}
 
+            <datalist id="site-list-datalist"></datalist>
+            <datalist id="maker-datalist"></datalist>
+            <datalist id="unit-datalist"></datalist>
+
             <div class="form-group" style="margin-bottom: 1rem;">
-                <label for="form-pur-site">対象の工事番号・現場名</label>
-                <select id="form-pur-site" disabled style="background: rgba(255,255,255,0.05); color: var(--text-muted);">
-                    <!-- 現場DBから自動選択 -->
-                </select>
+                <label for="form-pur-site-input">対象の工事番号・現場名 <span style="color:var(--text-muted); font-size:0.75rem;">(文字を入力して検索・選択)</span></label>
+                <input type="text" id="form-pur-site-input" list="site-list-datalist" placeholder="工事番号や現場名を入力..." autocomplete="off">
+                <input type="hidden" id="form-pur-site" value="${pur ? pur.siteId : (siteId || '')}">
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
@@ -2185,7 +2188,7 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                 </div>
                 <div class="form-group">
                     <label for="form-pur-maker">メーカー名</label>
-                    <input type="text" id="form-pur-maker" value="${pur ? (pur.maker || '') : ''}" placeholder="積水化学">
+                    <input type="text" id="form-pur-maker" list="maker-datalist" value="${pur ? (pur.maker || '') : ''}" placeholder="積水化学">
                 </div>
             </div>
 
@@ -2196,7 +2199,7 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                 </div>
                 <div class="form-group">
                     <label for="form-pur-unit">単位 <span style="color:var(--color-danger);">*</span></label>
-                    <input type="text" id="form-pur-unit" required value="${pur ? pur.unit : '本'}" placeholder="本">
+                    <input type="text" id="form-pur-unit" list="unit-datalist" required value="${pur ? pur.unit : '本'}" placeholder="本">
                 </div>
                 <div class="form-group">
                     <label for="form-pur-uprice">仕入れ単価 <span style="color:var(--color-danger);">*</span></label>
@@ -2242,30 +2245,30 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
     const siteInput = document.getElementById('form-pur-site-input');
     const siteHidden = document.getElementById('form-pur-site');
 
-    // 現場のサジェストリスト作成
-    siteDatalist.innerHTML = sites.map(s => `<option value="[${s.code}] ${s.name}" data-id="${s.id}"></option>`).join('');
-
-    // 初期値のセット
-    if (pur && pur.siteId) {
-        const s = sites.find(x => x.id === pur.siteId);
-        if (s) siteInput.value = `[${s.code}] ${s.name}`;
-    } else if (siteId) {
-        const s = sites.find(x => x.id === siteId);
-        if (s) siteInput.value = `[${s.code}] ${s.name}`;
+    if (siteDatalist) {
+        siteDatalist.innerHTML = sites.map(s => `<option value="[${s.code}] ${s.name}" data-id="${s.id}"></option>`).join('');
     }
 
-    // 選択時に内部IDを隠しフィールドへ反映
-    siteInput.addEventListener('input', () => {
-        const val = siteInput.value;
-        const matchedOpt = Array.from(siteDatalist.options).find(opt => opt.value === val);
-        if (matchedOpt) {
-            siteHidden.value = matchedOpt.getAttribute('data-id');
-        } else {
-            siteHidden.value = ''; // 完全一致しない場合は空
+    if (siteInput) {
+        if (pur && pur.siteId) {
+            const s = sites.find(x => x.id === pur.siteId);
+            if (s) siteInput.value = `[${s.code}] ${s.name}`;
+        } else if (siteId) {
+            const s = sites.find(x => x.id === siteId);
+            if (s) siteInput.value = `[${s.code}] ${s.name}`;
         }
-    });
 
-    // メーカーと単位の過去履歴サジェスト構築
+        siteInput.addEventListener('input', () => {
+            const val = siteInput.value;
+            const matchedOpt = Array.from(siteDatalist.options).find(opt => opt.value === val);
+            if (matchedOpt) {
+                siteHidden.value = matchedOpt.getAttribute('data-id');
+            } else {
+                siteHidden.value = '';
+            }
+        });
+    }
+
     const allPurchases = window.PurchaseDB.getAll() || [];
     const uniqueMakers = new Set();
     const uniqueUnits = new Set(['本', '個', 'm', '式', '箱', '台']);
@@ -2275,10 +2278,11 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
         if (p.unit && p.unit.trim()) uniqueUnits.add(p.unit.trim());
     });
 
-    document.getElementById('maker-datalist').innerHTML = Array.from(uniqueMakers).sort().map(m => `<option value="${m}">`).join('');
-    document.getElementById('unit-datalist').innerHTML = Array.from(uniqueUnits).map(u => `<option value="${u}">`).join('');
+    const makerDl = document.getElementById('maker-datalist');
+    const unitDl = document.getElementById('unit-datalist');
+    if (makerDl) makerDl.innerHTML = Array.from(uniqueMakers).sort().map(m => `<option value="${m}">`).join('');
+    if (unitDl) unitDl.innerHTML = Array.from(uniqueUnits).map(u => `<option value="${u}">`).join('');
     // ===================================
-
 
     backdrop.classList.add('open');
     if (window.lucide) window.lucide.createIcons();
@@ -2317,13 +2321,11 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
 
     calculateLive();
 
-    // 電子PDF自動読み込み処理のバインド
     if (!isEdit) {
         const dropzone = document.getElementById('pdf-scan-dropzone');
         const fileInput = document.getElementById('pdf-scan-input');
         const statusContainer = document.getElementById('pdf-scan-status-container');
 
-        // ドラッグ＆ドロップイベント
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropzone.style.borderColor = 'var(--color-primary)';
@@ -2347,7 +2349,6 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             }
         });
 
-        // クリックでファイル選択
         dropzone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
@@ -2355,7 +2356,6 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             }
         });
 
-        // PDF解析のメイン処理 (OCR不使用・電子PDF専用)
         const processPdfFile = async (file) => {
             dropzone.style.pointerEvents = 'none';
             statusContainer.innerHTML = `
@@ -2386,7 +2386,6 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                     fullText += pageText + '\n';
                 }
 
-                // デバッグテキスト表示の更新
                 const debugDetails = document.getElementById('pdf-debug-details');
                 const debugTextarea = document.getElementById('pdf-debug-raw-text');
                 if (debugDetails && debugTextarea) {
@@ -2394,20 +2393,19 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                     debugDetails.style.display = 'block';
                 }
 
-                // ガード：もしテキスト文字数が極端に少ない場合は、スキャン画像PDFと判定して終了
                 if (fullText.replace(/\s+/g, '').length < 15) {
                     window.app.showToast('このPDFは「スキャン画像（写真）」形式のようです。テキスト選択可能な「電子PDF」のみ自動入力に対応しています。', 'error');
                     throw new Error('Image-based PDF not supported');
                 }
 
-                const extracted = parsePurchaseText(fullText); // 複数資材の配列
+                const extracted = parsePurchaseText(fullText);
 
                 if (extracted.length === 0) {
                     window.app.showToast('PDFから資材データ（数量×単価＝金額の行）を検出できませんでした。', 'warning');
                     return;
                 }
 
-                const defaultSiteId = siteId; // モーダルを開いた元の現場ID
+                const defaultSiteId = siteId;
                 const sites = window.SiteDB.getAll() || [];
 
                 let tbodyHtml = '';
@@ -2471,7 +2469,6 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
 
                 const tbody = document.getElementById('pdf-grid-tbody');
                 
-                // 行削除
                 tbody.querySelectorAll('.btn-delete-row').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const tr = e.target.closest('tr');
@@ -2480,7 +2477,6 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                     });
                 });
 
-                // 金額のリアルタイム計算
                 tbody.addEventListener('input', (e) => {
                     if (e.target.classList.contains('grid-qty') || e.target.classList.contains('grid-uprice')) {
                         const tr = e.target.closest('tr');
@@ -2502,12 +2498,10 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                     }
                 };
 
-                // キャンセル
                 document.getElementById('btn-pur-cancel').addEventListener('click', () => {
                     backdrop.classList.remove('open');
                 });
 
-                // 一括保存
                 document.getElementById('btn-pur-bulk-save').addEventListener('click', async () => {
                     const rows = tbody.querySelectorAll('tr');
                     let count = 0;
@@ -2567,7 +2561,6 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
     const closeModal = () => backdrop.classList.remove('open');
     document.getElementById('btn-pur-cancel').addEventListener('click', closeModal);
 
-    // データの保存処理本体
     const savePurchaseData = () => {
         const selectedSiteId = document.getElementById('form-pur-site').value;
         if (!selectedSiteId) {
@@ -2598,7 +2591,6 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
         return true;
     };
 
-    // 通常の登録（保存して閉じる）
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         if (savePurchaseData()) {
@@ -2607,35 +2599,27 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
         }
     });
 
-    // 連続して登録
     const btnContinue = document.getElementById('btn-pur-save-continue');
     if (btnContinue) {
         btnContinue.addEventListener('click', () => {
-            // HTML5バリデーションを手動チェック
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;
             }
             if (savePurchaseData()) {
-                // 品名、数量、単価、定価だけクリアする（他は保持）
                 document.getElementById('form-pur-item').value = '';
                 document.getElementById('form-pur-qty').value = '';
                 document.getElementById('form-pur-uprice').value = '';
                 document.getElementById('form-pur-lprice').value = '';
                 
-                // 再計算を走らせて合計金額を0に戻す
                 calculateLive();
-                
-                // 次のアイテムにフォーカス
                 document.getElementById('form-pur-item').focus();
                 
-                // リスト更新（裏側）
                 if (callback) callback();
             }
         });
     }
 }
-
 function openReportPreviewModal(reportId) {
     const report = window.ReportDB.getById(reportId);
     if (!report) return;
