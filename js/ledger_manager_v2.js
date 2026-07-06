@@ -2226,18 +2226,59 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                 </div>
             </div>
 
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="btn-pur-cancel">キャンセル</button>
-                <button type="submit" class="btn btn-primary">${isEdit ? '変更を保存' : '登録する'}</button>
+            <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-secondary" id="btn-pur-cancel">閉じる</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    ${!isEdit ? '<button type="button" class="btn btn-info" id="btn-pur-save-continue" style="background:var(--color-info); color:white;">連続して登録</button>' : ''}
+                    <button type="submit" class="btn btn-primary">${isEdit ? '変更を保存' : '登録して閉じる'}</button>
+                </div>
             </div>
         </form>
     `;
 
-    const siteSelect = document.getElementById('form-pur-site');
-    const sites = window.SiteDB.getAll();
-    siteSelect.innerHTML = sites.map(s => `
-        <option value="${s.id}" ${s.id === siteId ? 'selected' : ''}>[${s.code}] ${s.name}</option>
-    `).join('');
+    // ======= Datalist の構築 =======
+    const sites = window.SiteDB.getAll() || [];
+    const siteDatalist = document.getElementById('site-list-datalist');
+    const siteInput = document.getElementById('form-pur-site-input');
+    const siteHidden = document.getElementById('form-pur-site');
+
+    // 現場のサジェストリスト作成
+    siteDatalist.innerHTML = sites.map(s => `<option value="[${s.code}] ${s.name}" data-id="${s.id}"></option>`).join('');
+
+    // 初期値のセット
+    if (pur && pur.siteId) {
+        const s = sites.find(x => x.id === pur.siteId);
+        if (s) siteInput.value = `[${s.code}] ${s.name}`;
+    } else if (siteId) {
+        const s = sites.find(x => x.id === siteId);
+        if (s) siteInput.value = `[${s.code}] ${s.name}`;
+    }
+
+    // 選択時に内部IDを隠しフィールドへ反映
+    siteInput.addEventListener('input', () => {
+        const val = siteInput.value;
+        const matchedOpt = Array.from(siteDatalist.options).find(opt => opt.value === val);
+        if (matchedOpt) {
+            siteHidden.value = matchedOpt.getAttribute('data-id');
+        } else {
+            siteHidden.value = ''; // 完全一致しない場合は空
+        }
+    });
+
+    // メーカーと単位の過去履歴サジェスト構築
+    const allPurchases = window.PurchaseDB.getAll() || [];
+    const uniqueMakers = new Set();
+    const uniqueUnits = new Set(['本', '個', 'm', '式', '箱', '台']);
+    
+    allPurchases.forEach(p => {
+        if (p.maker && p.maker.trim()) uniqueMakers.add(p.maker.trim());
+        if (p.unit && p.unit.trim()) uniqueUnits.add(p.unit.trim());
+    });
+
+    document.getElementById('maker-datalist').innerHTML = Array.from(uniqueMakers).sort().map(m => `<option value="${m}">`).join('');
+    document.getElementById('unit-datalist').innerHTML = Array.from(uniqueUnits).map(u => `<option value="${u}">`).join('');
+    // ===================================
+
 
     backdrop.classList.add('open');
     if (window.lucide) window.lucide.createIcons();
@@ -2526,13 +2567,12 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
     const closeModal = () => backdrop.classList.remove('open');
     document.getElementById('btn-pur-cancel').addEventListener('click', closeModal);
 
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-
+    // データの保存処理本体
+    const savePurchaseData = () => {
         const selectedSiteId = document.getElementById('form-pur-site').value;
         if (!selectedSiteId) {
-            window.app.showToast('対象現場を選択してください', 'error');
-            return;
+            window.app.showToast('正しい対象現場をリストから選択してください', 'error');
+            return false;
         }
 
         const purchaseData = {
@@ -2555,10 +2595,45 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             window.PurchaseDB.add(purchaseData);
             window.app.showToast('仕入れデータを登録しました', 'success');
         }
+        return true;
+    };
 
-        closeModal();
-        if (callback) callback();
+    // 通常の登録（保存して閉じる）
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (savePurchaseData()) {
+            closeModal();
+            if (callback) callback();
+        }
     });
+
+    // 連続して登録
+    const btnContinue = document.getElementById('btn-pur-save-continue');
+    if (btnContinue) {
+        btnContinue.addEventListener('click', () => {
+            // HTML5バリデーションを手動チェック
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            if (savePurchaseData()) {
+                // 品名、数量、単価、定価だけクリアする（他は保持）
+                document.getElementById('form-pur-item').value = '';
+                document.getElementById('form-pur-qty').value = '';
+                document.getElementById('form-pur-uprice').value = '';
+                document.getElementById('form-pur-lprice').value = '';
+                
+                // 再計算を走らせて合計金額を0に戻す
+                calculateLive();
+                
+                // 次のアイテムにフォーカス
+                document.getElementById('form-pur-item').focus();
+                
+                // リスト更新（裏側）
+                if (callback) callback();
+            }
+        });
+    }
 }
 
 function openReportPreviewModal(reportId) {
