@@ -330,9 +330,15 @@ function renderBatchInputForm(container) {
                 <i data-lucide="trash-2" style="width: 1.1rem; height: 1.1rem;"></i>
             </button>
             
-            <div style="font-size: 0.85rem; font-weight: bold; color: var(--color-success); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.25rem;">
-                <i data-lucide="building"></i>
-                <span>訪問した現場 <span class="row-index-num"></span></span>
+            <div style="font-size: 0.85rem; font-weight: bold; color: var(--color-success); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <i data-lucide="building"></i>
+                    <span>訪問した現場 <span class="row-index-num"></span></span>
+                </div>
+                <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; color:var(--text-main); font-weight:normal;">
+                    <input type="checkbox" class="chk-row-office" style="width:1.1rem; height:1.1rem;">
+                    <span style="font-size: 0.85rem;">事務仕事</span>
+                </label>
             </div>
             
             <!-- 工事番号 ＆ 受注先 (1行目: スマホ2列レイアウト) -->
@@ -395,10 +401,21 @@ function renderBatchInputForm(container) {
                 <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
             </div>
             
-            <!-- 同行者 -->
-            <div class="form-group" style="margin-bottom: 0;">
-                <label style="font-size: 0.85rem; font-weight: 600;">同行者</label>
-                <input type="text" class="txt-row-companions" placeholder="例: 山田 太郎、鈴木 一郎" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px;">
+            <div style="background: rgba(59,130,246,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0;">
+                <div style="font-size: 0.75rem; color: var(--color-danger); font-weight: bold; margin-bottom: 0.5rem; line-height: 1.4;">
+                    ※ 同行者と協力会社同行者が重複しないようご注意ください。<br>
+                    ※ 誰が「協力会社」として入力されるべきか事前にご確認ください。
+                </div>
+                <!-- 同行者 -->
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.85rem; font-weight: 600;">同行者 (一般)</label>
+                    <input type="text" class="txt-row-companions" placeholder="例: 山田 太郎、鈴木 一郎" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px;">
+                </div>
+                <!-- 協力会社同行者 -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.85rem; font-weight: 600;">協力会社同行者</label>
+                    <input type="text" class="txt-row-partner-companions" placeholder="例: 〇〇設備、△△工業" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px;">
+                </div>
             </div>
         `;
         
@@ -601,6 +618,8 @@ function renderBatchInputForm(container) {
             const endTime = card.querySelector('.time-row-end').value;
             const workContent = card.querySelector('.txt-row-content').value.trim();
             const companions = card.querySelector('.txt-row-companions').value.trim();
+            const partnerCompanions = card.querySelector('.txt-row-partner-companions').value.trim();
+            const isOfficeWork = card.querySelector('.chk-row-office').checked;
             
             const isDirectGo = card.querySelector('.chk-row-go').checked;
             const departureTime = card.querySelector('.time-row-dep').value;
@@ -680,6 +699,8 @@ function renderBatchInputForm(container) {
                 isDirectBack,
                 workContent,
                 companions,
+                partnerCompanions,
+                isOfficeWork, // 事務仕事フラグを保存
                 client, // 個別に入力された受注先も保存
                 siteName: name, // スマホ側で手入力された現場名称を保存
                 siteCode: code || '' // スマホ側で手入力された工事番号を保存
