@@ -98,6 +98,7 @@ function refreshDashboardChart() {}
 function formatDateMD(dateStr) { return dateStr; }
 
 // 仕入れ一覧表の描画
+// 仕入れ一覧表の描画
 function renderPurchaseListTable(container) {
     container.innerHTML = `
         <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
@@ -116,7 +117,7 @@ function renderPurchaseListTable(container) {
             <div style="display: flex; gap: 0.5rem;">
                 <button class="btn btn-secondary" id="btn-list-purchase-print">
                     <i data-lucide="printer"></i>
-                    <span>印刷する</span>
+                    <span>一覧表の印刷</span>
                 </button>
                 <button class="btn btn-primary" id="btn-list-new-purchase">
                     <i data-lucide="plus"></i>
@@ -125,49 +126,18 @@ function renderPurchaseListTable(container) {
             </div>
         </div>
 
-        <div class="card" style="padding: 0; overflow: hidden; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-light);">
-            <!-- 印刷時のヘッダー表示用 -->
-            <div class="print-only" style="padding: 1.5rem 1rem 0.5rem 1rem; border-bottom: 2px solid #333; margin-bottom: 1.5rem;">
-                <h2 style="font-size: 1.6rem; font-weight: bold; text-align: center; color: #000; letter-spacing: 0.1em; margin-bottom: 0.5rem;">仕 入 れ 一 覧 表</h2>
-                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #333;">
-                    <span id="print-date">出力日: 2026/06/30</span>
-                </div>
-            </div>
-            
-            <div class="table-responsive">
-                <table class="data-table print-fit-table" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr>
-                            <th style="width: 100px; text-align: left; padding: 0.75rem;">日付</th>
-                            <th style="width: 100px; text-align: left; padding: 0.75rem;">工事番号</th>
-                            <th style="text-align: left; padding: 0.75rem;">現場名称</th>
-                            <th style="width: 90px; text-align: left; padding: 0.75rem;">発注者</th>
-                            <th style="width: 110px; text-align: left; padding: 0.75rem;">仕入れ先</th>
-                            <th style="text-align: left; padding: 0.75rem;">仕入れ材料 (品名・型式)</th>
-                            <th style="text-align: right; width: 70px; padding: 0.75rem;">数量</th>
-                            <th style="text-align: right; width: 90px; padding: 0.75rem;">単価</th>
-                            <th style="text-align: right; width: 110px; padding: 0.75rem; font-weight: 600;">合計金額</th>
-                            <th style="text-align: right; width: 90px; padding: 0.75rem;">定価</th>
-                            <th style="text-align: right; width: 60px; padding: 0.75rem;">掛率</th>
-                            <th style="width: 80px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="purchase-list-table-body">
-                        <!-- 動的にデータが挿入されます -->
-                    </tbody>
-                    <tfoot>
-                        <tr style="background: var(--bg-card); font-weight: bold; border-top: 2px solid var(--border-light);">
-                            <td colspan="8" style="text-align: right; padding: 0.75rem; color: var(--text-muted);">仕入れ金額 総合計:</td>
-                            <td id="purchase-total-price" style="text-align: right; font-family: 'Inter', sans-serif; font-weight: 700; color: var(--color-primary); padding: 0.75rem; white-space: nowrap;">¥0</td>
-                            <td colspan="3" class="no-print"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-            <div id="purchase-list-more-container" class="no-print" style="text-align: center; padding: 1rem; border-top: 1px solid var(--border-light); display: none;">
-                <!-- もっと見るボタンが動的に挿入されます -->
-            </div>
+        <div style="background: rgba(59, 130, 246, 0.08); padding: 1rem; border-radius: 8px; font-size: 0.9rem; margin-bottom: 1.5rem; border: 1px solid rgba(59, 130, 246, 0.2); display: flex; justify-content: space-between; align-items: center;" class="no-print">
+            <span style="font-weight: bold; color: var(--text-main);">総仕入れ金額 (全事業部合計):</span>
+            <span id="purchase-grand-total" style="font-family: 'Inter', sans-serif; font-size: 1.25rem; font-weight: bold; color: var(--color-primary);">¥0</span>
         </div>
+
+        <!-- 画面表示用の事業部アコーディオンコンテナ -->
+        <div id="purchase-departments-container" class="no-print" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem;">
+            <!-- ここに事業部ごとのアコーディオンが動的に生成されます -->
+        </div>
+
+        <!-- 印刷用エリア -->
+        <div class="print-only" id="purchase-list-print-area" style="width: 100%;"></div>
     `;
 
     const searchInput = document.getElementById('list-purchase-search');
@@ -175,17 +145,9 @@ function renderPurchaseListTable(container) {
     const endDateInput = document.getElementById('list-purchase-end-date');
     const newPurchaseBtn = document.getElementById('btn-list-new-purchase');
     const printBtn = document.getElementById('btn-list-purchase-print');
-    window.currentPurchaseLimit = 150;
     
-    // 印刷日の自動適用
-    const printDateEl = document.getElementById('print-date');
-    if (printDateEl) {
-        const today = new Date();
-        printDateEl.textContent = `出力日: ${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`;
-    }
-
     const updateTable = () => {
-        window.currentPurchaseLimit = 150;
+        window.currentDeptLimits = {}; // 各事業部の表示件数をリセット
         const filter = {
             search: searchInput.value,
             startDate: startDateInput.value,
@@ -202,50 +164,40 @@ function renderPurchaseListTable(container) {
         openPurchaseModal(null, null, updateTable);
     });
 
-    printBtn.addEventListener('click', () => {
-        const oldLimit = window.currentPurchaseLimit;
-        window.currentPurchaseLimit = Infinity;
-        refreshPurchaseListTable({
-            search: searchInput.value,
-            startDate: startDateInput.value,
-            endDate: endDateInput.value
+    if (printBtn) {
+        printBtn.addEventListener('click', () => {
+            const printArea = document.getElementById('purchase-list-print-area');
+            if (printArea) {
+                printArea.innerHTML = generatePrintPurchaseTableHtml();
+            }
+            setTimeout(() => {
+                window.print();
+                if (printArea) printArea.innerHTML = '';
+            }, 300);
         });
-        
-        setTimeout(() => {
-            window.print();
-            
-            window.currentPurchaseLimit = oldLimit;
-            refreshPurchaseListTable({
-                search: searchInput.value,
-                startDate: startDateInput.value,
-                endDate: endDateInput.value
-            });
-        }, 300);
-    });
+    }
 
     updateTable();
     if (window.lucide) window.lucide.createIcons();
 }
 
-// 仕入れ一覧テーブルの更新処理
-function refreshPurchaseListTable(filter) {
-    const tbody = document.getElementById('purchase-list-table-body');
-    const moreContainer = document.getElementById('purchase-list-more-container');
-    if (!tbody) return;
+function generatePrintPurchaseTableHtml() {
+    const searchInput = document.getElementById('list-purchase-search');
+    const startDateInput = document.getElementById('list-purchase-start-date');
+    const endDateInput = document.getElementById('list-purchase-end-date');
+
+    const filter = {
+        search: searchInput ? searchInput.value : '',
+        startDate: startDateInput ? startDateInput.value : '',
+        endDate: endDateInput ? endDateInput.value : ''
+    };
 
     let purchases = window.PurchaseDB.getAll() || [];
     const sites = window.SiteDB.getAll() || [];
-    
-    // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
 
-    // フィルターの適用
-    if (filter.startDate) {
-        purchases = purchases.filter(p => p.date >= filter.startDate);
-    }
-    if (filter.endDate) {
-        purchases = purchases.filter(p => p.date <= filter.endDate);
-    }
+    if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
+    if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
     if (filter.search) {
         const query = filter.search.toLowerCase();
         purchases = purchases.filter(p => {
@@ -262,106 +214,312 @@ function refreshPurchaseListTable(filter) {
         });
     }
 
-    // 仕入れ合計金額の計算 (これは制限前の全件合計)
-    let totalPurchaseSum = 0;
-    purchases.forEach(pur => {
-        const qty = pur.quantity || 0;
-        const price = pur.unitPrice || 0;
-        totalPurchaseSum += qty * price;
-    });
-
-    const totalPriceTd = document.getElementById('purchase-total-price');
-    if (totalPriceTd) {
-        totalPriceTd.textContent = `¥${Math.round(totalPurchaseSum).toLocaleString()}`;
+    if (purchases.length === 0) {
+        return '<p style="text-align:center; padding:2rem; color:#000; font-weight:bold;">表示対象の仕入れデータがありません。</p>';
     }
 
-    if (purchases.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="12" style="text-align: center; color: var(--text-muted); padding: 3rem 0;">
-                    仕入れデータが登録されていません。
-                </td>
-            </tr>
+    // 事業部振り分け
+    const getDeptKey = (code) => {
+        if (!code) return 'OTHER';
+        const prefix = code.slice(0, 2).toUpperCase();
+        if (['QK', 'QM', 'QT', 'QS', 'QY'].includes(prefix)) return prefix;
+        return 'OTHER';
+    };
+
+    const DEPT_INFO = {
+        'QK': { name: '仮設事業部', color: '#3b82f6' },
+        'QM': { name: '施設住宅事業部', color: '#10b981' },
+        'QT': { name: '設備改修事業部', color: '#f59e0b' },
+        'QS': { name: '公共事業部', color: '#0ea5e9' },
+        'QY': { name: '本部', color: '#8b5cf6' },
+        'OTHER': { name: 'その他・不明現場', color: '#6b7280' }
+    };
+
+    const deptGroups = { 'QK': [], 'QM': [], 'QT': [], 'QS': [], 'QY': [], 'OTHER': [] };
+    
+    let grandTotal = 0;
+    purchases.forEach(p => {
+        grandTotal += (p.quantity || 0) * (p.unitPrice || 0);
+        const site = siteMap.get(p.siteId);
+        const key = site ? getDeptKey(site.code) : 'OTHER';
+        deptGroups[key].push(p);
+    });
+
+    let html = `
+        <div style="padding: 1.5rem 1rem 0.5rem 1rem; border-bottom: 2px solid #333; margin-bottom: 1.5rem;">
+            <h2 style="font-size: 1.6rem; font-weight: bold; text-align: center; color: #000; letter-spacing: 0.1em; margin-bottom: 0.5rem;">仕 入 れ 一 覧 表</h2>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #333;">
+                <span>出力日: ${new Date().toLocaleDateString('ja-JP')}</span>
+                <span>総合計: ¥${Math.round(grandTotal).toLocaleString()}</span>
+            </div>
+        </div>
+    `;
+
+    Object.keys(DEPT_INFO).forEach(key => {
+        const list = deptGroups[key];
+        if (list.length === 0) return;
+        
+        list.sort((a, b) => b.date.localeCompare(a.date));
+        
+        let deptTotal = 0;
+        list.forEach(p => deptTotal += (p.quantity || 0) * (p.unitPrice || 0));
+
+        html += `
+            <div style="margin-bottom: 2rem;">
+                <h3 style="font-size: 1.1rem; color: #000; margin-bottom: 0.5rem; border-left: 4px solid ${DEPT_INFO[key].color}; padding-left: 0.5rem;">${DEPT_INFO[key].name} (${list.length}件 / 合計 ¥${Math.round(deptTotal).toLocaleString()})</h3>
+                <table class="data-table print-fit-table" style="width: 100%; border-collapse: collapse; border: 1px solid #333; color: #000; font-size: 0.8rem;">
+                    <thead>
+                        <tr style="background: #e5e7eb; border-bottom: 2px solid #333;">
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 75px;">日付</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 85px;">工事番号</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left;">現場名称</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 60px;">発注者</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left;">仕入れ先</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left;">品名・型式</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 45px;">数量</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 65px;">単価</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 80px;">金額</th>
+                        </tr>
+                    </thead>
+                    <tbody>
         `;
-        if (moreContainer) moreContainer.style.display = 'none';
+
+        html += list.map(pur => {
+            const site = siteMap.get(pur.siteId);
+            const total = (pur.quantity || 0) * (pur.unitPrice || 0);
+            return `
+                <tr style="border-bottom: 1px solid #333;">
+                    <td style="border: 1px solid #333; padding: 0.4rem;">${pur.date.replace(/-/g, '/')}</td>
+                    <td style="border: 1px solid #333; padding: 0.4rem;">${site ? site.code : '-'}</td>
+                    <td style="border: 1px solid #333; padding: 0.4rem;"><strong>${site ? site.name : '不明'}</strong></td>
+                    <td style="border: 1px solid #333; padding: 0.4rem;">${pur.orderedBy || '-'}</td>
+                    <td style="border: 1px solid #333; padding: 0.4rem;">${pur.supplier || '-'}</td>
+                    <td style="border: 1px solid #333; padding: 0.4rem;">${pur.itemName}</td>
+                    <td style="border: 1px solid #333; padding: 0.4rem; text-align: right;">${pur.quantity || 0}</td>
+                    <td style="border: 1px solid #333; padding: 0.4rem; text-align: right;">¥${Math.round(pur.unitPrice).toLocaleString()}</td>
+                    <td style="border: 1px solid #333; padding: 0.4rem; text-align: right; font-weight: bold;">¥${Math.round(total).toLocaleString()}</td>
+                </tr>
+            `;
+        }).join('');
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function refreshPurchaseListTable(filter) {
+    const container = document.getElementById('purchase-departments-container');
+    if (!container) return;
+
+    let purchases = window.PurchaseDB.getAll() || [];
+    const sites = window.SiteDB.getAll() || [];
+    const siteMap = new Map(sites.map(s => [s.id, s]));
+
+    if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
+    if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
+    if (filter.search) {
+        const query = filter.search.toLowerCase();
+        purchases = purchases.filter(p => {
+            const site = siteMap.get(p.siteId);
+            const siteCode = site ? site.code.toLowerCase() : '';
+            const siteName = site ? site.name.toLowerCase() : '';
+            return (
+                p.itemName.toLowerCase().includes(query) ||
+                (p.supplier && p.supplier.toLowerCase().includes(query)) ||
+                (p.orderedBy && p.orderedBy.toLowerCase().includes(query)) ||
+                siteCode.includes(query) ||
+                siteName.includes(query)
+            );
+        });
+    }
+
+    let grandTotal = 0;
+    purchases.forEach(p => grandTotal += (p.quantity || 0) * (p.unitPrice || 0));
+    const grandTotalEl = document.getElementById('purchase-grand-total');
+    if (grandTotalEl) grandTotalEl.textContent = `¥${Math.round(grandTotal).toLocaleString()}`;
+
+    if (purchases.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); padding: 3rem 0; border: 1px dashed var(--border-light); border-radius: 12px;">
+                指定された条件に一致する仕入れデータがありません。
+            </div>
+        `;
         return;
     }
 
-    // 日付の降順でソート
-    purchases.sort((a, b) => b.date.localeCompare(a.date));
+    const getDeptKey = (code) => {
+        if (!code) return 'OTHER';
+        const prefix = code.slice(0, 2).toUpperCase();
+        if (['QK', 'QM', 'QT', 'QS', 'QY'].includes(prefix)) return prefix;
+        return 'OTHER';
+    };
 
-    // 表示件数制限の適用
-    const totalCount = purchases.length;
-    const limit = window.currentPurchaseLimit || 150;
-    const displayedPurchases = purchases.slice(0, limit);
+    const DEPT_INFO = {
+        'QK': { name: '仮設事業部', color: 'var(--color-primary)' },
+        'QM': { name: '施設住宅事業部', color: 'var(--color-success)' },
+        'QT': { name: '設備改修事業部', color: 'var(--color-warning)' },
+        'QS': { name: '公共事業部', color: 'var(--color-info)' },
+        'QY': { name: '本部', color: '#8b5cf6' },
+        'OTHER': { name: 'その他・不明現場', color: '#6b7280' }
+    };
 
-    tbody.innerHTML = displayedPurchases.map(pur => {
-        const site = siteMap.get(pur.siteId);
-        const siteCode = site ? site.code : '-';
-        const siteName = site ? site.name : '不明な現場';
-        const formattedDate = pur.date ? pur.date.replace(/-/g, '/') : '-';
-        const displayMultiplier = pur.multiplier ? (pur.multiplier * 100).toFixed(0) + '%' : '-';
-        const total = pur.quantity * pur.unitPrice;
+    const deptGroups = { 'QK': [], 'QM': [], 'QT': [], 'QS': [], 'QY': [], 'OTHER': [] };
+    
+    purchases.forEach(p => {
+        const site = siteMap.get(p.siteId);
+        const key = site ? getDeptKey(site.code) : 'OTHER';
+        deptGroups[key].push(p);
+    });
 
-        return `
-            <tr style="border-bottom: 1px solid var(--border-light);">
-                <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
-                <td style="font-family: 'Inter', sans-serif; font-weight: bold; padding: 0.75rem;">${siteCode}</td>
-                <td style="font-size: 0.85rem; padding: 0.75rem;"><strong>${siteName}</strong></td>
-                <td style="padding: 0.75rem;">${pur.orderedBy || '-'}</td>
-                <td style="padding: 0.75rem;">${pur.supplier || '-'}</td>
-                <td style="font-size: 0.85rem; padding: 0.75rem;">${pur.itemName}</td>
-                <td style="font-family: 'Inter', sans-serif; text-align: right; padding: 0.75rem;">${pur.quantity || 0}</td>
-                <td style="font-family: 'Inter', sans-serif; text-align: right; padding: 0.75rem;">¥${Math.round(pur.unitPrice).toLocaleString()}</td>
-                <td style="font-family: 'Inter', sans-serif; text-align: right; padding: 0.75rem; font-weight: 600; color: var(--color-primary);">¥${Math.round(total).toLocaleString()}</td>
-                <td style="font-family: 'Inter', sans-serif; text-align: right; padding: 0.75rem;">${pur.listPrice ? '¥' + Math.round(pur.listPrice).toLocaleString() : '-'}</td>
-                <td style="font-family: 'Inter', sans-serif; text-align: right; padding: 0.75rem;">${displayMultiplier}</td>
-                <td class="no-print" style="text-align: center; padding: 0.75rem;">
-                    <div style="display: flex; gap: 0.35rem; justify-content: center;">
-                        <button class="btn btn-secondary btn-icon-only btn-pur-edit" data-id="${pur.id}" data-site-id="${pur.siteId}" title="編集" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                            <i data-lucide="edit-3" style="width: 0.85rem; height: 0.85rem;"></i>
-                        </button>
-                        <button class="btn btn-danger btn-icon-only btn-pur-delete" data-id="${pur.id}" data-item="${pur.itemName}" title="削除" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                            <i data-lucide="trash-2" style="width: 0.85rem; height: 0.85rem;"></i>
+    let html = '';
+    
+    Object.keys(DEPT_INFO).forEach(key => {
+        const list = deptGroups[key];
+        const info = DEPT_INFO[key];
+        
+        if ((filter.search || filter.startDate || filter.endDate) && list.length === 0) return;
+
+        list.sort((a, b) => b.date.localeCompare(a.date));
+        const count = list.length;
+        
+        let deptTotal = 0;
+        list.forEach(p => deptTotal += (p.quantity || 0) * (p.unitPrice || 0));
+
+        const isDefaultOpen = !!(filter.search || filter.startDate || filter.endDate);
+        const displayStyle = isDefaultOpen ? 'block' : 'none';
+        const rotateStyle = isDefaultOpen ? 'transform: rotate(180deg);' : '';
+
+        if (!window.currentDeptLimits) window.currentDeptLimits = {};
+        if (!window.currentDeptLimits[`pur_${key}`]) window.currentDeptLimits[`pur_${key}`] = 100;
+        
+        const limit = window.currentDeptLimits[`pur_${key}`];
+        const displayed = list.slice(0, limit);
+
+        html += `
+            <div class="dept-accordion" data-dept="${key}" style="border: 1px solid var(--border-light); border-radius: 12px; overflow: hidden; background: var(--bg-card); box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div class="dept-header pur-dept-header" style="padding: 1rem 1.25rem; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="display: inline-block; width: 4px; height: 1.35rem; background: ${info.color}; border-radius: 4px;"></span>
+                        <strong style="font-size: 1rem; color: var(--text-main);">${info.name} (${key})</strong>
+                        <span style="background: rgba(255,255,255,0.06); padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-family: 'Inter'; color: var(--text-muted); font-weight: 600;">${count} 件 / 合計 ¥${Math.round(deptTotal).toLocaleString()}</span>
+                    </div>
+                    <i data-lucide="chevron-down" class="accordion-icon" style="width: 1.2rem; height: 1.2rem; color: var(--text-muted); transition: transform 0.2s; ${rotateStyle}"></i>
+                </div>
+                <div class="dept-content pur-dept-content" style="display: ${displayStyle}; border-top: 1px solid var(--border-light);">
+                    <div class="table-responsive" style="margin: 0;">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse; margin: 0;">
+                            <thead>
+                                <tr style="background: rgba(255,255,255,0.005);">
+                                    <th style="width: 90px; text-align: left; padding: 0.75rem;">日付</th>
+                                    <th style="width: 90px; text-align: left; padding: 0.75rem;">工事番号</th>
+                                    <th style="text-align: left; padding: 0.75rem;">現場名称</th>
+                                    <th style="width: 70px; text-align: left; padding: 0.75rem;">発注者</th>
+                                    <th style="width: 110px; text-align: left; padding: 0.75rem;">仕入れ先</th>
+                                    <th style="text-align: left; padding: 0.75rem;">品名・型式</th>
+                                    <th style="text-align: right; width: 60px; padding: 0.75rem;">数量</th>
+                                    <th style="text-align: right; width: 80px; padding: 0.75rem;">単価</th>
+                                    <th style="text-align: right; width: 90px; padding: 0.75rem; font-weight: 600;">金額</th>
+                                    <th style="width: 70px; text-align: center; padding: 0.75rem;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+
+        html += displayed.map(pur => {
+            const site = siteMap.get(pur.siteId);
+            const total = (pur.quantity || 0) * (pur.unitPrice || 0);
+            return `
+                <tr style="border-bottom: 1px solid var(--border-light);">
+                    <td style="font-family: 'Inter', sans-serif; font-size: 0.8rem; padding: 0.6rem 0.75rem;">${pur.date.replace(/-/g, '/')}</td>
+                    <td style="font-family: 'Inter', sans-serif; font-weight: bold; font-size: 0.8rem; padding: 0.6rem 0.75rem;">${site ? site.code : '-'}</td>
+                    <td style="font-size: 0.8rem; padding: 0.6rem 0.75rem;"><strong>${site ? site.name : '不明な現場'}</strong></td>
+                    <td style="font-size: 0.8rem; padding: 0.6rem 0.75rem;">${pur.orderedBy || '-'}</td>
+                    <td style="font-size: 0.8rem; padding: 0.6rem 0.75rem;">${pur.supplier || '-'}</td>
+                    <td style="font-size: 0.8rem; padding: 0.6rem 0.75rem;">${pur.itemName}</td>
+                    <td style="font-family: 'Inter', sans-serif; font-size: 0.8rem; text-align: right; padding: 0.6rem 0.75rem;">${pur.quantity || 0}</td>
+                    <td style="font-family: 'Inter', sans-serif; font-size: 0.8rem; text-align: right; padding: 0.6rem 0.75rem;">¥${Math.round(pur.unitPrice).toLocaleString()}</td>
+                    <td style="font-family: 'Inter', sans-serif; font-size: 0.8rem; text-align: right; padding: 0.6rem 0.75rem; font-weight: 600; color: var(--color-primary);">¥${Math.round(total).toLocaleString()}</td>
+                    <td style="text-align: center; padding: 0.6rem 0.75rem;">
+                        <div style="display: flex; gap: 0.35rem; justify-content: center;">
+                            <button class="btn btn-secondary btn-icon-only btn-pur-edit" data-id="${pur.id}" data-site-id="${pur.siteId}" title="編集" style="width: 1.6rem; height: 1.6rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
+                                <i data-lucide="edit-3" style="width: 0.8rem; height: 0.8rem;"></i>
+                            </button>
+                            <button class="btn btn-danger btn-icon-only btn-pur-delete" data-id="${pur.id}" data-item="${pur.itemName}" title="削除" style="width: 1.6rem; height: 1.6rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
+                                <i data-lucide="trash-2" style="width: 0.8rem; height: 0.8rem;"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        html += `
+                            </tbody>
+                        </table>
+                    </div>
+        `;
+
+        if (count > limit) {
+            const remain = count - limit;
+            html += `
+                    <div style="text-align: center; padding: 0.75rem; border-top: 1px solid var(--border-light); background: rgba(255,255,255,0.01);">
+                        <button class="btn btn-secondary btn-pur-load-more" data-dept="${key}" style="font-size: 0.8rem; padding: 0.4rem 1.5rem;">
+                            さらに ${Math.min(remain, 100)} 件を表示 (残り ${remain} 件)
                         </button>
                     </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-
-    // 「もっと見る」ボタンの表示制御
-    if (moreContainer) {
-        if (totalCount > limit) {
-            const remain = totalCount - limit;
-            moreContainer.innerHTML = `
-                <button class="btn btn-secondary" id="btn-purchase-load-more" style="padding: 0.5rem 2rem; font-size: 0.85rem; border-radius: 8px;">
-                    さらに ${Math.min(remain, 150)} 件を表示する (残り ${remain} 件 / 全 ${totalCount} 件)
-                </button>
             `;
-            moreContainer.style.display = 'block';
-
-            document.getElementById('btn-purchase-load-more').addEventListener('click', () => {
-                window.currentPurchaseLimit += 150;
-                refreshPurchaseListTable(filter);
-            });
-        } else {
-            moreContainer.style.display = 'none';
         }
-    }
 
-    // 編集ボタンのイベント紐付け
-    tbody.querySelectorAll('.btn-pur-edit').forEach(btn => {
-        btn.addEventListener('click', () => {
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    // アコーディオン開閉イベント
+    container.querySelectorAll('.pur-dept-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('.accordion-icon');
+            if (content.style.display === 'none' || !content.style.display) {
+                content.style.display = 'block';
+                if (icon) icon.style.transform = 'rotate(180deg)';
+            } else {
+                content.style.display = 'none';
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            }
+        });
+    });
+
+    // Load More イベント
+    container.querySelectorAll('.btn-pur-load-more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const key = btn.getAttribute('data-dept');
+            window.currentDeptLimits[`pur_${key}`] += 100;
+            refreshPurchaseListTable(filter);
+        });
+    });
+
+    // 編集・削除イベント
+    container.querySelectorAll('.btn-pur-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const id = btn.getAttribute('data-id');
             const siteId = btn.getAttribute('data-site-id');
             openPurchaseModal(siteId, id, () => refreshPurchaseListTable(filter));
         });
     });
 
-    // 削除ボタンのイベント紐付け
-    tbody.querySelectorAll('.btn-pur-delete').forEach(btn => {
-        btn.addEventListener('click', () => {
+    container.querySelectorAll('.btn-pur-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const id = btn.getAttribute('data-id');
             const itemName = btn.getAttribute('data-item');
             if (confirm(`仕入れ明細「${itemName}」を削除してもよろしいですか？`)) {
@@ -376,7 +534,6 @@ function refreshPurchaseListTable(filter) {
         window.lucide.createIcons();
     }
 }
-
 function renderSiteListTable(container) {
     container.innerHTML = `
         <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
