@@ -481,9 +481,12 @@ function refreshPurchaseListTable(filter) {
             if (p.matched) deptMatched += t;
         });
 
-        const isDefaultOpen = !!(filter.search || filter.startDate || filter.endDate);
-        const displayStyle = isDefaultOpen ? 'block' : 'none';
-        const rotateStyle = isDefaultOpen ? 'transform: rotate(180deg);' : '';
+        if (!window.purAccordionStates) window.purAccordionStates = {};
+        const isOpen = window.purAccordionStates[key] !== undefined 
+            ? window.purAccordionStates[key] 
+            : !!(filter.search || filter.startDate || filter.endDate);
+        const displayStyle = isOpen ? 'block' : 'none';
+        const rotateStyle = isOpen ? 'transform: rotate(180deg);' : '';
 
         if (!window.purDeptLimits) window.purDeptLimits = {};
         if (!window.purDeptLimits[key]) window.purDeptLimits[key] = 50;
@@ -593,16 +596,17 @@ function refreshPurchaseListTable(filter) {
     container.querySelectorAll('.pur-dept-header').forEach(header => {
         header.addEventListener('click', () => {
             const parent = header.closest('.dept-accordion');
+            const key = parent.getAttribute('data-dept');
             const content = parent.querySelector('.dept-content');
             const icon = header.querySelector('.accordion-icon');
             const isVisible = content.style.display === 'block';
-            if (isVisible) {
-                content.style.display = 'none';
-                icon.style.transform = '';
-            } else {
-                content.style.display = 'block';
-                icon.style.transform = 'rotate(180deg)';
-            }
+            
+            const nextVisible = !isVisible;
+            content.style.display = nextVisible ? 'block' : 'none';
+            icon.style.transform = nextVisible ? 'rotate(180deg)' : '';
+            
+            if (!window.purAccordionStates) window.purAccordionStates = {};
+            window.purAccordionStates[key] = nextVisible;
         });
     });
 
