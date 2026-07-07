@@ -370,16 +370,19 @@ const SiteDB = {
         let sites = this.getAll();
         const filtered = sites.filter(s => s.id !== id);
         
-        // 関連する材料仕入れデータも削除
-        let purchases = PurchaseDB.getAll();
-        purchases = purchases.filter(p => p.siteId !== id);
+        // 関連する材料仕入れデータも削除 (PurchaseDBオブジェクトが存在する場合のみ実行)
+        let purchases = null;
+        if (typeof PurchaseDB !== 'undefined') {
+            purchases = PurchaseDB.getAll();
+            purchases = purchases.filter(p => p.siteId !== id);
+        }
 
         if (isLocalServerEnabled()) {
             saveToServerSync('sites', filtered);
-            saveToServerSync('purchases', purchases);
+            if (purchases) saveToServerSync('purchases', purchases);
         } else {
             localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(filtered));
-            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+            if (purchases) localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         }
 
         return true;
