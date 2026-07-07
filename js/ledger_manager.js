@@ -817,7 +817,6 @@ function generatePrintTableHtml() {
             maxBilledDate = s.billedDate || null;
             const hasBilled = s.billedDate && s.billedDate.trim().length > 0;
             const hasPaid = s.paidDate && s.paidDate.trim().length > 0;
-            if (s.status === 'completed' && !hasBilled && !hasPaid) return false;
         }
 
         // 1. 現場の「請求した期」を特定する（最大請求日の期、無ければ現場作成日等）
@@ -955,7 +954,6 @@ function refreshSiteTable(filter = {}) {
             maxBilledDate = s.billedDate || null;
             const hasBilled = s.billedDate && s.billedDate.trim().length > 0;
             const hasPaid = s.paidDate && s.paidDate.trim().length > 0;
-            if (s.status === 'completed' && !hasBilled && !hasPaid) return false;
         }
 
         // 1. 現場の「請求した期」を特定する（最大請求日の期、無ければ現場作成日等）
