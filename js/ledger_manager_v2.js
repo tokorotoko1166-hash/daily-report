@@ -3509,9 +3509,57 @@ function openSiteModal(siteId = null, callback = null) {
         }
     }
 }
+// パスワードロック画面（社内LANセキュリティ保護）
+function checkAdminPasswordLock() {
+    const adminPassword = localStorage.getItem('admin_password');
+    if (!adminPassword) return; // 未設定ならロックしない
+
+    const isAuthenticated = sessionStorage.getItem('is_admin_authenticated') === 'true';
+    if (isAuthenticated) return; // 認証済みなら何もしない
+
+    const lockDiv = document.createElement('div');
+    lockDiv.id = 'admin-lock-overlay';
+    lockDiv.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--bg-main, #1a1b26); color:var(--text-main, #a9b1d6); z-index:999999; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;';
+    lockDiv.innerHTML = `
+        <div style="background:var(--bg-card, #24283b); border:1px solid var(--border-light, #414868); padding:2.5rem 2rem; border-radius:12px; width:90%; max-width:400px; box-shadow:0 10px 40px rgba(0,0,0,0.4); text-align:center; box-sizing:border-box;">
+            <div style="font-size:3rem; margin-bottom:1rem;">🔒</div>
+            <h2 style="font-size:1.25rem; font-weight:bold; margin:0 0 0.5rem 0; color:var(--color-primary, #7aa2f7);">システムロック解除</h2>
+            <p style="font-size:0.8rem; color:var(--text-muted, #565f89); margin:0 0 1.5rem 0; line-height:1.4;">
+                管理画面を開くには管理者パスワードを入力してください。<br>
+                (セキュリティ保護)
+            </p>
+            <form id="admin-lock-form" style="display:flex; flex-direction:column; gap:0.85rem; margin:0; padding:0;">
+                <input type="password" id="admin-lock-pass" placeholder="パスワードを入力..." required style="padding:0.6rem 0.85rem; font-size:0.95rem; border-radius:6px; border:1px solid var(--border-light, #414868); background:var(--bg-main, #1a1b26); color:var(--text-main, #a9b1d6); text-align:center; font-family:monospace; box-sizing:border-box; width:100%;">
+                <button type="submit" class="btn btn-primary" style="padding:0.6rem; font-size:0.95rem; font-weight:bold; border-radius:6px; width:100%; box-sizing:border-box; cursor:pointer;">ロックを解除する</button>
+            </form>
+            <div id="admin-lock-error" style="color:var(--color-danger, #f7768e); font-size:0.8rem; margin-top:0.75rem; display:none; font-weight:bold;">パスワードが一致しません。</div>
+        </div>
+    `;
+
+    document.body.appendChild(lockDiv);
+
+    const form = document.getElementById('admin-lock-form');
+    const input = document.getElementById('admin-lock-pass');
+    const errorMsg = document.getElementById('admin-lock-error');
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (input.value === adminPassword) {
+            sessionStorage.setItem('is_admin_authenticated', 'true');
+            lockDiv.remove();
+        } else {
+            errorMsg.style.display = 'block';
+            input.value = '';
+            input.focus();
+        }
+    });
+}
+
 // アプリ初期化
 document.addEventListener('DOMContentLoaded', () => {
     try {
+    checkAdminPasswordLock(); // ロック画面の割り込みチェック実行
+
     // 1. 保存されたテーマ（ダーク/ライト）の適用
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -3762,11 +3810,31 @@ function openCloudSettingsModal() {
 
     const isLocalServer = localStorage.getItem('use_local_server') === 'true';
     const localServerIP = localStorage.getItem('local_server_ip') || '';
+    const adminPassword = localStorage.getItem('admin_password') || '';
+    const customEncryptionKey = localStorage.getItem('custom_encryption_key') || '';
 
     body.innerHTML = `
         <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.85rem; border-radius: 8px; font-size: 0.8rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 1.25rem;">
             <strong>🔒 暗号化について:</strong><br>
             送信される現場情報・日報データはすべてPCおよびスマートフォン内の共通キーで暗号化されてから中継ポストに送信されます。第三者がCloudflareのサーバーを覗き見ても現場名や金額は判読できません。
+        </div>
+
+        <!-- 🔒 セキュリティ設定 -->
+        <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); padding: 1rem; border-radius: 8px; font-size: 0.8rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 1.25rem;">
+            <div style="font-weight: bold; font-size: 0.85rem; color: var(--color-danger); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.3rem;">
+                <i data-lucide="shield-check" style="width: 1rem; height: 1rem;"></i>セキュリティロック＆暗号化設定
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label for="cfg-admin-password" style="font-weight: 600; color: var(--text-main);">🔒 管理者パスワード (管理画面起動ロック用)</label>
+                <input type="password" id="cfg-admin-password" value="${adminPassword}" placeholder="未設定 (設定すると次回から起動時にロックがかかります)" style="font-family:monospace; font-size:0.85rem; padding: 0.4rem; border-radius: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+                <label for="cfg-custom-encryption-key" style="font-weight: 600; color: var(--text-main);">🔑 独自暗号化キー (クラウド/スマホ同期用)</label>
+                <input type="password" id="cfg-custom-encryption-key" value="${customEncryptionKey}" placeholder="未設定 (スマホと共有する暗号鍵を独自変更できます)" style="font-family:monospace; font-size:0.85rem; padding: 0.4rem; border-radius: 6px;">
+                <span style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:0.25rem; line-height:1.3;">
+                    ※ここを変更した場合、携帯（スマホ）の同期設定にも**全く同じパスワード**を設定する必要があります。
+                </span>
+            </div>
         </div>
 
         <!-- 🏠 社内LAN共有モード設定 -->
@@ -3780,7 +3848,7 @@ function openCloudSettingsModal() {
                     <label for="cfg-local-server-ip" style="font-weight: 600; color: var(--text-main);">親機PCのIPアドレス</label>
                     <input type="text" id="cfg-local-server-ip" value="${localServerIP}" placeholder="例: 192.168.1.50 (親機自身なら localhost)" style="font-family:monospace; font-size:0.85rem; padding: 0.4rem; border-radius: 6px;">
                     <span style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:0.25rem; line-height:1.3;">
-                        ※親機PCで「起動.bat」を実行した時に画面に表示されるIPアドレスを入力してください。<br>
+                        ※親機PCで「起動_Python.bat」を実行した時に画面に表示されるIPアドレスを入力してください。<br>
                         ※このPC自身が親機の場合は「localhost」と入力しても構いません。
                     </span>
                 </div>
@@ -3890,16 +3958,18 @@ function openCloudSettingsModal() {
 
         if (confirm('現在このブラウザ（LocalStorage）に保存されている全てのデータを、ローカル共有サーバー（ファイル）にコピーします。よろしいですか？\n※すでにサーバー上にデータがある場合は上書きされます。')) {
             try {
-                // 1. ローカルからデータ取得
                 const sites = JSON.parse(localStorage.getItem('SiteDB')) || [];
                 const reports = JSON.parse(localStorage.getItem('ReportDB')) || [];
                 const purchases = JSON.parse(localStorage.getItem('PurchaseDB')) || [];
 
-                // 2. 同期通信または非同期fetchでサーバーに送信
                 const sendData = async (type, list) => {
+                    const token = localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
                     const res = await fetch(`http://${ip}:3000/api/data`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
                         body: JSON.stringify({ type: type, data: list })
                     });
                     if (!res.ok) throw new Error(`${type} の送信に失敗しました。`);
@@ -3948,15 +4018,11 @@ function openCloudSettingsModal() {
         }
     });
 
-    // ==========================================
-    // データ管理（バックアップ・復元・ロールバック）
-    // ==========================================
     const exportBtn = document.getElementById('btn-cfg-export');
     const importTriggerBtn = document.getElementById('btn-cfg-import-trigger');
     const importFileInput = document.getElementById('cfg-import-file');
     const rollbackBtn = document.getElementById('btn-cfg-rollback');
 
-    // 直前のロールバック用バックアップが存在するか確認して表示制御
     const hasRollbackData = localStorage.getItem('SiteDB_rollback_backup') && localStorage.getItem('ReportDB_rollback_backup');
     if (rollbackBtn) {
         if (hasRollbackData) {
@@ -3966,7 +4032,6 @@ function openCloudSettingsModal() {
         }
     }
 
-    // 1. バックアップの書き出し（エクスポート）
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
             try {
@@ -3994,7 +4059,6 @@ function openCloudSettingsModal() {
         });
     }
 
-    // 2. 復元のファイル選択トリガーとインポート処理
     if (importTriggerBtn && importFileInput) {
         importTriggerBtn.addEventListener('click', () => {
             importFileInput.click();
@@ -4088,7 +4152,6 @@ function openCloudSettingsModal() {
         });
     }
 
-    // 3. ロールバック
     if (rollbackBtn) {
         rollbackBtn.addEventListener('click', () => {
             const oldSitesStr = localStorage.getItem('SiteDB_rollback_backup');
@@ -4117,9 +4180,6 @@ function openCloudSettingsModal() {
         });
     }
 
-    // ==========================================
-    // 過去データ年月アーカイブ切り出し（整理）
-    // ==========================================
     const archiveMonthSelect = document.getElementById('cfg-archive-month');
     const archiveBtn = document.getElementById('btn-cfg-archive');
 
@@ -4201,8 +4261,23 @@ function openCloudSettingsModal() {
         const tokenInput = document.getElementById('cfg-token').value.trim();
         const useLocal = useLocalServerCheck.checked;
         const localIP = localIPInput.value.trim();
+        
+        const adminPass = document.getElementById('cfg-admin-password').value.trim();
+        const customEncKey = document.getElementById('cfg-custom-encryption-key').value.trim();
 
-        // 1. 社内LAN共有モードの保存と検証
+        // セキュリティ設定の保存
+        if (adminPass) {
+            localStorage.setItem('admin_password', adminPass);
+        } else {
+            localStorage.removeItem('admin_password');
+        }
+
+        if (customEncKey) {
+            localStorage.setItem('custom_encryption_key', customEncKey);
+        } else {
+            localStorage.removeItem('custom_encryption_key');
+        }
+
         localStorage.setItem('use_local_server', useLocal ? 'true' : 'false');
         localStorage.setItem('local_server_ip', localIP);
 
@@ -4214,28 +4289,29 @@ function openCloudSettingsModal() {
                 return;
             }
             try {
-                // ローカルサーバーへの接続テスト
-                const testRes = await fetch(`http://${localIP}:3000/api/ip`).catch(() => null);
+                const token = adminPass || customEncKey || localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
+                const testRes = await fetch(`http://${localIP}:3000/api/ip`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).catch(() => null);
                 if (!testRes || !testRes.ok) {
                     throw new Error('ローカルサーバーから応答がありません。');
                 }
                 window.app.showToast('社内LAN共有サーバーへの接続に成功しました！', 'success');
             } catch(err) {
-                alert(`【社内LAN共有サーバー接続エラー】\n親機PCの「起動.bat」が立ち上がっているか、IPアドレスが正しいか確認してください。\n(エラー: ${err.message})`);
+                alert(`【社内LAN共有サーバー接続エラー】\n親機PCの「起動_Python.bat」が立ち上がっているか、IPアドレスが正しいか確認してください。\n(エラー: ${err.message})`);
                 saveBtn.disabled = false;
                 saveBtn.textContent = '保存して接続テスト';
                 return;
             }
         }
 
-        // 2. クラウド中継設定の保存と接続検証
         const newConfig = {
             url: urlInput,
             token: tokenInput
         };
 
         if (!newConfig.url || !newConfig.token) {
-            window.app.showToast('設定が保存されました（クラウド連携は無効です）。', 'info');
+            window.app.showToast('設定が保存されました。', 'info');
             localStorage.removeItem('cloudflare_config');
             closeModal();
             location.reload();
@@ -4586,9 +4662,13 @@ function openExcelImportModal(callback) {
             // 最後に一括で非同期保存（ブラウザのフリーズ・無応答警告を完全に防ぐ）
             if (localStorage.getItem('use_local_server') === 'true') {
                 const ip = localStorage.getItem('local_server_ip') || 'localhost';
+                const token = localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
                 const res = await fetch(`http://${ip}:3000/api/data`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify({ type: 'sites', data: allSites })
                 });
                 if (!res.ok) {

@@ -247,6 +247,13 @@ function fetchFromServerSync(type) {
         const ip = getLocalServerIP();
         const xhr = new XMLHttpRequest();
         xhr.open('GET', `http://${ip}:3000/api/data?type=${type}`, false); // 同期通信
+        
+        // セキュリティ認証用のヘッダーを付与
+        const token = localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
         xhr.send(null);
         if (xhr.status === 200) {
             return JSON.parse(xhr.responseText);
@@ -264,6 +271,13 @@ function saveToServerSync(type, data) {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `http://${ip}:3000/api/data`, false); // 同期通信
         xhr.setRequestHeader('Content-Type', 'application/json');
+        
+        // セキュリティ認証用のヘッダーを付与
+        const token = localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
         xhr.send(JSON.stringify({ type: type, data: data }));
         if (xhr.status === 200) {
             return true;
@@ -735,7 +749,9 @@ window.StatsDB = StatsDB;
 // 5. 暗号化 ＆ Firebase (クラウド中継) 連携モジュール
 // ==========================================================================
 
-const ENCRYPTION_KEY = 'TokoroDailyReportSecretKeyToken2026';
+function getEncryptionKey() {
+    return localStorage.getItem('custom_encryption_key') || 'TokoroDailyReportSecretKeyToken2026';
+}
 
 // AES-256 共通鍵暗号化/復号化ユーティリティ
 window.CryptoUtil = {
@@ -746,7 +762,7 @@ window.CryptoUtil = {
         }
         try {
             const jsonStr = JSON.stringify(data);
-            return CryptoJS.AES.encrypt(jsonStr, ENCRYPTION_KEY).toString();
+            return CryptoJS.AES.encrypt(jsonStr, getEncryptionKey()).toString();
         } catch (e) {
             console.error('Encryption failed:', e);
             return null;
@@ -758,7 +774,7 @@ window.CryptoUtil = {
             return null;
         }
         try {
-            const bytes = CryptoJS.AES.decrypt(encryptedStr, ENCRYPTION_KEY);
+            const bytes = CryptoJS.AES.decrypt(encryptedStr, getEncryptionKey());
             const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
             if (!decryptedStr) return null;
             return JSON.parse(decryptedStr);
