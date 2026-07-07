@@ -281,6 +281,10 @@ function initDatabase() {
 // 社内LANサーバー接続用の同期通信ヘルパー
 // ==========================================================================
 function isLocalServerEnabled() {
+    // 携帯用の日報画面(daily_report.html)を開いている場合は、ローカルサーバー同期を強制無効にする
+    if (typeof window !== 'undefined' && window.location && window.location.pathname && window.location.pathname.includes('daily_report.html')) {
+        return false;
+    }
     return safeStorage.getItem('use_local_server') === 'true';
 }
 
