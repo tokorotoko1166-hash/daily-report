@@ -3608,33 +3608,11 @@ async function syncSitesToCloud() {
     if (!window.CloudSync || !window.CloudSync.init()) return;
 
     try {
-        const sites = window.SiteDB.getAll();
         const collection = window.CloudSync.collection('sites');
-
-        // 1. クラウド上の現在のドキュメントIDを取得
-        const snapshot = await collection.get();
-        const cloudDocIds = [];
-        snapshot.forEach(doc => cloudDocIds.push(doc.id));
-
-        // 2. 暗号化してアップロード
-        const localIds = sites.map(s => s.id);
-        const uploadPromises = sites.map(async (site) => {
-            const encryptedData = window.CryptoUtil.encrypt(site);
-            if (encryptedData) {
-                await collection.doc(site.id).set({
-                    encrypted: encryptedData,
-                    updatedAt: new Date().toISOString()
-                });
-            }
-        });
-
-        // 3. 削除された現場をクラウドから消去
-        const deletePromises = cloudDocIds
-            .filter(id => !localIds.includes(id))
-            .map(id => collection.doc(id).delete());
-
-        await Promise.all([...uploadPromises, ...deletePromises]);
-        console.log('Sites synced to cloud successfully.');
+        // ダミーID 'all_sites' で set() を1回だけ呼び出す
+        // db.js 側の仕様で、個々のデータに関わらず常に全件が一括POST（上書き）されます。
+        await collection.doc('all_sites').set({});
+        console.log('Sites synced to cloud successfully (bulk).');
     } catch (e) {
         console.error('Failed to sync sites to cloud:', e);
     }
