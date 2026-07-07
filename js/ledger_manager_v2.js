@@ -4553,20 +4553,38 @@ function openExcelImportModal(callback) {
         try {
             let addCount = 0;
             let updateCount = 0;
+            
+            // すべての現場をメモリ上に一括取得
+            const allSites = window.SiteDB.getAll() || [];
 
-            parsedSites.forEach(site => {
+            parsedSites.forEach((site, i) => {
                 const siteData = { ...site };
                 const id = siteData.id;
                 delete siteData.id;
 
                 if (id) {
-                    window.SiteDB.update(id, siteData);
-                    updateCount++;
+                    const idx = allSites.findIndex(s => s.id === id);
+                    if (idx !== -1) {
+                        allSites[idx] = {
+                            ...allSites[idx],
+                            ...siteData,
+                            updatedAt: new Date().toISOString()
+                        };
+                        updateCount++;
+                    }
                 } else {
-                    window.SiteDB.add(siteData);
+                    const newSite = {
+                        ...siteData,
+                        id: 'site_' + (Date.now() + i), // IDの重複衝突を防ぐためインデックスを加算
+                        createdAt: new Date().toISOString()
+                    };
+                    allSites.push(newSite);
                     addCount++;
                 }
             });
+
+            // 最後に一括で保存（通信回数を1回のみに抑える）
+            window.SiteDB.saveAll(allSites);
 
             window.app.showToast(`${addCount}件の新規登録、${updateCount}件の上書き更新が完了しました！`, 'success');
 
