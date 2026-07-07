@@ -18,6 +18,40 @@ try {
     isStorageSupported = false;
 }
 
+// クッキー長期保存ユーティリティ（LocalStorageが制限された携帯端末用のバックアップ）
+function setCookie(name, value, days = 365) {
+    try {
+        const d = new Date();
+        d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+        const expires = "expires=" + d.toUTCString();
+        document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/;SameSite=Lax";
+    } catch (e) {}
+}
+
+function getCookie(name) {
+    try {
+        const cname = name + "=";
+        const decodedCookie = decodeURIComponent(document.cookie);
+        const ca = decodedCookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+            }
+            if (c.indexOf(cname) == 0) {
+                return c.substring(cname.length, c.length);
+            }
+        }
+    } catch (e) {}
+    return "";
+}
+
+function eraseCookie(name) {
+    try {
+        document.cookie = name + "=; Max-Age=-99999999;path=/;";
+    } catch (e) {}
+}
+
 const memoryStore = {};
 const safeStorage = {
     getItem(key) {
@@ -26,6 +60,10 @@ const safeStorage = {
                 return localStorage.getItem(key);
             } catch (e) {}
         }
+        // クッキーから復旧を試みる
+        const cookieVal = getCookie(key);
+        if (cookieVal) return cookieVal;
+        
         return memoryStore[key] || null;
     },
     setItem(key, value) {
@@ -35,6 +73,9 @@ const safeStorage = {
                 return true;
             } catch (e) {}
         }
+        // クッキーにバックアップ長期保存 (1年間)
+        setCookie(key, value, 365);
+        
         memoryStore[key] = String(value);
         return true;
     },
@@ -45,6 +86,9 @@ const safeStorage = {
                 return true;
             } catch (e) {}
         }
+        // クッキーからも消去
+        eraseCookie(key);
+        
         delete memoryStore[key];
         return true;
     }
