@@ -230,11 +230,61 @@ function initDatabase() {
 // 現場台帳 (Sites) のデータ操作API
 // ==========================================================================
 
+
+// ==========================================================================
+// 社内LANサーバー接続用の同期通信ヘルパー
+// ==========================================================================
+function isLocalServerEnabled() {
+    return localStorage.getItem('use_local_server') === 'true';
+}
+
+function getLocalServerIP() {
+    return localStorage.getItem('local_server_ip') || 'localhost';
+}
+
+function fetchFromServerSync(type) {
+    try {
+        const ip = getLocalServerIP();
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', `http://${ip}:3000/api/data?type=${type}`, false); // 同期通信
+        xhr.send(null);
+        if (xhr.status === 200) {
+            return JSON.parse(xhr.responseText);
+        }
+        console.error(`Failed to GET ${type} from server:`, xhr.status);
+    } catch (e) {
+        console.error(`Network error getting ${type}:`, e);
+    }
+    return null;
+}
+
+function saveToServerSync(type, data) {
+    try {
+        const ip = getLocalServerIP();
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `http://${ip}:3000/api/data`, false); // 同期通信
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({ type: type, data: data }));
+        if (xhr.status === 200) {
+            return true;
+        }
+        console.error(`Failed to POST ${type} to server:`, xhr.status);
+    } catch (e) {
+        console.error(`Network error posting ${type}:`, e);
+    }
+    return false;
+}
+
 const SiteDB = {
     getAll(filter = {}) {
         let sites = [];
         try {
-            sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+            if (isLocalServerEnabled()) {
+                const srvData = fetchFromServerSync('sites');
+                if (srvData) sites = srvData;
+            } else {
+                sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+            }
         } catch(e) {
             sites = [];
         }
@@ -267,19 +317,24 @@ const SiteDB = {
     },
 
     add(siteData) {
-        const sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+        const sites = this.getAll();
         const newSite = {
             ...siteData,
             id: 'site_' + Date.now(),
             createdAt: new Date().toISOString()
         };
         sites.push(newSite);
-        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+        
+        if (isLocalServerEnabled()) {
+            saveToServerSync('sites', sites);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+        }
         return newSite;
     },
 
     update(id, siteData) {
-        let sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+        let sites = this.getAll();
         const index = sites.findIndex(s => s.id === id);
         if (index === -1) return null;
 
@@ -289,33 +344,51 @@ const SiteDB = {
             updatedAt: new Date().toISOString()
         };
 
-        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+        if (isLocalServerEnabled()) {
+            saveToServerSync('sites', sites);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+        }
         return sites[index];
     },
 
     delete(id) {
-        let sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+        let sites = this.getAll();
         const filtered = sites.filter(s => s.id !== id);
-        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(filtered));
-
+        
         // 関連する材料仕入れデータも削除
-        let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+        let purchases = PurchaseDB.getAll();
         purchases = purchases.filter(p => p.siteId !== id);
-        localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+
+        if (isLocalServerEnabled()) {
+            saveToServerSync('sites', filtered);
+            saveToServerSync('purchases', purchases);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(filtered));
+            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+        }
 
         return true;
     },
 
     saveAll(sites) {
-        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+        if (isLocalServerEnabled()) {
+            saveToServerSync('sites', sites);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+        }
         return true;
     },
 
     clearAll() {
-        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify([]));
+        if (isLocalServerEnabled()) {
+            saveToServerSync('sites', []);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify([]));
+        }
         return true;
     }
-};
+};;
 
 // ==========================================================================
 // 業務日報 (Reports) のデータ操作API
@@ -325,21 +398,24 @@ const ReportDB = {
     getAll(filter = {}) {
         let reports = [];
         try {
-            reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+            if (isLocalServerEnabled()) {
+                const srvData = fetchFromServerSync('reports');
+                if (srvData) reports = srvData;
+            } else {
+                reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+            }
         } catch(e) {
             reports = [];
         }
 
-        // 破損レコードのクリーニング
+        // 不正データのクリーニング
         reports = reports.filter(r => r && typeof r === 'object' && r.id);
 
         if (filter.search) {
             const query = filter.search.toLowerCase();
             reports = reports.filter(r => 
-                (r.writer && r.writer.toLowerCase().includes(query)) || 
-                (r.workContent && r.workContent.toLowerCase().includes(query)) ||
-                (r.companions && r.companions.toLowerCase().includes(query)) ||
-                (r.memo && r.memo.toLowerCase().includes(query))
+                r.writer.toLowerCase().includes(query) || 
+                r.content.toLowerCase().includes(query)
             );
         }
 
@@ -347,15 +423,7 @@ const ReportDB = {
             reports = reports.filter(r => r.siteId === filter.siteId);
         }
 
-        if (filter.startDate) {
-            reports = reports.filter(r => r.date >= filter.startDate);
-        }
-
-        if (filter.endDate) {
-            reports = reports.filter(r => r.date <= filter.endDate);
-        }
-
-        return reports.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        return reports.sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
     getById(id) {
@@ -368,24 +436,24 @@ const ReportDB = {
     },
 
     add(reportData) {
-        let reports = [];
-        try {
-            reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
-        } catch(e) {
-            reports = [];
-        }
+        const reports = this.getAll();
         const newReport = {
             ...reportData,
-            id: 'rep_' + Date.now(),
-            createdAt: new Date().toISOString()
+            id: reportData.id || 'rep_' + Date.now(),
+            createdAt: reportData.createdAt || new Date().toISOString()
         };
         reports.push(newReport);
-        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+        
+        if (isLocalServerEnabled()) {
+            saveToServerSync('reports', reports);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+        }
         return newReport;
     },
 
     update(id, reportData) {
-        let reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+        let reports = this.getAll();
         const index = reports.findIndex(r => r.id === id);
         if (index === -1) return null;
 
@@ -395,22 +463,35 @@ const ReportDB = {
             updatedAt: new Date().toISOString()
         };
 
-        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+        if (isLocalServerEnabled()) {
+            saveToServerSync('reports', reports);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+        }
         return reports[index];
     },
 
     delete(id) {
-        let reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+        let reports = this.getAll();
         const filtered = reports.filter(r => r.id !== id);
-        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(filtered));
+        
+        if (isLocalServerEnabled()) {
+            saveToServerSync('reports', filtered);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(filtered));
+        }
         return true;
     },
 
     saveAll(reports) {
-        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+        if (isLocalServerEnabled()) {
+            saveToServerSync('reports', reports);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+        }
         return true;
     }
-};
+};;
 
 // ==========================================================================
 // 材料仕入れ (Purchases) のデータ操作API
@@ -418,13 +499,26 @@ const ReportDB = {
 
 const PurchaseDB = {
     getAll(filter = {}) {
-        let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+        let purchases = [];
+        try {
+            if (isLocalServerEnabled()) {
+                const srvData = fetchFromServerSync('purchases');
+                if (srvData) purchases = srvData;
+            } else {
+                purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+            }
+        } catch(e) {
+            purchases = [];
+        }
+
+        // 不正データのクリーニング
+        purchases = purchases.filter(p => p && typeof p === 'object' && p.id);
 
         if (filter.search) {
             const query = filter.search.toLowerCase();
             purchases = purchases.filter(p => 
-                p.maker.toLowerCase().includes(query) || 
                 p.itemName.toLowerCase().includes(query) ||
+                (p.supplier && p.supplier.toLowerCase().includes(query)) ||
                 (p.orderedBy && p.orderedBy.toLowerCase().includes(query))
             );
         }
@@ -446,7 +540,7 @@ const PurchaseDB = {
     },
 
     add(purchaseData) {
-        const purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+        const purchases = this.getAll();
 
         const quantity = parseFloat(purchaseData.quantity) || 0;
         const unitPrice = parseFloat(purchaseData.unitPrice) || 0;
@@ -464,12 +558,17 @@ const PurchaseDB = {
         };
 
         purchases.push(newPurchase);
-        localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+        
+        if (isLocalServerEnabled()) {
+            saveToServerSync('purchases', purchases);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+        }
         return newPurchase;
     },
 
     update(id, purchaseData) {
-        let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+        let purchases = this.getAll();
         const index = purchases.findIndex(p => p.id === id);
         if (index === -1) return null;
 
@@ -488,22 +587,35 @@ const PurchaseDB = {
             updatedAt: new Date().toISOString()
         };
 
-        localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+        if (isLocalServerEnabled()) {
+            saveToServerSync('purchases', purchases);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+        }
         return purchases[index];
     },
 
     delete(id) {
-        let purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+        let purchases = this.getAll();
         const filtered = purchases.filter(p => p.id !== id);
-        localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(filtered));
+        
+        if (isLocalServerEnabled()) {
+            saveToServerSync('purchases', filtered);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(filtered));
+        }
         return true;
     },
 
     saveAll(purchases) {
-        localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+        if (isLocalServerEnabled()) {
+            saveToServerSync('purchases', purchases);
+        } else {
+            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+        }
         return true;
     }
-};
+};;
 
 // ==========================================================================
 // 統計データ (Dashboard Stats) の集計API

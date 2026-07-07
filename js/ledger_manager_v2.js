@@ -3762,12 +3762,38 @@ function openCloudSettingsModal() {
         token: 'TokoroEdgeOneAuthToken2026'
     };
 
+    const isLocalServer = localStorage.getItem('use_local_server') === 'true';
+    const localServerIP = localStorage.getItem('local_server_ip') || '';
+
     body.innerHTML = `
         <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.85rem; border-radius: 8px; font-size: 0.8rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 1.25rem;">
             <strong>🔒 暗号化について:</strong><br>
             送信される現場情報・日報データはすべてPCおよびスマートフォン内の共通キーで暗号化されてから中継ポストに送信されます。第三者がCloudflareのサーバーを覗き見ても現場名や金額は判読できません。
         </div>
+
+        <!-- 🏠 社内LAN共有モード設定 -->
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 1rem; border-radius: 8px; font-size: 0.8rem; line-height: 1.5; color: var(--text-muted); margin-bottom: 1.25rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; color: var(--color-success); cursor: pointer; margin-bottom: 0.5rem; font-size: 0.85rem;">
+                <input type="checkbox" id="cfg-use-local-server" ${isLocalServer ? 'checked' : ''} style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                <span>🏠 社内LAN共有モードを有効にする</span>
+            </label>
+            <div id="local-server-settings-area" style="display: ${isLocalServer ? 'block' : 'none'}; margin-top: 0.85rem; border-top: 1px dashed rgba(16, 185, 129, 0.25); padding-top: 0.85rem;">
+                <div class="form-group" style="margin-bottom: 0.85rem;">
+                    <label for="cfg-local-server-ip" style="font-weight: 600; color: var(--text-main);">親機PCのIPアドレス</label>
+                    <input type="text" id="cfg-local-server-ip" value="${localServerIP}" placeholder="例: 192.168.1.50 (親機自身なら localhost)" style="font-family:monospace; font-size:0.85rem; padding: 0.4rem; border-radius: 6px;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:0.25rem; line-height:1.3;">
+                        ※親機PCで「起動.bat」を実行した時に画面に表示されるIPアドレスを入力してください。<br>
+                        ※このPC自身が親機の場合は「localhost」と入力しても構いません。
+                    </span>
+                </div>
+                <button type="button" class="btn btn-secondary" id="btn-cfg-migrate-local" style="padding: 0.45rem 0.85rem; font-size: 0.75rem; font-weight: 600; border-radius: 6px; background: rgba(16, 185, 129, 0.1); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.2); display: inline-flex; align-items: center; gap: 0.3rem;">
+                    <i data-lucide="arrow-right-left" style="width:0.85rem; height:0.85rem;"></i>このPCのデータを共有ファイルへ移行する
+                </button>
+            </div>
+        </div>
+
         <form id="cloud-config-form">
+            <div style="font-weight: bold; font-size: 0.85rem; color: var(--color-primary); margin-bottom: 0.5rem; display: block;">☁️ クラウド中継設定 (日報回収・スマホ同期用)</div>
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label for="cfg-url">中継 API の URL <span style="color: var(--color-danger);">*</span></label>
                 <input type="url" id="cfg-url" required value="${config.url}" placeholder="https://xxxx.workers.dev" style="font-family:monospace; font-size:0.85rem;">
@@ -3841,6 +3867,64 @@ function openCloudSettingsModal() {
 
     const closeModal = () => backdrop.classList.remove('open');
     document.getElementById('btn-cfg-cancel').addEventListener('click', closeModal);
+
+    // 社内LANモード用のUI制御
+    const useLocalServerCheck = document.getElementById('cfg-use-local-server');
+    const localSettingsArea = document.getElementById('local-server-settings-area');
+    const localIPInput = document.getElementById('cfg-local-server-ip');
+    const migrateBtn = document.getElementById('btn-cfg-migrate-local');
+
+    useLocalServerCheck.addEventListener('change', () => {
+        if (useLocalServerCheck.checked) {
+            localSettingsArea.style.display = 'block';
+        } else {
+            localSettingsArea.style.display = 'none';
+        }
+    });
+
+    // データのローカルサーバー移行処理
+    migrateBtn.addEventListener('click', async () => {
+        const ip = localIPInput.value.trim();
+        if (!ip) {
+            alert('データ移行の前に、親機PCのIPアドレスを入力してください。');
+            return;
+        }
+
+        if (confirm('現在このブラウザ（LocalStorage）に保存されている全てのデータを、ローカル共有サーバー（ファイル）にコピーします。よろしいですか？\n※すでにサーバー上にデータがある場合は上書きされます。')) {
+            try {
+                // 1. ローカルからデータ取得
+                const sites = JSON.parse(localStorage.getItem('SiteDB')) || [];
+                const reports = JSON.parse(localStorage.getItem('ReportDB')) || [];
+                const purchases = JSON.parse(localStorage.getItem('PurchaseDB')) || [];
+
+                // 2. 同期通信または非同期fetchでサーバーに送信
+                const sendData = async (type, list) => {
+                    const res = await fetch(`http://${ip}:3000/api/data`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: type, data: list })
+                    });
+                    if (!res.ok) throw new Error(`${type} の送信に失敗しました。`);
+                };
+
+                migrateBtn.disabled = true;
+                migrateBtn.textContent = 'データ移行中...';
+
+                await sendData('sites', sites);
+                await sendData('reports', reports);
+                await sendData('purchases', purchases);
+
+                alert('全てのデータの移行（サーバーファイルへのコピー）が完了しました！');
+            } catch (err) {
+                console.error(err);
+                alert(`データ移行中にエラーが発生しました。\n理由: ${err.message}\n※サーバーが起動しているか、IPアドレスが正しいか確認してください。`);
+            } finally {
+                migrateBtn.disabled = false;
+                migrateBtn.innerHTML = '<i data-lucide="arrow-right-left" style="width:0.85rem; height:0.85rem;"></i>このPCのデータを共有ファイルへ移行する';
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }
+    });
 
     document.getElementById('btn-cfg-clear-sites').addEventListener('click', async () => {
         if (confirm('登録されているすべての現場情報を完全に削除しますか？\n(過去の仕入れデータや日報データとの紐付けにも影響する場合があります)')) {
@@ -3926,7 +4010,6 @@ function openCloudSettingsModal() {
             reader.onload = function(evt) {
                 try {
                     const data = JSON.parse(evt.target.result);
-                    // 以前のファイル形式（SiteDB, ReportDB, PurchaseDB）か、統合形式（sites, reports, purchases）か判定
                     const sites = data.sites || (data.SiteDB ? JSON.parse(data.SiteDB) : null);
                     const reports = data.reports || (data.ReportDB ? JSON.parse(data.ReportDB) : null);
                     const purchases = data.purchases || (data.PurchaseDB ? JSON.parse(data.PurchaseDB) : null);
@@ -3938,13 +4021,11 @@ function openCloudSettingsModal() {
                     
                     const mergeMode = confirm(`【データの取り込み方法】\n現在のデータを消さずに、ファイルのデータを「追加（合体）」しますか？\n\n・「OK」を押す：過去のデータを現在のデータに追加合体します。\n・「キャンセル」を押す：現在のデータを完全に消去して置き換えます。`);
                     
-                    // 復旧用（ロールバック）バックアップを自動取得
                     localStorage.setItem('SiteDB_rollback_backup', localStorage.getItem('SiteDB') || '');
                     localStorage.setItem('ReportDB_rollback_backup', localStorage.getItem('ReportDB') || '');
                     localStorage.setItem('PurchaseDB_rollback_backup', localStorage.getItem('PurchaseDB') || '');
                     
                     if (mergeMode) {
-                        // 追加（合体）マージモード
                         const currentSites = window.SiteDB.getAll() || [];
                         const mergedSites = [...currentSites];
                         sites.forEach(s => {
@@ -3987,32 +4068,29 @@ function openCloudSettingsModal() {
                         
                         window.app.showToast('過去データを現在のデータに追加合体しました！リロードします。', 'success');
                     } else {
-                        // 完全上書きモード
                         if (confirm('本当に現在のローカルデータを消去し、ファイルの内容で完全に置き換えますか？')) {
                             window.SiteDB.saveAll(sites);
                             window.ReportDB.saveAll(reports);
                             window.PurchaseDB.saveAll(purchases);
                             window.app.showToast('データを完全上書き復元しました！リロードします。', 'success');
                         } else {
-                            // ロールバックデータをクリアしてキャンセル
                             localStorage.removeItem('SiteDB_rollback_backup');
                             localStorage.removeItem('ReportDB_rollback_backup');
                             localStorage.removeItem('PurchaseDB_rollback_backup');
-                            return;
                         }
                     }
                     setTimeout(() => location.reload(), 1500);
                 } catch (err) {
                     console.error(err);
-                    window.app.showToast('ファイルの解析に失敗しました。ファイル形式をご確認ください。', 'error');
+                    window.app.showToast('ファイルの解析に失敗しました。', 'error');
                 }
             };
-            reader.readAsText(file);
-            importFileInput.value = ''; // リセット
+            reader.readAsText(file, 'utf-8');
+            importFileInput.value = '';
         });
     }
 
-    // 3. ロールバック（直前の状態に戻す）
+    // 3. ロールバック
     if (rollbackBtn) {
         rollbackBtn.addEventListener('click', () => {
             const oldSitesStr = localStorage.getItem('SiteDB_rollback_backup');
@@ -4020,25 +4098,22 @@ function openCloudSettingsModal() {
             const oldPurchasesStr = localStorage.getItem('PurchaseDB_rollback_backup');
             
             if (!oldSitesStr || !oldReportsStr) {
-                window.app.showToast('戻すことができるバックアップ履歴がありません。', 'error');
+                window.app.showToast('戻せるバックアップデータが見つかりません。', 'error');
                 return;
             }
             
-            if (confirm('直前の復元・整理を実行する前の状態に戻しますか？')) {
+            if (confirm('前回の操作（インポートやアーカイブなど）を実行する前の状態に戻しますか？')) {
                 localStorage.setItem('SiteDB', oldSitesStr);
                 localStorage.setItem('ReportDB', oldReportsStr);
                 if (oldPurchasesStr) {
                     localStorage.setItem('PurchaseDB', oldPurchasesStr);
-                } else {
-                    localStorage.removeItem('PurchaseDB');
                 }
                 
-                // ロールバックデータをクリア
                 localStorage.removeItem('SiteDB_rollback_backup');
                 localStorage.removeItem('ReportDB_rollback_backup');
                 localStorage.removeItem('PurchaseDB_rollback_backup');
                 
-                window.app.showToast('直前の状態にロールバックしました！画面をリロードします。', 'success');
+                window.app.showToast('直前の操作を実行前の状態に戻しました！リロードします。', 'success');
                 setTimeout(() => location.reload(), 1500);
             }
         });
@@ -4050,7 +4125,6 @@ function openCloudSettingsModal() {
     const archiveMonthSelect = document.getElementById('cfg-archive-month');
     const archiveBtn = document.getElementById('btn-cfg-archive');
 
-    // 存在する年月の一覧を動的生成してセレクトボックスに詰める
     if (archiveMonthSelect) {
         const allReps = window.ReportDB.getAll() || [];
         const uniqueMonths = [...new Set(allReps.map(r => r.date ? r.date.substring(0, 7) : null).filter(Boolean))].sort().reverse();
@@ -4069,14 +4143,12 @@ function openCloudSettingsModal() {
                 return;
             }
             
-            const targetDateStr = targetMonth + '-31'; // 指定月以前
+            const targetDateStr = targetMonth + '-31';
             const allReps = window.ReportDB.getAll() || [];
             const allPurchases = window.PurchaseDB.getAll() || [];
             const allSites = window.SiteDB.getAll() || [];
             
-            // アーカイブ（消去対象）データの抽出
             const repsToArchive = allReps.filter(r => r.date && r.date <= targetDateStr);
-            // 仕入れデータも日付があれば紐付け
             const purchasesToArchive = allPurchases.filter(p => p.date && p.date <= targetDateStr);
             
             if (repsToArchive.length === 0) {
@@ -4086,17 +4158,15 @@ function openCloudSettingsModal() {
             
             if (confirm(`${targetMonth} 以前の日報 ${repsToArchive.length} 件（および関連する仕入れ ${purchasesToArchive.length} 件）を「アーカイブファイル」としてPCに保存し、ブラウザの記憶領域から消去します。よろしいですか？`)) {
                 
-                // ロールバックバックアップの取得
                 localStorage.setItem('SiteDB_rollback_backup', localStorage.getItem('SiteDB') || '');
                 localStorage.setItem('ReportDB_rollback_backup', localStorage.getItem('ReportDB') || '');
                 localStorage.setItem('PurchaseDB_rollback_backup', localStorage.getItem('PurchaseDB') || '');
                 
-                // 1. アーカイブファイルをPCに保存
                 const archiveData = {
                     version: '2.0_archive',
                     archivedAt: new Date().toISOString(),
                     targetPeriod: `${targetMonth} 以前`,
-                    sites: allSites, // 現場情報は整合性のため全件含めます
+                    sites: allSites,
                     reports: repsToArchive,
                     purchases: purchasesToArchive
                 };
@@ -4111,7 +4181,6 @@ function openCloudSettingsModal() {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                // 2. ブラウザの記憶領域から削除
                 const remainingReps = allReps.filter(r => !r.date || r.date > targetDateStr);
                 const remainingPurchases = allPurchases.filter(p => !p.date || p.date > targetDateStr);
                 
@@ -4132,49 +4201,64 @@ function openCloudSettingsModal() {
 
         const urlInput = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
         const tokenInput = document.getElementById('cfg-token').value.trim();
+        const useLocal = useLocalServerCheck.checked;
+        const localIP = localIPInput.value.trim();
 
+        // 1. 社内LAN共有モードの保存と検証
+        localStorage.setItem('use_local_server', useLocal ? 'true' : 'false');
+        localStorage.setItem('local_server_ip', localIP);
+
+        if (useLocal) {
+            if (!localIP) {
+                window.app.showToast('社内LAN共有モードがONですが、親機のIPアドレスが空です。', 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = '保存して接続テスト';
+                return;
+            }
+            try {
+                // ローカルサーバーへの接続テスト
+                const testRes = await fetch(`http://${localIP}:3000/api/ip`).catch(() => null);
+                if (!testRes || !testRes.ok) {
+                    throw new Error('ローカルサーバーから応答がありません。');
+                }
+                window.app.showToast('社内LAN共有サーバーへの接続に成功しました！', 'success');
+            } catch(err) {
+                alert(`【社内LAN共有サーバー接続エラー】\n親機PCの「起動.bat」が立ち上がっているか、IPアドレスが正しいか確認してください。\n(エラー: ${err.message})`);
+                saveBtn.disabled = false;
+                saveBtn.textContent = '保存して接続テスト';
+                return;
+            }
+        }
+
+        // 2. クラウド中継設定の保存と接続検証
         const newConfig = {
             url: urlInput,
             token: tokenInput
         };
 
         if (!newConfig.url || !newConfig.token) {
-            window.app.showToast('設定が空です。「疑似クラウド（ブラウザ内中継）」として起動します。', 'info');
+            window.app.showToast('設定が保存されました（クラウド連携は無効です）。', 'info');
             localStorage.removeItem('cloudflare_config');
-            window.CloudSync.config = null;
-            window.CloudSync.isMock = true;
             closeModal();
+            location.reload();
             return;
         }
 
         try {
-            const testUrl = `${newConfig.url}/api/test`;
-            const res = await fetch(testUrl, {
+            const res = await fetch(`${newConfig.url}/api/test`, {
                 headers: { 'Authorization': `Bearer ${newConfig.token}` }
             });
-
             if (res.ok) {
-                const testData = await res.json();
-                if (testData.status === 'ok') {
-                    window.app.showToast('Cloudflare Workers への接続テストに成功しました！', 'success');
-                    window.CloudSync.saveConfig(newConfig);
-                    closeModal();
-                    syncSitesToCloud();
-                } else {
-                    throw new Error('Invalid response status');
-                }
+                window.CloudSync.saveConfig(newConfig);
+                window.app.showToast('クラウド接続テスト成功！設定を保存しました。', 'success');
+                closeModal();
+                setTimeout(() => location.reload(), 1000);
             } else {
-                if (res.status === 401) {
-                    window.app.showToast('接続に失敗しました。アクセストークンが間違っています。', 'error');
-                } else {
-                    window.app.showToast(`接続エラー。ステータス: ${res.status}`, 'error');
-                }
-                saveBtn.disabled = false;
-                saveBtn.textContent = '保存して接続テスト';
+                throw new Error('Invalid response status');
             }
         } catch (err) {
             console.error('Cloudflare test connection failed:', err);
-            window.app.showToast('API URLへの接続に失敗しました。URLに誤りがあるか、Workersが未デプロイです。', 'error');
+            window.app.showToast('クラウドAPI接続テストに失敗しました。', 'error');
             saveBtn.disabled = false;
             saveBtn.textContent = '保存して接続テスト';
         }
