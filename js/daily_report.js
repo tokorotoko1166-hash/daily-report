@@ -77,12 +77,11 @@ async function syncSitesFromCloud() {
                 }
             });
             
-            // 2. クラウドに存在しない（PC側で削除された）現場をスマホのローカルから削除
-            localSites.forEach(ls => {
-                if (!cloudIds.includes(ls.id)) {
-                    window.SiteDB.delete(ls.id);
-                }
-            });
+            // 2. クラウドに存在しない（PC側で削除された）現場をスマホのローカルから一括削除（超高速化）
+            const filteredSites = localSites.filter(ls => cloudIds.includes(ls.id));
+            if (filteredSites.length !== localSites.length) {
+                window.SiteDB.saveAll(filteredSites);
+            }
             
             renderDatalists();
         }
