@@ -527,17 +527,11 @@ function renderBatchInputForm(container) {
             nameInput.blur();
         }, { passive: true });
 
-        // 画面のどこかをタップした時に候補リストを閉じる (入力欄や候補リスト自体をタップした時は閉じない)
-        document.addEventListener('click', (e) => {
-            if (e.target !== nameInput && !nameSuggestDiv.contains(e.target)) {
+        // フォーカスが外れた時に候補リストを閉じる (タップ決定できるように200ms遅延させる / メモリリーク防止)
+        nameInput.addEventListener('blur', () => {
+            setTimeout(() => {
                 nameSuggestDiv.style.display = 'none';
-            }
-        });
-
-        document.addEventListener('touchstart', (e) => {
-            if (e.target !== nameInput && !nameSuggestDiv.contains(e.target)) {
-                nameSuggestDiv.style.display = 'none';
-            }
+            }, 200);
         });
         
         codeInput.addEventListener('input', () => checkAutoCompletion('code'));
