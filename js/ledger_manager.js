@@ -4583,8 +4583,20 @@ function openExcelImportModal(callback) {
                 }
             });
 
-            // 最後に一括で保存（通信回数を1回のみに抑える）
-            window.SiteDB.saveAll(allSites);
+            // 最後に一括で非同期保存（ブラウザのフリーズ・無応答警告を完全に防ぐ）
+            if (localStorage.getItem('use_local_server') === 'true') {
+                const ip = localStorage.getItem('local_server_ip') || 'localhost';
+                const res = await fetch(`http://${ip}:3000/api/data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'sites', data: allSites })
+                });
+                if (!res.ok) {
+                    throw new Error(`サーバーへの保存に失敗しました (Status: ${res.status})`);
+                }
+            } else {
+                localStorage.setItem('SiteDB', JSON.stringify(allSites));
+            }
 
             window.app.showToast(`${addCount}件の新規登録、${updateCount}件の上書き更新が完了しました！`, 'success');
 
