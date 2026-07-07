@@ -1,10 +1,3 @@
-// グローバル safeStorage の参照エラーを防止するセーフガード宣言
-const safeStorage = window.safeStorage || {
-    getItem(key) { return null; },
-    setItem(key, value) { return true; },
-    removeItem(key) { return true; }
-};
-
 // グローバルなトースト関数定義
 window.app = {
     showToast: (message, type = 'info') => {
@@ -113,14 +106,14 @@ function getTodaySentReports() {
     const todayStr = new Date().toISOString().split('T')[0];
     let sentList = [];
     try {
-        sentList = JSON.parse(safeStorage.getItem('sent_reports_today') || '[]');
+        sentList = JSON.parse(window.safeStorage.getItem('sent_reports_today') || '[]');
     } catch (e) {
         sentList = [];
     }
     // 今日の日付のものだけ残す（日付が変わっていたら自動的に消える）
     const filtered = sentList.filter(item => item.date === todayStr);
     if (filtered.length !== sentList.length) {
-        safeStorage.setItem('sent_reports_today', JSON.stringify(filtered));
+        window.safeStorage.setItem('sent_reports_today', JSON.stringify(filtered));
     }
     return filtered;
 }
@@ -133,7 +126,7 @@ function addSentReport(siteName) {
         date: todayStr,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
-    safeStorage.setItem('sent_reports_today', JSON.stringify(sentList));
+    window.safeStorage.setItem('sent_reports_today', JSON.stringify(sentList));
 }
 
 function initDailyReportApp() {
@@ -151,7 +144,7 @@ function initDailyReportApp() {
     renderDatalists();
     
     // 氏名が記憶されているかチェック
-    const workerName = safeStorage.getItem('current_worker_name');
+    const workerName = window.safeStorage.getItem('current_worker_name');
     if (!workerName) {
         renderNameRegistrationForm(container);
         return;
@@ -182,7 +175,7 @@ function initDailyReportApp() {
     // 氏名変更処理
     changeNameBtn.addEventListener('click', () => {
         if (confirm('登録されている氏名を変更しますか？')) {
-            safeStorage.removeItem('current_worker_name');
+            window.safeStorage.removeItem('current_worker_name');
             initDailyReportApp();
         }
     });
@@ -271,7 +264,7 @@ function renderNameRegistrationForm(container) {
         e.preventDefault();
         const name = document.getElementById('reg-worker-name').value.trim();
         if (name) {
-            safeStorage.setItem('current_worker_name', name);
+            window.safeStorage.setItem('current_worker_name', name);
             window.app.showToast(`作業員「${name}」を登録しました`, 'success');
             initDailyReportApp();
         }
@@ -624,7 +617,7 @@ function renderBatchInputForm(container) {
             return;
         }
         
-        const workerName = safeStorage.getItem('current_worker_name');
+        const workerName = window.safeStorage.getItem('current_worker_name');
         const cards = cardsContainer.querySelectorAll('.batch-row-card');
         const reportsToSubmit = [];
         const sites = window.SiteDB.getAll();
