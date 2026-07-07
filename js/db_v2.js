@@ -5,29 +5,36 @@
 
 // LocalStorageのキー定義
 // プライベートブラウズ等の localStorage 制限環境でのクラッシュを防止する安全ラッパー
+const memoryStore = {};
 const safeStorage = {
     getItem(key) {
         try {
-            return safeStorage.getItem(key);
+            const val = localStorage.getItem(key);
+            if (val !== null) return val;
         } catch (e) {
-            return null;
+            // ignore
         }
+        return memoryStore[key] || null;
     },
     setItem(key, value) {
         try {
-            safeStorage.setItem(key, value);
+            localStorage.setItem(key, value);
             return true;
         } catch (e) {
-            return false;
+            // ignore
         }
+        memoryStore[key] = String(value);
+        return true;
     },
     removeItem(key) {
         try {
-            safeStorage.removeItem(key);
+            localStorage.removeItem(key);
             return true;
         } catch (e) {
-            return false;
+            // ignore
         }
+        delete memoryStore[key];
+        return true;
     }
 };
 
