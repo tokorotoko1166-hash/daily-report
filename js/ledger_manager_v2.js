@@ -1041,10 +1041,12 @@ function refreshSiteTable(filter = {}) {
         }
 
         const count = list.length;
-        // 検索中なら自動展開(open)、そうでなければ閉じた状態
-        const isDefaultOpen = !!filter.search;
-        const displayStyle = isDefaultOpen ? 'block' : 'none';
-        const rotateStyle = isDefaultOpen ? 'transform: rotate(180deg);' : '';
+        if (!window.siteAccordionStates) window.siteAccordionStates = {};
+        const isOpen = window.siteAccordionStates[key] !== undefined 
+            ? window.siteAccordionStates[key] 
+            : !!filter.search;
+        const displayStyle = isOpen ? 'block' : 'none';
+        const rotateStyle = isOpen ? 'transform: rotate(180deg);' : '';
 
         // 各事業部ごとの現在表示制限数
         if (!window.currentDeptLimits) {
@@ -1195,17 +1197,17 @@ function refreshSiteTable(filter = {}) {
     container.querySelectorAll('.dept-header').forEach(header => {
         header.addEventListener('click', () => {
             const parent = header.closest('.dept-accordion');
+            const key = parent.getAttribute('data-dept');
             const content = parent.querySelector('.dept-content');
             const icon = header.querySelector('.accordion-icon');
             const isVisible = content.style.display === 'block';
 
-            if (isVisible) {
-                content.style.display = 'none';
-                icon.style.transform = '';
-            } else {
-                content.style.display = 'block';
-                icon.style.transform = 'rotate(180deg)';
-            }
+            const nextVisible = !isVisible;
+            content.style.display = nextVisible ? 'block' : 'none';
+            icon.style.transform = nextVisible ? 'rotate(180deg)' : '';
+
+            if (!window.siteAccordionStates) window.siteAccordionStates = {};
+            window.siteAccordionStates[key] = nextVisible;
         });
     });
 
