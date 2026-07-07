@@ -1,3 +1,10 @@
+// グローバル safeStorage の参照エラーを防止するセーフガード宣言
+const safeStorage = window.safeStorage || {
+    getItem(key) { return null; },
+    setItem(key, value) { return true; },
+    removeItem(key) { return true; }
+};
+
 // グローバルなトースト関数定義
 window.app = {
     showToast: (message, type = 'info') => {
@@ -67,20 +74,30 @@ async function syncSitesFromCloud() {
             const localSites = window.SiteDB.getAll();
             const cloudIds = cloudSites.map(cs => cs.id);
             
-            // 1. クラウド側のデータをローカルに追加・更新
+            // 1. クラウド側とローカル側の現場データをメモリ上で一括マージ（超高速化 / フリーズ防止）
+            let mergedSites = [...localSites];
+            let hasChanges = false;
+            
             cloudSites.forEach(cs => {
-                const exist = localSites.find(ls => ls.id === cs.id || ls.code === cs.code);
-                if (exist) {
-                    window.SiteDB.update(exist.id, cs);
+                const existIndex = mergedSites.findIndex(ls => ls.id === cs.id || (cs.code && ls.code === cs.code));
+                if (existIndex !== -1) {
+                    mergedSites[existIndex] = { ...mergedSites[existIndex], ...cs };
+                    hasChanges = true;
                 } else {
-                    window.SiteDB.add(cs);
+                    mergedSites.push(cs);
+                    hasChanges = true;
                 }
             });
             
-            // 2. クラウドに存在しない（PC側で削除された）現場をスマホのローカルから一括削除（超高速化）
-            const filteredSites = localSites.filter(ls => cloudIds.includes(ls.id));
-            if (filteredSites.length !== localSites.length) {
-                window.SiteDB.saveAll(filteredSites);
+            // 2. クラウドに存在しない（PC側で削除された）現場を一括除外
+            const finalSites = mergedSites.filter(ls => cloudIds.includes(ls.id));
+            if (finalSites.length !== mergedSites.length) {
+                hasChanges = true;
+            }
+            
+            // 変更があった場合のみ、最後に1回だけデータベースへ保存
+            if (hasChanges) {
+                window.SiteDB.saveAll(finalSites);
             }
             
             renderDatalists();
