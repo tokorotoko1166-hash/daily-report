@@ -4,6 +4,33 @@
  */
 
 // LocalStorageのキー定義
+// プライベートブラウズ等の localStorage 制限環境でのクラッシュを防止する安全ラッパー
+const safeStorage = {
+    getItem(key) {
+        try {
+            return safeStorage.getItem(key);
+        } catch (e) {
+            return null;
+        }
+    },
+    setItem(key, value) {
+        try {
+            safeStorage.setItem(key, value);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+    removeItem(key) {
+        try {
+            safeStorage.removeItem(key);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+};
+
 const STORAGE_KEYS = {
     SITES: 'report_ledger_sites',
     REPORTS: 'report_ledger_reports',
@@ -187,21 +214,21 @@ function initDatabase() {
     let purchases = [];
 
     try {
-        sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+        sites = JSON.parse(safeStorage.getItem(STORAGE_KEYS.SITES)) || [];
     } catch(e) {
-        localStorage.removeItem(STORAGE_KEYS.SITES);
+        safeStorage.removeItem(STORAGE_KEYS.SITES);
     }
 
     try {
-        reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+        reports = JSON.parse(safeStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
     } catch(e) {
-        localStorage.removeItem(STORAGE_KEYS.REPORTS);
+        safeStorage.removeItem(STORAGE_KEYS.REPORTS);
     }
 
     try {
-        purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+        purchases = JSON.parse(safeStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
     } catch(e) {
-        localStorage.removeItem(STORAGE_KEYS.PURCHASES);
+        safeStorage.removeItem(STORAGE_KEYS.PURCHASES);
     }
 
     const hasOldCodes = sites.length > 0 && sites.some(s => s && s.code && s.code.includes('-'));
@@ -209,20 +236,20 @@ function initDatabase() {
     const hasNewFields = reports.length > 0 && reports[0] && reports[0].hasOwnProperty('departureTime');
     const missingSupplierField = purchases.length > 0 && (!purchases[0] || !purchases[0].hasOwnProperty('supplier'));
 
-    if (!localStorage.getItem(STORAGE_KEYS.PURCHASES) || !hasNewFields || hasOldCodes || missingEstimateField || missingSupplierField || sites.length === 0) {
-        localStorage.removeItem(STORAGE_KEYS.SITES);
-        localStorage.removeItem(STORAGE_KEYS.REPORTS);
-        localStorage.removeItem(STORAGE_KEYS.PURCHASES);
+    if (!safeStorage.getItem(STORAGE_KEYS.PURCHASES) || !hasNewFields || hasOldCodes || missingEstimateField || missingSupplierField || sites.length === 0) {
+        safeStorage.removeItem(STORAGE_KEYS.SITES);
+        safeStorage.removeItem(STORAGE_KEYS.REPORTS);
+        safeStorage.removeItem(STORAGE_KEYS.PURCHASES);
     }
 
-    if (!localStorage.getItem(STORAGE_KEYS.SITES)) {
-        localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(DEMO_SITES));
+    if (!safeStorage.getItem(STORAGE_KEYS.SITES)) {
+        safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(DEMO_SITES));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.REPORTS)) {
-        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(DEMO_REPORTS));
+    if (!safeStorage.getItem(STORAGE_KEYS.REPORTS)) {
+        safeStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(DEMO_REPORTS));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.PURCHASES)) {
-        localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(DEMO_PURCHASES));
+    if (!safeStorage.getItem(STORAGE_KEYS.PURCHASES)) {
+        safeStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(DEMO_PURCHASES));
     }
 }
 
@@ -235,11 +262,11 @@ function initDatabase() {
 // 社内LANサーバー接続用の同期通信ヘルパー
 // ==========================================================================
 function isLocalServerEnabled() {
-    return localStorage.getItem('use_local_server') === 'true';
+    return safeStorage.getItem('use_local_server') === 'true';
 }
 
 function getLocalServerIP() {
-    return localStorage.getItem('local_server_ip') || 'localhost';
+    return safeStorage.getItem('local_server_ip') || 'localhost';
 }
 
 function fetchFromServerSync(type) {
@@ -249,7 +276,7 @@ function fetchFromServerSync(type) {
         xhr.open('GET', `http://${ip}:3000/api/data?type=${type}`, false); // 同期通信
         
         // セキュリティ認証用のヘッダーを付与
-        const token = localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
+        const token = safeStorage.getItem('admin_password') || safeStorage.getItem('custom_encryption_key') || '';
         if (token) {
             xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         }
@@ -273,7 +300,7 @@ function saveToServerSync(type, data) {
         xhr.setRequestHeader('Content-Type', 'application/json');
         
         // セキュリティ認証用のヘッダーを付与
-        const token = localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
+        const token = safeStorage.getItem('admin_password') || safeStorage.getItem('custom_encryption_key') || '';
         if (token) {
             xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         }
@@ -297,7 +324,7 @@ const SiteDB = {
                 const srvData = fetchFromServerSync('sites');
                 if (srvData) sites = srvData;
             } else {
-                sites = JSON.parse(localStorage.getItem(STORAGE_KEYS.SITES)) || [];
+                sites = JSON.parse(safeStorage.getItem(STORAGE_KEYS.SITES)) || [];
             }
         } catch(e) {
             sites = [];
@@ -342,7 +369,7 @@ const SiteDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('sites', sites);
         } else {
-            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+            safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
         }
         return newSite;
     },
@@ -361,7 +388,7 @@ const SiteDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('sites', sites);
         } else {
-            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+            safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
         }
         return sites[index];
     },
@@ -381,8 +408,8 @@ const SiteDB = {
             saveToServerSync('sites', filtered);
             if (purchases) saveToServerSync('purchases', purchases);
         } else {
-            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(filtered));
-            if (purchases) localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+            safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(filtered));
+            if (purchases) safeStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         }
 
         return true;
@@ -392,7 +419,7 @@ const SiteDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('sites', sites);
         } else {
-            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
+            safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(sites));
         }
         return true;
     },
@@ -401,7 +428,7 @@ const SiteDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('sites', []);
         } else {
-            localStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify([]));
+            safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify([]));
         }
         return true;
     }
@@ -419,7 +446,7 @@ const ReportDB = {
                 const srvData = fetchFromServerSync('reports');
                 if (srvData) reports = srvData;
             } else {
-                reports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
+                reports = JSON.parse(safeStorage.getItem(STORAGE_KEYS.REPORTS)) || [];
             }
         } catch(e) {
             reports = [];
@@ -464,7 +491,7 @@ const ReportDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('reports', reports);
         } else {
-            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+            safeStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
         }
         return newReport;
     },
@@ -483,7 +510,7 @@ const ReportDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('reports', reports);
         } else {
-            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+            safeStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
         }
         return reports[index];
     },
@@ -495,7 +522,7 @@ const ReportDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('reports', filtered);
         } else {
-            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(filtered));
+            safeStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(filtered));
         }
         return true;
     },
@@ -504,7 +531,7 @@ const ReportDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('reports', reports);
         } else {
-            localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+            safeStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
         }
         return true;
     }
@@ -522,7 +549,7 @@ const PurchaseDB = {
                 const srvData = fetchFromServerSync('purchases');
                 if (srvData) purchases = srvData;
             } else {
-                purchases = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
+                purchases = JSON.parse(safeStorage.getItem(STORAGE_KEYS.PURCHASES)) || [];
             }
         } catch(e) {
             purchases = [];
@@ -579,7 +606,7 @@ const PurchaseDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('purchases', purchases);
         } else {
-            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+            safeStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         }
         return newPurchase;
     },
@@ -607,7 +634,7 @@ const PurchaseDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('purchases', purchases);
         } else {
-            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+            safeStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         }
         return purchases[index];
     },
@@ -619,7 +646,7 @@ const PurchaseDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('purchases', filtered);
         } else {
-            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(filtered));
+            safeStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(filtered));
         }
         return true;
     },
@@ -628,7 +655,7 @@ const PurchaseDB = {
         if (isLocalServerEnabled()) {
             saveToServerSync('purchases', purchases);
         } else {
-            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+            safeStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
         }
         return true;
     }
@@ -742,6 +769,7 @@ const StatsDB = {
 };
 
 // CORS制限回避のため、 window オブジェクト配下にグローバルエクスポート
+window.safeStorage = safeStorage;
 window.initDatabase = initDatabase;
 window.SiteDB = SiteDB;
 window.ReportDB = ReportDB;
@@ -753,7 +781,7 @@ window.StatsDB = StatsDB;
 // ==========================================================================
 
 function getEncryptionKey() {
-    return localStorage.getItem('custom_encryption_key') || 'TokoroDailyReportSecretKeyToken2026';
+    return safeStorage.getItem('custom_encryption_key') || 'TokoroDailyReportSecretKeyToken2026';
 }
 
 // AES-256 共通鍵暗号化/復号化ユーティリティ
@@ -793,7 +821,7 @@ window.CloudSync = {
     config: null,
     isMock: false,
     getConfig: function() {
-        const saved = localStorage.getItem('cloudflare_config');
+        const saved = safeStorage.getItem('cloudflare_config');
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -808,7 +836,7 @@ window.CloudSync = {
         };
     },
     saveConfig: function(config) {
-        localStorage.setItem('cloudflare_config', JSON.stringify(config));
+        safeStorage.setItem('cloudflare_config', JSON.stringify(config));
         this.config = config;
     },
     init: function() {
@@ -950,7 +978,7 @@ window.CloudSync = {
             const storageKey = `cloud_mock_${name}`;
             return {
                 get: async function() {
-                    const saved = localStorage.getItem(storageKey);
+                    const saved = safeStorage.getItem(storageKey);
                     const list = saved ? JSON.parse(saved) : [];
                     return list.map(item => ({
                         id: item.id,
@@ -958,17 +986,17 @@ window.CloudSync = {
                     }));
                 },
                 add: async function(data) {
-                    const saved = localStorage.getItem(storageKey);
+                    const saved = safeStorage.getItem(storageKey);
                     const list = saved ? JSON.parse(saved) : [];
                     const newId = 'mock_doc_' + String(Math.random()).slice(2, 10);
                     list.push({ id: newId, data: data });
-                    localStorage.setItem(storageKey, JSON.stringify(list));
+                    safeStorage.setItem(storageKey, JSON.stringify(list));
                     return { id: newId };
                 },
                 doc: function(docId) {
                     return {
                         set: async function(data) {
-                            const saved = localStorage.getItem(storageKey);
+                            const saved = safeStorage.getItem(storageKey);
                             const list = saved ? JSON.parse(saved) : [];
                             const existIndex = list.findIndex(item => item.id === docId);
                             if (existIndex >= 0) {
@@ -976,14 +1004,14 @@ window.CloudSync = {
                             } else {
                                 list.push({ id: docId, data: data });
                             }
-                            localStorage.setItem(storageKey, JSON.stringify(list));
+                            safeStorage.setItem(storageKey, JSON.stringify(list));
                             return true;
                         },
                         delete: async function() {
-                            const saved = localStorage.getItem(storageKey);
+                            const saved = safeStorage.getItem(storageKey);
                             const list = saved ? JSON.parse(saved) : [];
                             const filtered = list.filter(item => item.id !== docId);
-                            localStorage.setItem(storageKey, JSON.stringify(filtered));
+                            safeStorage.setItem(storageKey, JSON.stringify(filtered));
                             return true;
                         }
                     };
