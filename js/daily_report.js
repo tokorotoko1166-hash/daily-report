@@ -263,17 +263,46 @@ function renderNameRegistrationForm(container) {
     }
     
     const form = document.getElementById('worker-name-form');
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
         const name = document.getElementById('reg-worker-name').value.trim();
         const password = document.getElementById('reg-password').value.trim();
-        if (name && password) {
-            window.safeStorage.setItem('current_worker_name', name);
+        
+        if (!name || !password) {
+            alert('氏名とパスワードを入力してください。');
+            return;
+        }
+
+        // 検証中の多重送信防止
+        submitBtn.disabled = true;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span>パスワード検証中...</span>';
+
+        try {
+            // 一時的にお名前登録時のパスワードをキーとして保存
             window.safeStorage.setItem('custom_encryption_key', password);
+            
+            // クラウドからテストでデータ取得を行ってパスワードの正しさを検証
+            if (window.CloudSync && window.CloudSync.isEnabled()) {
+                const collection = window.CloudSync.collection('sites');
+                // GET通信が成功すればパスワードが正しい、間違っていればエラー(例外)がスローされる
+                await collection.get();
+            }
+            
+            // 認証成功時のみ、お名前を正式に保存してアプリを起動
+            window.safeStorage.setItem('current_worker_name', name);
             window.app.showToast(`作業員「${name}」を登録しました`, 'success');
             initDailyReportApp();
-        } else {
-            alert('氏名とパスワードを入力してください。');
+        } catch (err) {
+            console.error('Password verification failed:', err);
+            // 認証失敗したため一時保存したキーをクリア
+            window.safeStorage.removeItem('custom_encryption_key');
+            alert('【認証エラー】管理者パスワードが違います。\nPC側の設定画面に表示されている正しいパスワードを入力してください。');
+            
+            // ボタンを復帰
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
     });
 }
