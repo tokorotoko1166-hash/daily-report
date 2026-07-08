@@ -295,7 +295,7 @@ function renderNameRegistrationForm(container) {
             
             const encryptedText = await res.text();
             if (encryptedText && encryptedText !== '[]') {
-                const decryptedList = window.CryptoUtil.decrypt(encryptedText);
+                const decryptedList = window.CryptoUtil.decrypt(encryptedText, true);
                 if (!decryptedList) {
                     // 暗号テキストの解読に失敗した ＝ パスワード間違い！
                     throw new Error('DECRYPTION_FAILED');
