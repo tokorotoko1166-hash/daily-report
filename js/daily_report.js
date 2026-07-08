@@ -237,16 +237,19 @@ function renderNameRegistrationForm(container) {
             <div style="width: 3.5rem; height: 3.5rem; border-radius: 50%; background: rgba(16, 185, 129, 0.1); color: var(--color-success); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;">
                 <i data-lucide="user-plus" style="width: 1.75rem; height: 1.75rem;"></i>
             </div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">作業員氏名の登録</h2>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">作業員氏名・パスワードの登録</h2>
             <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.5rem;">
-                日報の提出者名として使用します。<br>
-                一度登録すると、次回から氏名の入力が不要になります。
+                日報の提出者名と、データを保護する暗号化パスワードを設定します。
             </p>
             
             <form id="worker-name-form" style="text-align: left;">
-                <div class="form-group" style="margin-bottom: 1.5rem;">
+                <div class="form-group" style="margin-bottom: 1rem;">
                     <label for="reg-worker-name" style="font-size: 0.9rem; font-weight: 600;">氏名 <span style="color: var(--color-danger);">*</span></label>
                     <input type="text" id="reg-worker-name" required placeholder="例: 佐藤 健太" style="padding: 0.85rem; font-size: 1rem; border-radius: 10px; width: 100%;">
+                </div>
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label for="reg-password" style="font-size: 0.9rem; font-weight: 600;">管理者パスワード <span style="color: var(--color-danger);">*</span></label>
+                    <input type="password" id="reg-password" required placeholder="PC側で設定した暗号パスワード" style="padding: 0.85rem; font-size: 1rem; border-radius: 10px; width: 100%;">
                 </div>
                 <button type="submit" class="btn btn-success" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 600; border-radius: 10px;">
                     登録して日報入力を始める
@@ -263,10 +266,14 @@ function renderNameRegistrationForm(container) {
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const name = document.getElementById('reg-worker-name').value.trim();
-        if (name) {
+        const password = document.getElementById('reg-password').value.trim();
+        if (name && password) {
             window.safeStorage.setItem('current_worker_name', name);
+            window.safeStorage.setItem('encryption_key', password);
             window.app.showToast(`作業員「${name}」を登録しました`, 'success');
             initDailyReportApp();
+        } else {
+            alert('氏名とパスワードを入力してください。');
         }
     });
 }
@@ -321,10 +328,17 @@ function renderBatchInputForm(container) {
         </button>
         
         <!-- 一括送信ボタン -->
-        <div style="margin-top: 2rem; margin-bottom: 3rem;">
+        <div style="margin-top: 2rem; margin-bottom: 1rem;">
             <button type="button" class="btn btn-success" id="btn-batch-submit" style="width: 100%; padding: 1.1rem; font-size: 1.15rem; font-weight: 700; border-radius: 16px; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);">
                 <i data-lucide="send"></i>
                 <span>本日分の日報を一括提出する</span>
+            </button>
+        </div>
+        
+        <!-- 設定リセット（名前・パスワードの再登録） -->
+        <div style="text-align: center; margin-top: 1rem; margin-bottom: 3rem;">
+            <button type="button" id="btn-reset-worker" style="background: none; border: none; color: #94a3b8; font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 0.5rem 1rem;">
+                👤 登録したお名前・パスワードを変更する
             </button>
         </div>
     `;
@@ -770,6 +784,18 @@ function renderBatchInputForm(container) {
             renderBatchInputForm(container);
         });
     });
+
+    // 登録名・パスワードの初期化処理
+    const resetBtn = document.getElementById('btn-reset-worker');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (confirm('登録されているお名前とパスワードを消去して、再登録画面に戻りますか？')) {
+                window.safeStorage.removeItem('current_worker_name');
+                window.safeStorage.removeItem('encryption_key');
+                location.reload();
+            }
+        });
+    }
 }
 
 // 他のタブ(PC管理者画面など)での現場追加を検知して、リアルタイムでサジェスト候補を更新する

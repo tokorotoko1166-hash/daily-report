@@ -3705,6 +3705,7 @@ async function syncReportsFromCloud(isAutomatic = false) {
         }
 
         let successCount = 0;
+        let failCount = 0;
         const deletePromises = [];
 
         snapshot.forEach(doc => {
@@ -3729,9 +3730,20 @@ async function syncReportsFromCloud(isAutomatic = false) {
                     }
                     successCount++;
                     deletePromises.push(collection.doc(doc.id).delete());
+                } else {
+                    console.warn('Decryption failed for doc:', doc.id);
+                    failCount++;
                 }
             }
         });
+
+        if (failCount > 0) {
+            if (window.app && typeof window.app.showToast === 'function') {
+                window.app.showToast(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。スマホとPCのパスワードを一致させてください。`, 'danger');
+            } else {
+                alert(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。\nスマホとPCのパスワードを一致させてください。`);
+            }
+        }
 
         if (successCount > 0) {
             await Promise.all(deletePromises);
