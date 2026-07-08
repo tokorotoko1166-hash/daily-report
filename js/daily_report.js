@@ -237,7 +237,8 @@ function renderNameRegistrationForm(container) {
             <div style="width: 3.5rem; height: 3.5rem; border-radius: 50%; background: rgba(16, 185, 129, 0.1); color: var(--color-success); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;">
                 <i data-lucide="user-plus" style="width: 1.75rem; height: 1.75rem;"></i>
             </div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">作業員氏名・パスワードの登録</h2>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">作業員氏名・パスワードの登録</h2>
+            <div style="font-size: 0.7rem; color: var(--color-danger); font-weight: bold; margin-bottom: 0.75rem;">[バージョン: 20260708_2013]</div>
             <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.5rem;">
                 日報の提出者名と、データを保護する暗号化パスワードを設定します。
             </p>
