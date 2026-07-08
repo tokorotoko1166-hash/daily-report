@@ -1011,7 +1011,9 @@ window.CloudSync = {
                             if (name === 'sites') {
                                 // 現場リストのアップロード (一括POST)
                                 const allSites = window.SiteDB.getAll();
-                                const encryptedAll = window.CryptoUtil.encrypt(allSites);
+                                // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
+                                const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
+                                const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
                                 const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
@@ -1032,7 +1034,9 @@ window.CloudSync = {
                             if (name === 'sites') {
                                 // 現場削除時のアップロード (一括POST)
                                 const allSites = window.SiteDB.getAll();
-                                const encryptedAll = window.CryptoUtil.encrypt(allSites);
+                                // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
+                                const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
+                                const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
                                 const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
