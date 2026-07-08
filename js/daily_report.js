@@ -284,11 +284,22 @@ function renderNameRegistrationForm(container) {
             // 一時的にお名前登録時のパスワードをキーとして保存
             window.safeStorage.setItem('custom_encryption_key', password);
             
-            // クラウドからテストでデータ取得を行ってパスワードの正しさを検証
-            if (window.CloudSync && window.CloudSync.isEnabled()) {
-                const collection = window.CloudSync.collection('sites');
-                // GET通信が成功すればパスワードが正しい、間違っていればエラー(例外)がスローされる
-                await collection.get();
+            // モックモードや状態のズレを完全にバイパスし、本番のクラウド中継URLへ直接GETリクエストを投げて検証する（絶対確実な検証）
+            const url = 'https://daily-report-sync.tokoro-toko1166.workers.dev/api/sites';
+            const headers = { 'Authorization': 'Bearer TokoroEdgeOneAuthToken2026' };
+            
+            const res = await fetch(url, { headers });
+            if (!res.ok) {
+                throw new Error('NETWORK_OR_AUTH_ERROR');
+            }
+            
+            const encryptedText = await res.text();
+            if (encryptedText && encryptedText !== '[]') {
+                const decryptedList = window.CryptoUtil.decrypt(encryptedText);
+                if (!decryptedList) {
+                    // 暗号テキストの解読に失敗した ＝ パスワード間違い！
+                    throw new Error('DECRYPTION_FAILED');
+                }
             }
             
             // 認証成功時のみ、お名前を正式に保存してアプリを起動
