@@ -964,6 +964,10 @@ window.CloudSync = {
                         const encryptedText = await res.text();
                         if (!encryptedText || encryptedText === '[]') return [];
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
+                        if (encryptedText && encryptedText !== '[]' && !decryptedList) {
+                            // クラウドにデータがあるのに復号に失敗した ＝ パスワード不一致！
+                            throw new Error('DECRYPTION_FAILED');
+                        }
                         if (Array.isArray(decryptedList)) {
                             return decryptedList.map(s => ({
                                 id: s.id,

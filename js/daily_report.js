@@ -298,6 +298,9 @@ function renderNameRegistrationForm(container) {
             console.error('Password verification failed:', err);
             // 認証失敗したため一時保存したキーをクリア
             window.safeStorage.removeItem('custom_encryption_key');
+            
+            // クラウドから現場データがまだ1件もアップロードされていない（空っぽ）の初回起動時は、
+            // 例外が起きないので検証をパスしますが、データがある状態で復号失敗した場合は確実にブロック
             alert('【認証エラー】管理者パスワードが違います。\nPC側の設定画面に表示されている正しいパスワードを入力してください。');
             
             // ボタンを復帰
