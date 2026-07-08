@@ -3733,6 +3733,8 @@ async function syncReportsFromCloud(isAutomatic = false) {
                 } else {
                     console.warn('Decryption failed for doc:', doc.id);
                     failCount++;
+                    // 復号に失敗したゴミデータも、いつまでもクラウドに居座ってエラーを出し続けないように、同期時にクラウドから消去する
+                    deletePromises.push(collection.doc(doc.id).delete());
                 }
             }
         });

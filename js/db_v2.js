@@ -872,14 +872,36 @@ window.CryptoUtil = {
             return null;
         }
         try {
-            const bytes = CryptoJS.AES.decrypt(encryptedStr, getEncryptionKey());
-            const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
-            if (!decryptedStr) return null;
-            return JSON.parse(decryptedStr);
+            // 1. まずは設定されたカスタム暗号キーで復号を試みる
+            const key = getEncryptionKey();
+            let bytes = CryptoJS.AES.decrypt(encryptedStr, key);
+            let decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+            
+            // 2. 失敗した場合、自動的に初期キー(TokoroDailyReportSecretKeyToken2026)での復号を試みる（スマホのキー消去対策）
+            const defaultKey = 'TokoroDailyReportSecretKeyToken2026';
+            if (!decryptedStr && key !== defaultKey) {
+                bytes = CryptoJS.AES.decrypt(encryptedStr, defaultKey);
+                decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+            }
+            
+            if (decryptedStr) {
+                return JSON.parse(decryptedStr);
+            }
         } catch (e) {
-            console.error('Decryption failed:', e);
-            return null;
+            console.warn('First decryption attempt failed, trying fallback key...');
         }
+        
+        // 3. 例外発生時の最終フォールバック復号 (初期キーでの強制復号)
+        try {
+            const bytes = CryptoJS.AES.decrypt(encryptedStr, 'TokoroDailyReportSecretKeyToken2026');
+            const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+            if (decryptedStr) {
+                return JSON.parse(decryptedStr);
+            }
+        } catch (err) {}
+        
+        console.error('All decryption attempts failed.');
+        return null;
     }
 };
 

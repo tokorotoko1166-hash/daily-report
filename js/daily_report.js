@@ -269,7 +269,7 @@ function renderNameRegistrationForm(container) {
         const password = document.getElementById('reg-password').value.trim();
         if (name && password) {
             window.safeStorage.setItem('current_worker_name', name);
-            window.safeStorage.setItem('encryption_key', password);
+            window.safeStorage.setItem('custom_encryption_key', password);
             window.app.showToast(`作業員「${name}」を登録しました`, 'success');
             initDailyReportApp();
         } else {
@@ -791,7 +791,7 @@ function renderBatchInputForm(container) {
         resetBtn.addEventListener('click', () => {
             if (confirm('登録されているお名前とパスワードを消去して、再登録画面に戻りますか？')) {
                 window.safeStorage.removeItem('current_worker_name');
-                window.safeStorage.removeItem('encryption_key');
+                window.safeStorage.removeItem('custom_encryption_key');
                 location.reload();
             }
         });
