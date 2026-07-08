@@ -294,6 +294,9 @@ function renderNameRegistrationForm(container) {
             }
             
             const encryptedText = await res.text();
+            // 【一時的なデバッグ表示】クラウドから届いた生のデータを画面に表示
+            alert(`【検証デバッグ】\nクラウドから取得したデータ: ${encryptedText}\n(文字数: ${encryptedText ? encryptedText.length : 0})`);
+            
             if (encryptedText && encryptedText !== '[]') {
                 const decryptedList = window.CryptoUtil.decrypt(encryptedText, true);
                 if (!decryptedList) {
