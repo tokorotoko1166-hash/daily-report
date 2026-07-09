@@ -848,11 +848,18 @@ window.StatsDB = StatsDB;
 // ==========================================================================
 
 function getEncryptionKey() {
-    // 1. 独自暗号化キーが設定されていれば、それを最優先で使用
+    // 1. まずブラウザ標準の localStorage から直接取得を試みる (絶対確実)
+    try {
+        const customKey = localStorage.getItem('custom_encryption_key');
+        if (customKey) return customKey;
+        const adminPass = localStorage.getItem('admin_password');
+        if (adminPass) return adminPass;
+    } catch (e) {}
+
+    // 2. localStorageが使えない制限環境の場合は、safeStorageから取得を試みる (Cookieやメモリ参照)
     const customKey = safeStorage.getItem('custom_encryption_key');
     if (customKey) return customKey;
     
-    // 2. 独自暗号化キーが空でも、管理者パスワードが設定されていればそれを暗号キーとして自動代用 (ユーザーの混乱防止)
     const adminPass = safeStorage.getItem('admin_password');
     if (adminPass) return adminPass;
     
