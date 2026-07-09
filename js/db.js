@@ -848,7 +848,16 @@ window.StatsDB = StatsDB;
 // ==========================================================================
 
 function getEncryptionKey() {
-    return safeStorage.getItem('custom_encryption_key') || 'TokoroDailyReportSecretKeyToken2026';
+    // 1. 独自暗号化キーが設定されていれば、それを最優先で使用
+    const customKey = safeStorage.getItem('custom_encryption_key');
+    if (customKey) return customKey;
+    
+    // 2. 独自暗号化キーが空でも、管理者パスワードが設定されていればそれを暗号キーとして自動代用 (ユーザーの混乱防止)
+    const adminPass = safeStorage.getItem('admin_password');
+    if (adminPass) return adminPass;
+    
+    // 3. どちらも未設定の場合はデフォルトキーを使用
+    return 'TokoroDailyReportSecretKeyToken2026';
 }
 
 // AES-256 共通鍵暗号化/復号化ユーティリティ
