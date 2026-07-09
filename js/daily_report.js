@@ -249,10 +249,10 @@ function renderNameRegistrationForm(container) {
                     <input type="text" id="reg-worker-name" required placeholder="例: 佐藤 健太" style="padding: 0.85rem; font-size: 1rem; border-radius: 10px; width: 100%;">
                 </div>
                 <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <label for="reg-password" style="font-size: 0.9rem; font-weight: 600;">🔑 独自暗号化キー または 管理者パスワード <span style="color: var(--color-danger);">*</span></label>
-                    <input type="password" id="reg-password" required placeholder="PC側と同じパスワードまたは暗号キーを入力" style="padding: 0.85rem; font-size: 1rem; border-radius: 10px; width: 100%;">
+                    <label for="reg-password" style="font-size: 0.9rem; font-weight: 600;">🔑 独自暗号化キー (クラウド/スマホ同期用) <span style="color: var(--color-danger);">*</span></label>
+                    <input type="password" id="reg-password" required placeholder="PCと同じ独自暗号化キーを入力" style="padding: 0.85rem; font-size: 1rem; border-radius: 10px; width: 100%;">
                     <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.4rem; line-height: 1.4;">
-                        ※PCの設定画面にある「独自暗号化キー」または「管理者パスワード」のいずれかと同じ文字を入力してください。
+                        ※PCの設定画面にある「独自暗号化キー」と同じ文字を入力してください。
                     </span>
                 </div>
                 <button type="submit" class="btn btn-success" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 600; border-radius: 10px;">
@@ -316,7 +316,7 @@ function renderNameRegistrationForm(container) {
             
             // クラウドから現場データがまだ1件もアップロードされていない（空っぽ）の初回起動時は、
             // 例外が起きないので検証をパスしますが、データがある状態で復号失敗した場合は確実にブロック
-            alert('【認証エラー】パスワードまたは暗号化キーが違います。\nPCの設定画面にある「独自暗号化キー」または「管理者パスワード」のいずれかと同じ文字を入力してください。');
+            alert('【認証エラー】独自暗号化キーが違います。\nPC側の設定画面に表示されている正しい「独自暗号化キー」を入力してください。');
             
             // ボタンを復帰
             submitBtn.disabled = false;
