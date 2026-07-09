@@ -278,7 +278,7 @@ function renderNameRegistrationForm(container) {
         }
 
         // 【新認証方式】スマホ内だけで直接キーを検証 (ネットワーク要因によるエラーを100%回避)
-        const CORRECT_KEY = 'yk1322';
+        const CORRECT_KEY = 'yks1322';
         
         if (password !== CORRECT_KEY) {
             alert('【認証エラー】独自暗号化キーが違います。\nPC側の設定画面に表示されている正しい「独自暗号化キー」を入力してください。');
