@@ -3667,6 +3667,7 @@ async function syncSitesToCloud() {
         console.log('Sites synced to cloud successfully (bulk).');
     } catch (e) {
         console.error('Failed to sync sites to cloud:', e);
+        alert(`【現場データのクラウド送信エラー】\n現場データをクラウドに送信できませんでした。\n(原因: ${e.message})`);
     }
 }
 
