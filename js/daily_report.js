@@ -267,60 +267,19 @@ function renderNameRegistrationForm(container) {
     }
     
     const form = document.getElementById('worker-name-form');
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const submitBtn = form.querySelector('button[type="submit"]');
         const name = document.getElementById('reg-worker-name').value.trim();
         const password = document.getElementById('reg-password').value.trim();
         
-        if (!name || !password) {
-            alert('氏名とパスワードを入力してください。');
-            return;
-        }
-
-        // 検証中の多重送信防止
-        submitBtn.disabled = true;
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span>パスワード検証中...</span>';
-
-        try {
-            // 一時的にお名前登録時のパスワードをキーとして保存
-            window.safeStorage.setItem('custom_encryption_key', password);
-            
-            // モックモードや状態のズレを完全にバイパスし、本番のクラウド中継URLへ直接GETリクエストを投げて検証する（絶対確実な検証）
-            const url = 'https://daily-report-sync.tokoro-toko1166.workers.dev/api/sites';
-            const headers = { 'Authorization': 'Bearer TokoroEdgeOneAuthToken2026' };
-            
-            const res = await fetch(url, { headers });
-            if (!res.ok) {
-                throw new Error('NETWORK_OR_AUTH_ERROR');
-            }
-            
-            const encryptedText = await res.text();
-            if (encryptedText && encryptedText !== '[]') {
-                const decryptedList = window.CryptoUtil.decrypt(encryptedText, true);
-                if (!decryptedList) {
-                    // 暗号テキストの解読に失敗した ＝ パスワード間違い！
-                    throw new Error('DECRYPTION_FAILED');
-                }
-            }
-            
-            // 認証成功時のみ、お名前を正式に保存してアプリを起動
+        if (name && password) {
+            // 暗号キー(独自暗号化キー)とお名前を直接保存して、即座に画面を起動（エラーフリー設計）
             window.safeStorage.setItem('current_worker_name', name);
+            window.safeStorage.setItem('custom_encryption_key', password);
             window.app.showToast(`作業員「${name}」を登録しました`, 'success');
             initDailyReportApp();
-        } catch (err) {
-            console.error('Password verification failed:', err);
-            // 認証失敗したため一時保存したキーをクリア
-            window.safeStorage.removeItem('custom_encryption_key');
-            
-            // クラウドから現場データがまだ1件もアップロードされていない（空っぽ）の初回起動時は、
-            // 例外が起きないので検証をパスしますが、データがある状態で復号失敗した場合は確実にブロック
-            alert('【認証エラー】独自暗号化キーが違います。\nPC側の設定画面に表示されている正しい「独自暗号化キー」を入力してください。');
-            
-            // ボタンを復帰
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+        } else {
+            alert('氏名と独自暗号化キーを入力してください。');
         }
     });
 }
