@@ -283,6 +283,9 @@ function renderNameRegistrationForm(container) {
         const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<span>パスワード検証中...</span>';
 
+        let connectionFailed = false;
+        let decryptionFailed = false;
+
         try {
             // 一時的にお名前登録時のパスワードをキーとして保存
             window.safeStorage.setItem('custom_encryption_key', password);
@@ -292,37 +295,42 @@ function renderNameRegistrationForm(container) {
             const headers = { 'Authorization': 'Bearer TokoroEdgeOneAuthToken2026' };
             
             const res = await fetch(url, { headers }).catch(() => {
-                // 通信エラー時は特例突破に望みを託すため、ここではエラーを投げずにダミーレスポンス扱いにする
-                return { ok: false, text: async () => '[]' };
+                connectionFailed = true;
+                return null;
             });
             
-            let isVerified = false;
-            if (res && res.ok) {
+            if (!res || !res.ok) {
+                connectionFailed = true;
+            } else {
                 const encryptedText = await res.text();
                 if (encryptedText && encryptedText !== '[]') {
                     const decryptedList = window.CryptoUtil.decrypt(encryptedText, true); // 厳密モード
-                    if (decryptedList) {
-                        isVerified = true; // クラウドデータの解読に成功 ＝ 認証成功！
+                    if (!decryptedList) {
+                        // 通信はできたが、暗号テキストの解読に失敗した ＝ パスワード間違い！
+                        decryptionFailed = true;
                     }
+                } else {
+                    // クラウド上の現場データが空（PC側が未同期）
+                    connectionFailed = true; 
                 }
             }
-
-            // 【特例突破ロジック】
-            // もし通信不良や暗号化のズレで解読に失敗した場合でも、
-            // 入力された文字が本来のパスワード「yks1322」または「yk1322」であれば、無条件で認証成功とみなして通す！
-            const cleanInput = password.replace(/[\s　]/g, '').trim();
-            if (!isVerified && (cleanInput === 'yks1322' || cleanInput === 'yk1322')) {
-                isVerified = true;
-            }
             
-            if (!isVerified) {
-                // 上記のいずれにも該当しない全く違うパスワードの場合は、厳密にブロック！
+            if (decryptionFailed) {
+                // パスワードが本当に違っている場合は、確実にエラーとしてブロック！
                 throw new Error('DECRYPTION_FAILED');
             }
             
-            // 認証成功時のみ、お名前を正式に保存してアプリを起動
+            // 認証成功、または通信エラー(電波不良等)による未検証時は、
+            // 業務を止めないためにそのまま登録を成功させて進む（セーフティ設計）
             window.safeStorage.setItem('current_worker_name', name);
-            window.app.showToast(`作業員「${name}」を登録しました`, 'success');
+            
+            if (connectionFailed) {
+                // 通信エラーでパスワードの正しさを検証できなかった場合のみ、注意喚起トーストを表示
+                window.app.showToast(`登録完了（※電波不良のためキー未検証）`, 'warning');
+            } else {
+                window.app.showToast(`作業員「${name}」を登録しました`, 'success');
+            }
+            
             initDailyReportApp();
         } catch (err) {
             console.error('Password verification failed:', err);
