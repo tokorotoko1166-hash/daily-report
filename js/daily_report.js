@@ -287,31 +287,11 @@ function renderNameRegistrationForm(container) {
         }
 
         // 一致していれば、名前と固定キー(yks1322)を保存して画面に進む
+        // 一致していれば、名前と固定キー(yks1322)を保存して画面に進む
         window.safeStorage.setItem('current_worker_name', name);
         window.safeStorage.setItem('custom_encryption_key', CORRECT_KEY);
         window.app.showToast(`作業員「${name}」を登録しました`, 'success');
         initDailyReportApp();
-    });
-    // ダミーのcatchブロックをJSエラー防止用にプレースホルダー配置(直後にダミーの例外ハンドリングを吸収)
-    try {
-        const dummy = 1;
-    } catch (err) {
-            console.error('Password verification failed:', err);
-            // 認証失敗したため一時保存したキーをクリア
-            window.safeStorage.removeItem('custom_encryption_key');
-            
-            if (err.message === 'DECRYPTION_FAILED') {
-                alert('【認証エラー】独自暗号化キーが違います。\nPC側の設定画面に表示されている正しい「独自暗号化キー」を入力してください。');
-            } else if (err.message === 'CLOUD_EMPTY_ERROR') {
-                alert('【初期設定エラー】クラウド上の現場データが空です。\nPC側の管理画面の設定（歯車マーク）から、一度「保存して接続テスト」を行って現場データを送信してください。');
-            } else {
-                alert('【通信エラー】中継サーバーと接続できませんでした。\n電波状況の良い場所で再度お試しください。');
-            }
-            
-            // ボタンを復帰
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        }
     });
 }
 
