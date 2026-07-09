@@ -848,23 +848,38 @@ window.StatsDB = StatsDB;
 // ==========================================================================
 
 function getEncryptionKey() {
-    // 1. まずブラウザ標準の localStorage から直接取得を試みる (絶対確実)
+    let key = 'TokoroDailyReportSecretKeyToken2026';
+    let source = 'デフォルト(初期キー)';
+    
     try {
         const customKey = localStorage.getItem('custom_encryption_key');
-        if (customKey) return customKey;
-        const adminPass = localStorage.getItem('admin_password');
-        if (adminPass) return adminPass;
+        if (customKey) {
+            key = customKey;
+            source = 'PCの「独自暗号化キー」に入力されている値';
+        } else {
+            const adminPass = localStorage.getItem('admin_password');
+            if (adminPass) {
+                key = adminPass;
+                source = 'PCの「管理者パスワード」に入力されている値';
+            }
+        }
     } catch (e) {}
 
-    // 2. localStorageが使えない制限環境の場合は、safeStorageから取得を試みる (Cookieやメモリ参照)
-    const customKey = safeStorage.getItem('custom_encryption_key');
-    if (customKey) return customKey;
+    if (key === 'TokoroDailyReportSecretKeyToken2026') {
+        const customKey = safeStorage.getItem('custom_encryption_key');
+        if (customKey) {
+            key = customKey;
+            source = 'safeStorage custom_encryption_key (Cookie/メモリ)';
+        } else {
+            const adminPass = safeStorage.getItem('admin_password');
+            if (adminPass) {
+                key = adminPass;
+                source = 'safeStorage admin_password (Cookie/メモリ)';
+            }
+        }
+    }
     
-    const adminPass = safeStorage.getItem('admin_password');
-    if (adminPass) return adminPass;
-    
-    // 3. どちらも未設定の場合はデフォルトキーを使用
-    return 'TokoroDailyReportSecretKeyToken2026';
+    return key;
 }
 
 // AES-256 共通鍵暗号化/復号化ユーティリティ

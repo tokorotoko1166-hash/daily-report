@@ -284,6 +284,10 @@ function renderNameRegistrationForm(container) {
             // 一時的にお名前登録時のパスワードをキーとして保存
             window.safeStorage.setItem('custom_encryption_key', password);
             
+            // 【スマホ側デバッグ表示】
+            const testKey = window.safeStorage.getItem('custom_encryption_key');
+            alert(`【スマホ側のデバッグ】\n入力したパスワード: ${password}\nスマホが記憶したパスワード: ${testKey}\n(文字数: ${testKey ? testKey.length : 0})`);
+            
             // モックモードや状態のズレを完全にバイパスし、本番のクラウド中継URLへ直接GETリクエストを投げて検証する（絶対確実な検証）
             const url = 'https://daily-report-sync.tokoro-toko1166.workers.dev/api/sites';
             const headers = { 'Authorization': 'Bearer TokoroEdgeOneAuthToken2026' };
