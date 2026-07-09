@@ -4333,10 +4333,6 @@ function openCloudSettingsModal() {
         }
 
         try {
-            // 【PC側デバッグ表示】PCがデータの暗号化に使用しているパスワードを表示
-            const actualKey = getEncryptionKey();
-            alert(`【PC側のデバッグ】\nPCが暗号化に使用したパスワード: ${actualKey}\n(文字数: ${actualKey ? actualKey.length : 0})`);
-
             const res = await fetch(`${newConfig.url}/api/test`, {
                 headers: { 'Authorization': `Bearer ${newConfig.token}` }
             });
