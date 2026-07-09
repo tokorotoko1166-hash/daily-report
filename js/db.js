@@ -1,3 +1,13 @@
+// パスワード検証用の一方向ハッシュ計算 (SHA-256)
+async function calculateSHA256(message) {
+    const cleanMsg = message.replace(/[\s　]/g, '').trim();
+    const msgBuffer = new TextEncoder().encode(cleanMsg);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+window.calculateSHA256 = calculateSHA256;
+
 /**
  * データベース層 (LocalStorage 制御) - グローバル公開版 (CORSポリシー回避)
  * 現場データ、日報データ、材料仕入れデータの保存および取得・集計処理を行います。
@@ -974,8 +984,15 @@ window.CloudSync = {
                             const errText = await res.text().catch(() => '');
                             throw new Error(`GET sites failed with status ${res.status}: ${errText}`);
                         }
-                        const encryptedText = await res.text();
+                        let encryptedText = await res.text();
                         if (!encryptedText || encryptedText === '[]') return [];
+                        
+                        // ハッシュ連結対応: コロンで分割し、右側の暗号テキストのみを復号
+                        const parts = encryptedText.split(':');
+                        if (parts.length >= 2) {
+                            encryptedText = parts[1];
+                        }
+                        
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
                         if (encryptedText && encryptedText !== '[]' && !decryptedList) {
                             // クラウドにデータがあるのに復号に失敗した ＝ パスワード不一致！
@@ -1027,13 +1044,18 @@ window.CloudSync = {
                                 // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
+                                // パスワードのハッシュ値を計算して、コロンで連結して送信 (厳密検証用)
+                                const currentKey = getEncryptionKey();
+                                const hash = await window.calculateSHA256(currentKey);
+                                const payload = `${hash}:${encryptedAll}`;
+
                                 const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
                                         'Content-Type': 'text/plain'
                                     },
-                                    body: encryptedAll
+                                    body: payload
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
@@ -1050,13 +1072,18 @@ window.CloudSync = {
                                 // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
+                                // パスワードのハッシュ値を計算して、コロンで連結して送信 (厳密検証用)
+                                const currentKey = getEncryptionKey();
+                                const hash = await window.calculateSHA256(currentKey);
+                                const payload = `${hash}:${encryptedAll}`;
+
                                 const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
                                         'Content-Type': 'text/plain'
                                     },
-                                    body: encryptedAll
+                                    body: payload
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');

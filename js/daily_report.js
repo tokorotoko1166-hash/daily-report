@@ -299,12 +299,24 @@ function renderNameRegistrationForm(container) {
                 throw new Error('NETWORK_ERROR');
             }
             
-            const encryptedText = await res.text();
-            if (encryptedText && encryptedText !== '[]') {
-                const decryptedList = window.CryptoUtil.decrypt(encryptedText, true); // 厳密モード
-                if (!decryptedList) {
-                    // 暗号テキストの解読に失敗した ＝ パスワード間違い！
-                    throw new Error('DECRYPTION_FAILED');
+            const payload = await res.text();
+            if (payload && payload !== '[]') {
+                // コロンで「ハッシュ値」と「暗号データ」を分割
+                const parts = payload.split(':');
+                if (parts.length >= 2) {
+                    const expectedHash = parts[0]; // PC側のパスワードハッシュ
+                    const actualHash = await window.calculateSHA256(password); // スマホ側で計算したハッシュ
+                    
+                    if (expectedHash !== actualHash) {
+                        // ハッシュが一致しない ＝ パスワード間違い！
+                        throw new Error('DECRYPTION_FAILED');
+                    }
+                } else {
+                    // 古い形式のデータが残っている場合は、通常解読テストで代替
+                    const decryptedList = window.CryptoUtil.decrypt(payload, true);
+                    if (!decryptedList) {
+                        throw new Error('DECRYPTION_FAILED');
+                    }
                 }
             } else {
                 // クラウド上の現場データが空（PC側が未同期）
