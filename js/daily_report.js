@@ -267,67 +267,35 @@ function renderNameRegistrationForm(container) {
     }
     
     const form = document.getElementById('worker-name-form');
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const submitBtn = form.querySelector('button[type="submit"]');
         const name = document.getElementById('reg-worker-name').value.trim();
         const password = document.getElementById('reg-password').value.trim();
         
         if (!name || !password) {
-            alert('氏名と独自暗号化キーを入力してください。');
+            alert('氏名とパスワードを入力してください。');
             return;
         }
 
-        // 検証中の多重送信防止
-        submitBtn.disabled = true;
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span>パスワード検証中...</span>';
+        // 全角スペースや改行を除去
+        const cleanInput = password.replace(/[\s　]/g, '').trim();
+        const CORRECT_KEY = 'yks1322';
+        
+        if (cleanInput !== CORRECT_KEY) {
+            alert('【認証エラー】パスワードが違います。\n正しいパスワードを入力してください。');
+            return;
+        }
 
-        try {
-            // 一時的にお名前登録時のパスワードをキーとして保存
-            window.safeStorage.setItem('custom_encryption_key', password);
-            
-            // クラウドから最新の暗号化現場データを強制取得 (キャッシュバスター?t=を付与して古い記憶を排除)
-            const url = `https://daily-report-sync.tokoro-toko1166.workers.dev/api/sites?t=${Date.now()}`;
-            const headers = { 'Authorization': 'Bearer TokoroEdgeOneAuthToken2026' };
-            
-            const res = await fetch(url, { headers }).catch(() => {
-                throw new Error('NETWORK_ERROR');
-            });
-            
-            if (!res || !res.ok) {
-                throw new Error('NETWORK_ERROR');
-            }
-            
-            const payload = await res.text();
-            if (payload && payload !== '[]') {
-                // コロンで「ハッシュ値」と「暗号データ」を分割
-                const parts = payload.split(':');
-                if (parts.length >= 2) {
-                    const expectedHash = parts[0]; // PC側のパスワードハッシュ
-                    const actualHash = await window.calculateSHA256(password); // スマホ側で計算したハッシュ
-                    
-                    if (expectedHash !== actualHash) {
-                        // ハッシュが一致しない ＝ パスワード間違い！
-                        throw new Error('DECRYPTION_FAILED');
-                    }
-                } else {
-                    // 古い形式のデータが残っている場合は、通常解読テストで代替
-                    const decryptedList = window.CryptoUtil.decrypt(payload, true);
-                    if (!decryptedList) {
-                        throw new Error('DECRYPTION_FAILED');
-                    }
-                }
-            } else {
-                // クラウド上の現場データが空（PC側が未同期）
-                throw new Error('CLOUD_EMPTY_ERROR');
-            }
-            
-            // 【厳密検証】通信成功かつ解読成功時のみ、お名前を正式に保存してアプリを起動
-            window.safeStorage.setItem('current_worker_name', name);
-            window.app.showToast(`作業員「${name}」を登録しました`, 'success');
-            initDailyReportApp();
-        } catch (err) {
+        // 一致していれば、名前と固定キー(yks1322)を保存して画面に進む
+        window.safeStorage.setItem('current_worker_name', name);
+        window.safeStorage.setItem('custom_encryption_key', CORRECT_KEY);
+        window.app.showToast(`作業員「${name}」を登録しました`, 'success');
+        initDailyReportApp();
+    });
+    // ダミーのcatchブロックをJSエラー防止用にプレースホルダー配置(直後にダミーの例外ハンドリングを吸収)
+    try {
+        const dummy = 1;
+    } catch (err) {
             console.error('Password verification failed:', err);
             // 認証失敗したため一時保存したキーをクリア
             window.safeStorage.removeItem('custom_encryption_key');

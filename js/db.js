@@ -858,18 +858,8 @@ window.StatsDB = StatsDB;
 // ==========================================================================
 
 function getEncryptionKey() {
-    // 1. まずブラウザ標準の localStorage から「独自暗号化キー」を直接取得
-    try {
-        const customKey = localStorage.getItem('custom_encryption_key');
-        if (customKey) return customKey;
-    } catch (e) {}
-
-    // 2. localStorageが使えない制限環境の場合は、safeStorageから取得
-    const customKey = safeStorage.getItem('custom_encryption_key');
-    if (customKey) return customKey;
-    
-    // 3. 未設定の場合はデフォルトキーを使用
-    return 'TokoroDailyReportSecretKeyToken2026';
+    // 常に本番固定パスワード「yks1322」を返す
+    return 'yks1322';
 }
 
 // AES-256 共通鍵暗号化/復号化ユーティリティ
@@ -987,12 +977,6 @@ window.CloudSync = {
                         let encryptedText = await res.text();
                         if (!encryptedText || encryptedText === '[]') return [];
                         
-                        // ハッシュ連結対応: コロンで分割し、右側の暗号テキストのみを復号
-                        const parts = encryptedText.split(':');
-                        if (parts.length >= 2) {
-                            encryptedText = parts[1];
-                        }
-                        
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
                         if (encryptedText && encryptedText !== '[]' && !decryptedList) {
                             // クラウドにデータがあるのに復号に失敗した ＝ パスワード不一致！
@@ -1044,18 +1028,13 @@ window.CloudSync = {
                                 // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
-                                // パスワードのハッシュ値を計算して、コロンで連結して送信 (厳密検証用)
-                                const currentKey = getEncryptionKey();
-                                const hash = await window.calculateSHA256(currentKey);
-                                const payload = `${hash}:${encryptedAll}`;
-
                                 const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
                                         'Content-Type': 'text/plain'
                                     },
-                                    body: payload
+                                    body: encryptedAll
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
@@ -1072,18 +1051,13 @@ window.CloudSync = {
                                 // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
-                                // パスワードのハッシュ値を計算して、コロンで連結して送信 (厳密検証用)
-                                const currentKey = getEncryptionKey();
-                                const hash = await window.calculateSHA256(currentKey);
-                                const payload = `${hash}:${encryptedAll}`;
-
                                 const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
                                         'Content-Type': 'text/plain'
                                     },
-                                    body: payload
+                                    body: encryptedAll
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');

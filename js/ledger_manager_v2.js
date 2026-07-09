@@ -3843,12 +3843,12 @@ function openCloudSettingsModal() {
                 <label for="cfg-admin-password" style="font-weight: 600; color: var(--text-main);">🔒 管理者パスワード (管理画面起動ロック用)</label>
                 <input type="password" id="cfg-admin-password" value="${adminPassword}" placeholder="未設定 (設定すると次回から起動時にロックがかかります)" style="font-family:monospace; font-size:0.85rem; padding: 0.4rem; border-radius: 6px;">
             </div>
-            <div class="form-group" style="margin-bottom: 0.5rem;">
-                <label for="cfg-custom-encryption-key" style="font-weight: 600; color: var(--text-main);">🔑 独自暗号化キー (クラウド/スマホ同期用)</label>
-                <input type="password" id="cfg-custom-encryption-key" value="${customEncryptionKey}" placeholder="未設定 (スマホと共有する暗号鍵を独自変更できます)" style="font-family:monospace; font-size:0.85rem; padding: 0.4rem; border-radius: 6px;">
-                <span style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:0.25rem; line-height:1.3;">
-                    ※ここを変更した場合、携帯（スマホ）の同期設定にも**全く同じパスワード**を設定する必要があります。
-                </span>
+            <div class="form-group" style="background: rgba(59, 130, 246, 0.05); padding: 0.75rem 1rem; border-radius: 8px; border: 1px dashed rgba(59, 130, 246, 0.2); margin-bottom: 1.25rem;">
+                <label style="font-weight: 600; color: var(--color-primary); margin-bottom: 0.25rem; display: block;">🔒 暗号化パスワード (固定セキュリティ)</label>
+                <div style="font-size: 0.8rem; color: #4b5563; line-height: 1.4;">
+                    本システムは、固定パスワード <strong>yks1322</strong> で自動暗号化されています。<br>
+                    (スマホ側のお名前登録時にも同じ <strong>yks1322</strong> を入力してください)
+                </div>
             </div>
         </div>
 
@@ -4278,7 +4278,7 @@ function openCloudSettingsModal() {
         const localIP = localIPInput.value.trim();
         
         const adminPass = document.getElementById('cfg-admin-password').value.trim();
-        const customEncKey = document.getElementById('cfg-custom-encryption-key').value.trim();
+        const customEncKey = 'yks1322';
 
         // セキュリティ設定の保存
         if (adminPass) {
@@ -4287,11 +4287,7 @@ function openCloudSettingsModal() {
             localStorage.removeItem('admin_password');
         }
 
-        if (customEncKey) {
-            localStorage.setItem('custom_encryption_key', customEncKey);
-        } else {
-            localStorage.removeItem('custom_encryption_key');
-        }
+        localStorage.setItem('custom_encryption_key', 'yks1322');
 
         localStorage.setItem('use_local_server', useLocal ? 'true' : 'false');
         localStorage.setItem('local_server_ip', localIP);
