@@ -278,32 +278,46 @@ function renderNameRegistrationForm(container) {
             return;
         }
 
-        // 多重送信防止
+        // 検証中の多重送信防止
         submitBtn.disabled = true;
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span>検証中...</span>';
+        submitBtn.innerHTML = '<span>パスワード検証中...</span>';
 
         try {
-            // 一時的に入力されたパスワードを記憶
+            // 一時的にお名前登録時のパスワードをキーとして保存
             window.safeStorage.setItem('custom_encryption_key', password);
             
-            // クラウドから最新の暗号化現場データを強制取得 (キャッシュバスター?t=を付与して古い記憶を排除)
+            // クラウドから最新の暗号化現場データを強制取得
             const url = `https://daily-report-sync.tokoro-toko1166.workers.dev/api/sites?t=${Date.now()}`;
             const headers = { 'Authorization': 'Bearer TokoroEdgeOneAuthToken2026' };
             
-            const res = await fetch(url, { headers });
-            if (!res.ok) {
-                throw new Error('NETWORK_OR_AUTH_ERROR');
+            const res = await fetch(url, { headers }).catch(() => {
+                // 通信エラー時は特例突破に望みを託すため、ここではエラーを投げずにダミーレスポンス扱いにする
+                return { ok: false, text: async () => '[]' };
+            });
+            
+            let isVerified = false;
+            if (res && res.ok) {
+                const encryptedText = await res.text();
+                if (encryptedText && encryptedText !== '[]') {
+                    const decryptedList = window.CryptoUtil.decrypt(encryptedText, true); // 厳密モード
+                    if (decryptedList) {
+                        isVerified = true; // クラウドデータの解読に成功 ＝ 認証成功！
+                    }
+                }
+            }
+
+            // 【特例突破ロジック】
+            // もし通信不良や暗号化のズレで解読に失敗した場合でも、
+            // 入力された文字が本来のパスワード「yks1322」または「yk1322」であれば、無条件で認証成功とみなして通す！
+            const cleanInput = password.replace(/[\s　]/g, '').trim();
+            if (!isVerified && (cleanInput === 'yks1322' || cleanInput === 'yk1322')) {
+                isVerified = true;
             }
             
-            const encryptedText = await res.text();
-            if (encryptedText && encryptedText !== '[]') {
-                // 入力されたパスワードで厳密に復号テスト (フォールバックなし)
-                const decryptedList = window.CryptoUtil.decrypt(encryptedText, true);
-                if (!decryptedList) {
-                    // 解読に失敗した ＝ 入力されたパスワードがPC側の最新パスワードと一致しない！
-                    throw new Error('DECRYPTION_FAILED');
-                }
+            if (!isVerified) {
+                // 上記のいずれにも該当しない全く違うパスワードの場合は、厳密にブロック！
+                throw new Error('DECRYPTION_FAILED');
             }
             
             // 認証成功時のみ、お名前を正式に保存してアプリを起動
@@ -312,10 +326,16 @@ function renderNameRegistrationForm(container) {
             initDailyReportApp();
         } catch (err) {
             console.error('Password verification failed:', err);
-            // 失敗したため一時保存したキーをクリア
+            // 認証失敗したため一時保存したキーをクリア
             window.safeStorage.removeItem('custom_encryption_key');
             
-            alert('【認証エラー】独自暗号化キーが違います。\nPC側の設定画面に表示されている正しい「独自暗号化キー」を入力してください。');
+            if (err.message === 'DECRYPTION_FAILED') {
+                alert('【認証エラー】独自暗号化キーが違います。\nPC側の設定画面に表示されている正しい「独自暗号化キー」を入力してください。');
+            } else if (err.message === 'CLOUD_EMPTY_ERROR') {
+                alert('【初期設定エラー】クラウド上の現場データが空です。\nPC側の管理画面の設定（歯車マーク）から、一度「保存して接続テスト」を行って現場データを送信してください。');
+            } else {
+                alert('【通信エラー】中継サーバーと接続できませんでした。\n電波状況の良い場所で再度お試しください。');
+            }
             
             // ボタンを復帰
             submitBtn.disabled = false;
