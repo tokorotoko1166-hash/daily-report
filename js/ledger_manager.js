@@ -115,6 +115,18 @@ function renderPurchaseListTable(container) {
                     <input type="text" id="list-purchase-search" class="input-search" placeholder="品名、仕入れ先、発注者、現場名などで検索..." style="padding-left: 2.2rem; width: 100%;">
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">事業部:</span>
+                    <select id="list-purchase-department-filter" class="form-control" style="width: 155px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="all">すべての事業部</option>
+                        <option value="QK">仮設事業部 (QK)</option>
+                        <option value="QM">施設住宅事業部 (QM)</option>
+                        <option value="QT">設備改修事業部 (QT)</option>
+                        <option value="QS">公共事業部 (QS)</option>
+                        <option value="QY">本部 (QY)</option>
+                        <option value="OTHER">その他 (OTHER)</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">表示対象:</span>
                     <select id="list-purchase-period-filter" class="form-control" style="width: 155px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
                         <option value="current">今期の仕入れのみ</option>
@@ -163,6 +175,7 @@ function renderPurchaseListTable(container) {
     `;
 
     const searchInput = document.getElementById('list-purchase-search');
+    const departmentFilter = document.getElementById('list-purchase-department-filter');
     const periodFilter = document.getElementById('list-purchase-period-filter');
     const startDateInput = document.getElementById('list-purchase-start-date');
     const endDateInput = document.getElementById('list-purchase-end-date');
@@ -172,12 +185,15 @@ function renderPurchaseListTable(container) {
     const updateTable = () => {
         const filter = {
             search: searchInput.value,
+            department: departmentFilter ? departmentFilter.value : 'all',
             period: periodFilter.value,
             startDate: startDateInput.value,
             endDate: endDateInput.value
         };
         refreshPurchaseListTable(filter);
     };
+
+    if (departmentFilter) departmentFilter.addEventListener('change', updateTable);
 
     searchInput.addEventListener('input', updateTable);
     periodFilter.addEventListener('change', updateTable);
@@ -243,6 +259,22 @@ function generatePrintPurchaseTableHtml() {
 
     if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
     if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
+    
+    // 事業部フィルターの適用 (データ自体を事前に絞り込んで合計値カード等に連動させる)
+    if (filter.department && filter.department !== 'all') {
+        const getDeptKey = (code) => {
+            if (!code) return 'OTHER';
+            const prefix = code.slice(0, 2).toUpperCase();
+            if (['QK', 'QM', 'QT', 'QS', 'QY'].includes(prefix)) return prefix;
+            return 'OTHER';
+        };
+        purchases = purchases.filter(p => {
+            const site = siteMap.get(p.siteId);
+            const key = site ? getDeptKey(site.code) : 'OTHER';
+            return key === filter.department;
+        });
+    }
+
     if (filter.search) {
         const query = filter.search.toLowerCase();
         purchases = purchases.filter(p => {
@@ -391,6 +423,22 @@ function refreshPurchaseListTable(filter) {
 
     if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
     if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
+    
+    // 事業部フィルターの適用 (データ自体を事前に絞り込んで合計値カード等に連動させる)
+    if (filter.department && filter.department !== 'all') {
+        const getDeptKey = (code) => {
+            if (!code) return 'OTHER';
+            const prefix = code.slice(0, 2).toUpperCase();
+            if (['QK', 'QM', 'QT', 'QS', 'QY'].includes(prefix)) return prefix;
+            return 'OTHER';
+        };
+        purchases = purchases.filter(p => {
+            const site = siteMap.get(p.siteId);
+            const key = site ? getDeptKey(site.code) : 'OTHER';
+            return key === filter.department;
+        });
+    }
+
     if (filter.search) {
         const query = filter.search.toLowerCase();
         purchases = purchases.filter(p => {
@@ -469,6 +517,11 @@ function refreshPurchaseListTable(filter) {
         const info = DEPT_INFO[key];
         
         if (list.length === 0) return;
+        
+        // 事業部フィルターによるアコーディオン非表示
+        if (filter.department && filter.department !== 'all' && filter.department !== key) {
+            return;
+        }
 
         list.sort((a, b) => b.date.localeCompare(a.date));
         const count = list.length;
@@ -663,6 +716,17 @@ function renderSiteListTable(container) {
                     <input type="text" id="site-search" class="input-search" placeholder="現場名、工事番号、受注先、住所、担当者検索..." style="padding-left: 2.2rem; width: 100%;">
                 </div>
                 <div style="width: 150px;">
+                    <select id="site-department-filter" class="form-control" style="padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="all">すべての事業部</option>
+                        <option value="QK">仮設事業部 (QK)</option>
+                        <option value="QM">施設住宅事業部 (QM)</option>
+                        <option value="QT">設備改修事業部 (QT)</option>
+                        <option value="QS">公共事業部 (QS)</option>
+                        <option value="QY">本部 (QY)</option>
+                        <option value="OTHER">その他 (OTHER)</option>
+                    </select>
+                </div>
+                <div style="width: 150px;">
                     <select id="site-rollover-filter" class="form-control" style="padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
                         <option value="all">すべての現場</option>
                         <option value="rollover">期またぎ現場のみ</option>
@@ -703,6 +767,7 @@ function renderSiteListTable(container) {
     `;
 
     const searchInput = document.getElementById('site-search');
+    const departmentFilter = document.getElementById('site-department-filter');
     const rolloverFilter = document.getElementById('site-rollover-filter');
     const managerFilter = document.getElementById('site-manager-filter');
     const newSiteBtn = document.getElementById('btn-new-site');
@@ -777,6 +842,7 @@ function getDisplayBilling(site) {
 // 印刷用テーブルHTMLの動的生成 (画面の折りたたみに関わらず全現場を網羅した一枚板テーブルを出力)
 function generatePrintTableHtml() {
     const searchInput = document.getElementById('site-search');
+    const departmentFilter = document.getElementById('site-department-filter');
     const rolloverFilter = document.getElementById('site-rollover-filter');
     const managerFilter = document.getElementById('site-manager-filter');
     
@@ -1033,6 +1099,11 @@ function refreshSiteTable(filter = {}) {
         const list = deptGroups[key];
         const info = DEPT_INFO[key];
         
+        // 事業部フィルターによるアコーディオン非表示
+        if (filter.department && filter.department !== 'all' && filter.department !== key) {
+            return;
+        }
+
         // 検索中で、該当する現場が1件もない事業部は非表示にする
         if (filter.search && list.length === 0) {
             return;
@@ -1313,11 +1384,12 @@ function renderLedgerList(container) {
                 <div style="width: 140px; flex-shrink: 0;">
                     <select id="ledger-department-filter">
                         <option value="all">すべての事業部</option>
-                        <option value="QK">仮設事業部</option>
-                        <option value="QM">施設住宅事業部</option>
-                        <option value="QT">設備改修事業部</option>
-                        <option value="QS">公共事業部</option>
-                        <option value="QY">本部</option>
+                        <option value="QK">仮設事業部 (QK)</option>
+                        <option value="QM">施設住宅事業部 (QM)</option>
+                        <option value="QT">設備改修事業部 (QT)</option>
+                        <option value="QS">公共事業部 (QS)</option>
+                        <option value="QY">本部 (QY)</option>
+                        <option value="OTHER">その他 (OTHER)</option>
                     </select>
                 </div>
                 <div style="width: 140px; flex-shrink: 0;">
@@ -4878,6 +4950,17 @@ function renderPartnerLedger(container) {
                     <input type="text" id="partner-ledger-search" class="input-search" placeholder="現場名、工事番号、作業内容で検索..." style="padding-left: 2.2rem; width: 100%;">
                 </div>
                 <div style="width: 150px;">
+                    <select id="partner-ledger-department-filter" class="form-control" style="padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="all">すべての事業部</option>
+                        <option value="QK">仮設事業部 (QK)</option>
+                        <option value="QM">施設住宅事業部 (QM)</option>
+                        <option value="QT">設備改修事業部 (QT)</option>
+                        <option value="QS">公共事業部 (QS)</option>
+                        <option value="QY">本部 (QY)</option>
+                        <option value="OTHER">その他 (OTHER)</option>
+                    </select>
+                </div>
+                <div style="width: 150px;">
                     <select id="partner-ledger-month-filter" class="form-control" style="padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
                         <option value="all">すべての月 (11日〜翌10日)</option>
                         <!-- 動的に月が追加される -->
@@ -4905,6 +4988,7 @@ function renderPartnerLedger(container) {
 
     // フィルタ要素
     const searchInput = document.getElementById('partner-ledger-search');
+    const departmentFilter = document.getElementById('partner-ledger-department-filter');
     const monthFilter = document.getElementById('partner-ledger-month-filter');
     const partnerFilter = document.getElementById('partner-ledger-partner-filter');
 
@@ -4977,12 +5061,14 @@ function renderPartnerLedger(container) {
     const updateTable = () => {
         refreshPartnerLedgerTable({
             search: searchInput.value,
+            department: departmentFilter ? departmentFilter.value : 'all',
             month: monthFilter.value,
             partner: partnerFilter.value
         });
     };
 
     searchInput.addEventListener('input', updateTable);
+    if (departmentFilter) departmentFilter.addEventListener('change', updateTable);
     monthFilter.addEventListener('change', updateTable);
     partnerFilter.addEventListener('change', updateTable);
 
@@ -5011,6 +5097,21 @@ function refreshPartnerLedgerTable(filter = {}) {
             });
         });
     });
+
+    // 事業部フィルターの適用 (データ自体を事前に絞り込む)
+    if (filter.department && filter.department !== 'all') {
+        const getDeptKey = (code) => {
+            if (!code) return 'OTHER';
+            const prefix = code.slice(0, 2).toUpperCase();
+            if (['QK', 'QM', 'QT', 'QS', 'QY'].includes(prefix)) return prefix;
+            return 'OTHER';
+        };
+        partnerEntries = partnerEntries.filter(r => {
+            const site = siteMap.get(r.siteId);
+            const dept = site ? getDeptKey(site.code) : 'OTHER';
+            return dept === filter.department;
+        });
+    }
 
     // 検索フィルタ
     if (filter.search) {
