@@ -561,19 +561,22 @@ function renderBatchInputForm(container) {
 
         // リストスクロール時にキーボードを自動で閉じて画面を広くする
         nameSuggestDiv.addEventListener('touchmove', () => {
-            nameInput.blur(); // キーボードを引っ込めて隠れた候補を見せる
+            nameInput.blur(); // キーボードを引っ込めて隠れた候補を見せる (※リストは閉じない)
         }, { passive: true });
 
         nameSuggestDiv.addEventListener('scroll', () => {
             nameInput.blur();
         }, { passive: true });
 
-        // フォーカスが外れた時に候補リストを閉じる (タップ決定できるように200ms遅延させる / メモリリーク防止)
-        nameInput.addEventListener('blur', () => {
-            setTimeout(() => {
+        // 【バグ修正】blurによる非表示化はスマホのタップ遅延やスクロールと競合して閉じてしまうため廃止
+        // 代わりに、画面全体のクリック/タッチを監視し、サジェスト外が触られた時のみ閉じるポインター判定方式に変更
+        const closeSuggestionsHandler = (e) => {
+            if (!nameInput.contains(e.target) && !nameSuggestDiv.contains(e.target)) {
                 nameSuggestDiv.style.display = 'none';
-            }, 200);
-        });
+            }
+        };
+        document.addEventListener('click', closeSuggestionsHandler);
+        document.addEventListener('touchstart', closeSuggestionsHandler, { passive: true });
         
         codeInput.addEventListener('input', () => checkAutoCompletion('code'));
         codeInput.addEventListener('change', () => checkAutoCompletion('code'));
@@ -581,6 +584,10 @@ function renderBatchInputForm(container) {
         // 削除ボタンと連動イベントハンドラ
         const delBtn = card.querySelector('.btn-delete-row');
         delBtn.addEventListener('click', () => {
+            // イベントリスナーの解除 (メモリリーク防止)
+            document.removeEventListener('click', closeSuggestionsHandler);
+            document.removeEventListener('touchstart', closeSuggestionsHandler);
+            
             const allRows = cardsContainer.querySelectorAll('.batch-row-card');
             if (allRows.length <= 1) {
                 window.app.showToast('最低1件の現場入力が必要です', 'error');
