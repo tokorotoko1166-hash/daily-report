@@ -43,28 +43,28 @@
     --scrollbar-thumb: #334155;
 }
 
-/* ライトテーマ用変数 */
+/* ライトテーマ用変数 (青ベースの爽やかで高視認性なライトテーマ) */
 [data-theme="light"] {
-    --bg-app: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    --bg-app: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%); /* 淡く透き通った爽やかなライトブルーのグラデーション */
     --bg-sidebar: rgba(255, 255, 255, 0.85);
-    --bg-card: rgba(255, 255, 255, 0.65);
-    --bg-card-hover: rgba(255, 255, 255, 0.8);
-    --bg-input: rgba(255, 255, 255, 0.9);
-    --bg-header: rgba(255, 255, 255, 0.5);
+    --bg-card: rgba(255, 255, 255, 0.8); /* 屋外でもしっかり見える白背景 */
+    --bg-card-hover: rgba(255, 255, 255, 0.9);
+    --bg-input: #ffffff; /* 入力エリアは純白で視認性を最大化 */
+    --bg-header: rgba(224, 242, 254, 0.5);
     
-    --text-main: #0f172a;
-    --text-muted: #64748b;
+    --text-main: #0f172a; /* 濃いブルーグレーで文字をくっきり表示 */
+    --text-muted: #475569; /* 直射日光下でも視認しやすい少し濃いグレー */
     --text-inverse: #ffffff;
     
-    --border-light: rgba(15, 23, 42, 0.08);
-    --border-focus: rgba(59, 130, 246, 0.5);
+    --border-light: rgba(59, 130, 246, 0.12); /* 境界線にもうっすら青み */
+    --border-focus: rgba(59, 130, 246, 0.6);
     
     --glass-blur: blur(12px);
-    --card-shadow: 0 8px 24px 0 rgba(148, 163, 184, 0.15);
-    --modal-shadow: 0 20px 40px 0 rgba(15, 23, 42, 0.15);
+    --card-shadow: 0 8px 30px 0 rgba(14, 165, 233, 0.08); /* 爽やかなライトブルーの影 */
+    --modal-shadow: 0 20px 40px 0 rgba(15, 23, 42, 0.12);
     
-    --scrollbar-track: #f1f5f9;
-    --scrollbar-thumb: #cbd5e1;
+    --scrollbar-track: #f0f7ff;
+    --scrollbar-thumb: #bae6fd;
 }
 
 /* ==========================================================================
