@@ -790,6 +790,7 @@ function renderSiteListTable(container) {
         window.currentSiteLimit = 100; // 検索などのアクションのたびに制限をリセット
         const filter = {
             search: searchInput.value,
+            department: departmentFilter.value, // 【バグ修正】事業部フィルター値を正しく追加
             rollover: rolloverFilter.value,
             manager: managerFilter.value
         };
@@ -797,6 +798,7 @@ function renderSiteListTable(container) {
     };
 
     searchInput.addEventListener('input', updateTable);
+    departmentFilter.addEventListener('change', updateTable); // 【バグ修正】事業部フィルターの変更時にもテーブルを更新
     rolloverFilter.addEventListener('change', updateTable);
     managerFilter.addEventListener('change', updateTable);
     newSiteBtn.addEventListener('click', () => openSiteModal(null, updateTable));
