@@ -1482,6 +1482,16 @@ function refreshLedgerTable(filter = {}) {
     let reports = window.ReportDB.getAll() || [];
     const sites = window.SiteDB.getAll() || [];
     const deptTotals = {}; // 各事業部の総作業時間を蓄積用 (ReferenceError防止のため関数スコープで定義)
+    
+    // 事業部のマスター定義（ReferenceError防止のため関数スコープで定義）
+    const departments = {
+        'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
+        'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
+        'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
+        'QS': { name: '公共事業部 (QS)', color: '#06b6d4' },
+        'QY': { name: '本部 (QY)', color: '#a855f7' },
+        'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
+    };
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
@@ -1688,14 +1698,6 @@ function refreshLedgerTable(filter = {}) {
 
     } else {
         // ========== 従来の事業部別アコーディオンモード ==========
-        const departments = {
-            'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
-            'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
-            'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
-            'QS': { name: '公共事業部 (QS)', color: '#06b6d4' },
-            'QY': { name: '本部 (QY)', color: '#a855f7' },
-            'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
-        };
 
         const groups = { QK: [], QM: [], QT: [], QS: [], QY: [], OTHER: [] };
         reports.forEach(r => {
