@@ -1447,9 +1447,31 @@ function renderLedgerList(container) {
 
 
     // 日報データベースから存在するユニークな作業員(記入者)と月を抽出してセット
+    // 日報日付から締め月 (11日〜翌月10日を翌月度とする) を計算するヘルパー
+    function getClosingMonth(dateStr) {
+        if (!dateStr) return null;
+        const parts = dateStr.split('-');
+        if (parts.length < 3) return null;
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const d = parseInt(parts[2], 10);
+        
+        if (d >= 11) {
+            let closingM = m + 1;
+            let closingY = y;
+            if (closingM > 12) {
+                closingM = 1;
+                closingY = y + 1;
+            }
+            return `${closingY}-${String(closingM).padStart(2, '0')}`;
+        } else {
+            return `${y}-${String(m).padStart(2, '0')}`;
+        }
+    }
+
     const allReports = window.ReportDB.getAll() || [];
     const uniqueWriters = [...new Set(allReports.map(r => r.writer).filter(Boolean))].sort();
-    const uniqueMonths = [...new Set(allReports.map(r => calculateClosingMonth10th(r.date)).filter(Boolean))].sort().reverse();
+    const uniqueMonths = [...new Set(allReports.map(r => getClosingMonth(r.date)).filter(Boolean))].sort().reverse();
 
     if (writerFilter) {
         writerFilter.innerHTML = '<option value="all">すべての作業員</option>' +
@@ -1519,12 +1541,57 @@ function refreshLedgerTable(filter = {}) {
         reports = reports.filter(r => r.writer === filter.writer);
     }
 
+
+
+
+
     // 締め月フィルタの適用 (11日〜翌月10日サイクル)
     if (filter.month && filter.month !== 'all') {
-        reports = reports.filter(r => r.date && calculateClosingMonth10th(r.date) === filter.month);
+        const getClosingMonth = (dateStr) => {
+            if (!dateStr) return null;
+            const parts = dateStr.split('-');
+            if (parts.length < 3) return null;
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            if (d >= 11) {
+                let closingM = m + 1;
+                let closingY = y;
+                if (closingM > 12) {
+                    closingM = 1;
+                    closingY = y + 1;
+                }
+                return `${closingY}-${String(closingM).padStart(2, '0')}`;
+            } else {
+                return `${y}-${String(m).padStart(2, '0')}`;
+            }
+        };
+        reports = reports.filter(r => r.date && getClosingMonth(r.date) === filter.month);
     }
 
-
+    // 時間計算用ヘルパー
+    const calculateWorkTime = (startStr, endStr) => {
+        if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
+        const parseMin = (str) => {
+            const [h, m] = str.split(':').map(Number);
+            return h * 60 + m;
+        };
+        const startMin = parseMin(startStr);
+        const endMin = parseMin(endStr);
+        if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
+            return { start: startStr, end: endStr, breakTime: '-', total: '-' };
+        }
+        const breakStart = 12 * 60; // 12:00
+        const breakEnd = 13 * 60;   // 13:00
+        const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
+        const breakMin = hasBreak ? 60 : 0;
+        const totalMin = (endMin - startMin) - breakMin;
+        const breakHours = hasBreak ? '1時間' : '0時間';
+        const totalH = Math.floor(totalMin / 60);
+        const totalM = totalMin % 60;
+        const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
+        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
+    };
 
     // 共通の行HTMLジェネレーター
     const generateTableRow = (rep) => {
@@ -1534,7 +1601,7 @@ function refreshLedgerTable(filter = {}) {
         const clientName = rep.client || (site ? site.client : '-');
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateActualWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
         const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
 
@@ -1592,7 +1659,7 @@ function refreshLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateActualWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(r.startTime, r.endTime);
                     if (times.min) workerTotalMin += times.min;
                 }
                 tableRows += generateTableRow(r);
@@ -1706,7 +1773,7 @@ function refreshLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateActualWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(r.startTime, r.endTime);
                     if (times.min) deptTotalMin += times.min;
                 }
             });
@@ -5116,7 +5183,7 @@ function refreshPartnerLedgerTable(filter = {}) {
         const clientName = rep.client || (site ? site.client : '-');
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateActualWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
         const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
 
@@ -5168,7 +5235,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateActualWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(r.startTime, r.endTime);
                     if (times.min) totalMin += times.min;
                 }
                 tableRows += generateTableRow(r);
@@ -5280,7 +5347,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateActualWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(r.startTime, r.endTime);
                     if (times.min) deptTotalMin += times.min;
                 }
             });
@@ -5406,66 +5473,4 @@ function refreshPartnerLedgerTable(filter = {}) {
     if (window.lucide) {
         window.lucide.createIcons();
     }
-}
-
-/**
- * ==========================================================================
- * 共通ヘルパー関数 (重複コード削減・リファクタリング用)
- * ==========================================================================
- */
-
-/**
- * 日報の日付から「締め月 (前月11日〜当月10日を当月度とする)」を計算する共通ヘルパー
- */
-function calculateClosingMonth10th(dateStr) {
-    if (!dateStr) return null;
-    const parts = dateStr.split('-');
-    if (parts.length < 3) return null;
-    const y = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10);
-    const d = parseInt(parts[2], 10);
-    
-    if (d >= 11) {
-        let closingM = m + 1;
-        let closingY = y;
-        if (closingM > 12) {
-            closingM = 1;
-            closingY = y + 1;
-        }
-        return `${closingY}-${String(closingM).padStart(2, '0')}`;
-    } else {
-        return `${y}-${String(m).padStart(2, '0')}`;
-    }
-}
-
-/**
- * 2つの時間文字列から実作業時間 (12:00〜13:00の休憩1時間を自動控除) を計算する共通ヘルパー
- */
-function calculateActualWorkTime(startStr, endStr) {
-    if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-', min: 0 };
-    
-    const parseMin = (str) => {
-        const [h, m] = str.split(':').map(Number);
-        return h * 60 + m;
-    };
-    
-    const startMin = parseMin(startStr);
-    const endMin = parseMin(endStr);
-    
-    if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
-        return { start: startStr, end: endStr, breakTime: '-', total: '-', min: 0 };
-    }
-    
-    const breakStart = 12 * 60; // 12:00
-    const breakEnd = 13 * 60;   // 13:00
-    const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-    const breakMin = hasBreak ? 60 : 0;
-    const totalMin = (endMin - startMin) - breakMin;
-    
-    const breakHours = hasBreak ? '1時間' : '0時間';
-    const totalH = Math.floor(totalMin / 60);
-    const totalM = totalMin % 60;
-    const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-    
-    return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
 }
