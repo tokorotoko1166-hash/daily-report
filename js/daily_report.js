@@ -396,11 +396,11 @@ function renderBatchInputForm(container) {
             <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.75rem;">
                 <div class="form-group" style="flex: 3; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">工事番号</label>
-                    <input type="text" class="txt-row-code" list="suggest-site-codes" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-code" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
                 </div>
                 <div class="form-group" style="flex: 7; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">受注先 (顧客/元請)</label>
-                    <input type="text" class="txt-row-client" list="suggest-site-clients" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-client" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
                 </div>
             </div>
             
@@ -500,9 +500,13 @@ function renderBatchInputForm(container) {
 
         // 現場名称のあいまい検索カスタムプルダウンの動作 (携帯・スマホ環境での動作を保証)
         const showSuggestions = () => {
-            const query = normalizeText(nameInput.value);
-            if (!query) {
+            const rawVal = nameInput.value || '';
+            const query = normalizeText(rawVal);
+            
+            // 【バグ修正】空白文字のみ、または完全に空の場合は絶対に表示せず瞬時に閉じる
+            if (!query || query.trim() === '' || rawVal.trim() === '') {
                 nameSuggestDiv.style.display = 'none';
+                nameSuggestDiv.innerHTML = '';
                 return;
             }
 
@@ -514,8 +518,10 @@ function renderBatchInputForm(container) {
                 (s.client && normalizeText(s.client).includes(query))
             );
 
+            // 【バグ修正】該当する現場が1件もない場合も確実に非表示にしてクリア
             if (matchedSites.length === 0) {
                 nameSuggestDiv.style.display = 'none';
+                nameSuggestDiv.innerHTML = '';
                 return;
             }
 
