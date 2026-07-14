@@ -1741,9 +1741,6 @@ function refreshLedgerTable(filter = {}) {
                 }
             });
             grandTotalMin += deptTotalMin;
-            if (deptTotalMin > 0) {
-                deptTotals[key] = deptTotalMin; // 時間を記録
-            }
 
             const deptH = Math.floor(deptTotalMin / 60);
             const deptM = deptTotalMin % 60;
