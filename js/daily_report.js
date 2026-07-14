@@ -396,11 +396,11 @@ function renderBatchInputForm(container) {
             <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.75rem;">
                 <div class="form-group" style="flex: 3; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">工事番号</label>
-                    <input type="text" class="txt-row-code" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-code" list="suggest-site-codes" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
                 </div>
                 <div class="form-group" style="flex: 7; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">受注先 (顧客/元請)</label>
-                    <input type="text" class="txt-row-client" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-client" list="suggest-site-clients" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
                 </div>
             </div>
             
@@ -500,13 +500,9 @@ function renderBatchInputForm(container) {
 
         // 現場名称のあいまい検索カスタムプルダウンの動作 (携帯・スマホ環境での動作を保証)
         const showSuggestions = () => {
-            const rawVal = nameInput.value || '';
-            const query = normalizeText(rawVal);
-            
-            // 【バグ修正】空白文字のみ、または完全に空の場合は絶対に表示せず瞬時に閉じる
-            if (!query || query.trim() === '' || rawVal.trim() === '') {
+            const query = normalizeText(nameInput.value);
+            if (!query) {
                 nameSuggestDiv.style.display = 'none';
-                nameSuggestDiv.innerHTML = '';
                 return;
             }
 
@@ -518,10 +514,8 @@ function renderBatchInputForm(container) {
                 (s.client && normalizeText(s.client).includes(query))
             );
 
-            // 【バグ修正】該当する現場が1件もない場合も確実に非表示にしてクリア
             if (matchedSites.length === 0) {
                 nameSuggestDiv.style.display = 'none';
-                nameSuggestDiv.innerHTML = '';
                 return;
             }
 
@@ -574,8 +568,8 @@ function renderBatchInputForm(container) {
             nameInput.blur();
         }, { passive: true });
 
-        // 【バグ修正】ダブルガード方式による確実なクローズ制御
-        // 1. 画面全体のクリック/タッチ監視（サジェスト外が触られたら即座に閉じる）
+        // 【バグ修正】blurによる非表示化はスマホのタップ遅延やスクロールと競合して閉じてしまうため廃止
+        // 代わりに、画面全体のクリック/タッチを監視し、サジェスト外が触られた時のみ閉じるポインター判定方式に変更
         const closeSuggestionsHandler = (e) => {
             if (!nameInput.contains(e.target) && !nameSuggestDiv.contains(e.target)) {
                 nameSuggestDiv.style.display = 'none';
@@ -583,19 +577,6 @@ function renderBatchInputForm(container) {
         };
         document.addEventListener('click', closeSuggestionsHandler);
         document.addEventListener('touchstart', closeSuggestionsHandler, { passive: true });
-
-        // 2. フォーカスが外れた際（キーボードが閉じた際など）にも350ms遅延して確実に閉じる
-        // (スマホのタップ遅延300msと競合しないよう350msの安全マージンを設定)
-        let blurTimeout = null;
-        nameInput.addEventListener('focus', () => {
-            if (blurTimeout) clearTimeout(blurTimeout);
-            showSuggestions(); // フォーカス時にも必要に応じて再表示
-        });
-        nameInput.addEventListener('blur', () => {
-            blurTimeout = setTimeout(() => {
-                nameSuggestDiv.style.display = 'none';
-            }, 350);
-        });
         
         codeInput.addEventListener('input', () => checkAutoCompletion('code'));
         codeInput.addEventListener('change', () => checkAutoCompletion('code'));
@@ -606,7 +587,6 @@ function renderBatchInputForm(container) {
             // イベントリスナーの解除 (メモリリーク防止)
             document.removeEventListener('click', closeSuggestionsHandler);
             document.removeEventListener('touchstart', closeSuggestionsHandler);
-            if (blurTimeout) clearTimeout(blurTimeout);
             
             const allRows = cardsContainer.querySelectorAll('.batch-row-card');
             if (allRows.length <= 1) {
