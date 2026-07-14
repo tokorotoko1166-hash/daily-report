@@ -1481,6 +1481,7 @@ function refreshLedgerTable(filter = {}) {
 
     let reports = window.ReportDB.getAll() || [];
     const sites = window.SiteDB.getAll() || [];
+    const deptTotals = {}; // 各事業部の総作業時間を蓄積用 (ReferenceError防止のため関数スコープで定義)
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
@@ -1697,7 +1698,6 @@ function refreshLedgerTable(filter = {}) {
         };
 
         const groups = { QK: [], QM: [], QT: [], QS: [], QY: [], OTHER: [] };
-        const deptTotals = {}; // 各事業部の総作業時間を蓄積用
         reports.forEach(r => {
             const site = siteMap.get(r.siteId);
             const siteCode = r.siteCode || (site ? site.code : '');
