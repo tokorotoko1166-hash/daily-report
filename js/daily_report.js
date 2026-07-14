@@ -500,9 +500,13 @@ function renderBatchInputForm(container) {
 
         // 現場名称のあいまい検索カスタムプルダウンの動作 (携帯・スマホ環境での動作を保証)
         const showSuggestions = () => {
-            const query = normalizeText(nameInput.value);
-            if (!query) {
+            const rawVal = nameInput.value || '';
+            const query = normalizeText(rawVal);
+            
+            // 【バグ修正】空白文字のみ、または完全に空の場合は絶対に表示せず瞬時に閉じる
+            if (!query || query.trim() === '' || rawVal.trim() === '') {
                 nameSuggestDiv.style.display = 'none';
+                nameSuggestDiv.innerHTML = '';
                 return;
             }
 
@@ -514,8 +518,10 @@ function renderBatchInputForm(container) {
                 (s.client && normalizeText(s.client).includes(query))
             );
 
+            // 【バグ修正】該当する現場が1件もない場合も確実に非表示にしてクリア
             if (matchedSites.length === 0) {
                 nameSuggestDiv.style.display = 'none';
+                nameSuggestDiv.innerHTML = '';
                 return;
             }
 
@@ -547,6 +553,7 @@ function renderBatchInputForm(container) {
                     clientInput.value = client;
 
                     nameSuggestDiv.style.display = 'none';
+                    nameSuggestDiv.innerHTML = '';
                 };
                 
                 // タップ(クリック)した時のみ決定するように click イベントを紐付けます
