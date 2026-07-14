@@ -574,8 +574,8 @@ function renderBatchInputForm(container) {
             nameInput.blur();
         }, { passive: true });
 
-        // 【バグ修正】blurによる非表示化はスマホのタップ遅延やスクロールと競合して閉じてしまうため廃止
-        // 代わりに、画面全体のクリック/タッチを監視し、サジェスト外が触られた時のみ閉じるポインター判定方式に変更
+        // 【バグ修正】ダブルガード方式による確実なクローズ制御
+        // 1. 画面全体のクリック/タッチ監視（サジェスト外が触られたら即座に閉じる）
         const closeSuggestionsHandler = (e) => {
             if (!nameInput.contains(e.target) && !nameSuggestDiv.contains(e.target)) {
                 nameSuggestDiv.style.display = 'none';
@@ -583,6 +583,19 @@ function renderBatchInputForm(container) {
         };
         document.addEventListener('click', closeSuggestionsHandler);
         document.addEventListener('touchstart', closeSuggestionsHandler, { passive: true });
+
+        // 2. フォーカスが外れた際（キーボードが閉じた際など）にも350ms遅延して確実に閉じる
+        // (スマホのタップ遅延300msと競合しないよう350msの安全マージンを設定)
+        let blurTimeout = null;
+        nameInput.addEventListener('focus', () => {
+            if (blurTimeout) clearTimeout(blurTimeout);
+            showSuggestions(); // フォーカス時にも必要に応じて再表示
+        });
+        nameInput.addEventListener('blur', () => {
+            blurTimeout = setTimeout(() => {
+                nameSuggestDiv.style.display = 'none';
+            }, 350);
+        });
         
         codeInput.addEventListener('input', () => checkAutoCompletion('code'));
         codeInput.addEventListener('change', () => checkAutoCompletion('code'));
@@ -593,6 +606,7 @@ function renderBatchInputForm(container) {
             // イベントリスナーの解除 (メモリリーク防止)
             document.removeEventListener('click', closeSuggestionsHandler);
             document.removeEventListener('touchstart', closeSuggestionsHandler);
+            if (blurTimeout) clearTimeout(blurTimeout);
             
             const allRows = cardsContainer.querySelectorAll('.batch-row-card');
             if (allRows.length <= 1) {
