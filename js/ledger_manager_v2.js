@@ -4964,7 +4964,7 @@ function renderPartnerLedger(container) {
                 </div>
                 <div style="width: 150px;">
                     <select id="partner-ledger-month-filter" class="form-control" style="padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
-                        <option value="all">すべての月 (11日〜翌10日)</option>
+                        <option value="all">すべての月</option>
                         <!-- 動的に月が追加される -->
                     </select>
                 </div>
@@ -5003,24 +5003,11 @@ function renderPartnerLedger(container) {
     const uniquePartners = new Set();
 
     reportsWithPartners.forEach(r => {
-        // 月
+        // 月 (1日〜月末判定)
         if (r.date) {
             const parts = r.date.split('-');
-            if (parts.length >= 3) {
-                const y = parseInt(parts[0], 10);
-                const m = parseInt(parts[1], 10);
-                const d = parseInt(parts[2], 10);
-                if (d >= 11) {
-                    let closingM = m + 1;
-                    let closingY = y;
-                    if (closingM > 12) {
-                        closingM = 1;
-                        closingY = y + 1;
-                    }
-                    uniqueMonths.add(`${closingY}-${String(closingM).padStart(2, '0')}`);
-                } else {
-                    uniqueMonths.add(`${y}-${String(m).padStart(2, '0')}`);
-                }
+            if (parts.length >= 2) {
+                uniqueMonths.add(`${parts[0]}-${parts[1].padStart(2, '0')}`);
             }
         }
         // 業者名
@@ -5033,7 +5020,7 @@ function renderPartnerLedger(container) {
     Array.from(uniqueMonths).sort().reverse().forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
-        opt.textContent = `${m.split('-')[0]}年${parseInt(m.split('-')[1])}月度 (前11日〜当10日)`;
+        opt.textContent = `${m.split('-')[0]}年${parseInt(m.split('-')[1])}月度 (1日〜月末)`;
         monthFilter.appendChild(opt);
     });
 
@@ -5132,26 +5119,13 @@ function refreshPartnerLedgerTable(filter = {}) {
         });
     }
 
-    // 月フィルタ
+    // 月フィルタ (1日〜月末の暦月判定)
     if (filter.month && filter.month !== 'all') {
         const getClosingMonth = (dateStr) => {
             if (!dateStr) return null;
             const parts = dateStr.split('-');
-            if (parts.length < 3) return null;
-            const y = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10);
-            const d = parseInt(parts[2], 10);
-            if (d >= 11) {
-                let closingM = m + 1;
-                let closingY = y;
-                if (closingM > 12) {
-                    closingM = 1;
-                    closingY = y + 1;
-                }
-                return `${closingY}-${String(closingM).padStart(2, '0')}`;
-            } else {
-                return `${y}-${String(m).padStart(2, '0')}`;
-            }
+            if (parts.length < 2) return null;
+            return `${parts[0]}-${parts[1].padStart(2, '0')}`;
         };
         partnerEntries = partnerEntries.filter(r => r.date && getClosingMonth(r.date) === filter.month);
     }
@@ -5312,79 +5286,110 @@ function refreshPartnerLedgerTable(filter = {}) {
         `;
 
     } else {
-        // ========== 全業者アコーディオンモード ==========
-        // 業者名でグルーピング
-        const grouped = {};
+        // ========== 事業部別アコーディオンモード ==========
+        const departments = {
+            'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
+            'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
+            'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
+            'QS': { name: '公共事業部 (QS)', color: '#06b6d4' },
+            'QY': { name: '本部 (QY)', color: '#a855f7' },
+            'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
+        };
+
+        const getDeptKey = (code) => {
+            if (!code) return 'OTHER';
+            const prefix = code.slice(0, 2).toUpperCase();
+            if (['QK', 'QM', 'QT', 'QS', 'QY'].includes(prefix)) return prefix;
+            return 'OTHER';
+        };
+
+        const grouped = { QK: [], QM: [], QT: [], QS: [], QY: [], OTHER: [] };
         partnerEntries.forEach(r => {
-            const p = r._targetPartner;
-            if (!grouped[p]) grouped[p] = [];
-            grouped[p].push(r);
+            const site = siteMap.get(r.siteId);
+            const siteCode = r.siteCode || (site ? site.code : '');
+            const deptKey = getDeptKey(siteCode);
+            grouped[deptKey].push(r);
         });
 
-        const sortedPartners = Object.keys(grouped).sort();
+        let hasAnyData = false;
+        Object.entries(departments).forEach(([key, info]) => {
+            const list = grouped[key] || [];
+            
+            // すでに事業部フィルターで絞り込まれている場合は、他は表示しない
+            if (filter.department && filter.department !== 'all' && filter.department !== key) {
+                return;
+            }
 
-        if (sortedPartners.length === 0) {
-            html = `<p style="text-align:center; padding:2rem; color:var(--text-muted);">該当するデータがありません。</p>`;
-        } else {
-            sortedPartners.forEach(p => {
-                const list = grouped[p];
-                list.sort((a, b) => b.date.localeCompare(a.date));
-                
-                let deptTotalMin = 0;
-                list.forEach(r => {
-                    const site = siteMap.get(r.siteId);
-                    const siteCode = r.siteCode || (site ? site.code : '');
-                    const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-                    if (!isOfficeWork) {
-                        const times = calculateWorkTime(r.startTime, r.endTime);
-                        if (times.min) deptTotalMin += times.min;
-                    }
-                });
+            // 検索中などで、該当する現場が1件もない場合は非表示
+            if ((filter.search || (filter.partner && filter.partner !== 'all')) && list.length === 0) {
+                return;
+            }
 
-                const cH = Math.floor(deptTotalMin / 60);
-                const cM = deptTotalMin % 60;
-                const cManpower = (deptTotalMin / 480).toFixed(2);
-                const cTimeText = `${cM > 0 ? `${cH}時間${cM}分` : `${cH}時間`} (${cManpower}人工)`;
+            hasAnyData = true;
+            list.sort((a, b) => b.date.localeCompare(a.date));
 
-                const tableRows = list.map(rep => generateTableRow(rep)).join('');
-                
-                html += `
-                    <div class="dept-accordion" style="border: 1px solid var(--border-light); border-radius: 12px; overflow: hidden; background: var(--bg-card); box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1rem;">
-                        <div class="dept-header" style="padding: 1rem 1.25rem; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
-                            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <strong style="font-size: 1.1rem; color: var(--color-primary);">${p}</strong>
-                                <span style="background: rgba(59, 130, 246, 0.1); color: var(--color-primary); padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-family: 'Inter'; font-weight: 600;">${list.length} 件</span>
-                                <span style="font-size: 0.75rem; color: var(--text-muted);">${cTimeText}</span>
-                            </div>
-                            <i data-lucide="chevron-down" class="accordion-icon" style="width: 1.2rem; height: 1.2rem; color: var(--text-muted); transition: transform 0.2s;"></i>
+            let deptTotalMin = 0;
+            list.forEach(r => {
+                const site = siteMap.get(r.siteId);
+                const siteCode = r.siteCode || (site ? site.code : '');
+                const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
+                if (!isOfficeWork) {
+                    const times = calculateWorkTime(r.startTime, r.endTime);
+                    if (times.min) deptTotalMin += times.min;
+                }
+            });
+
+            const cH = Math.floor(deptTotalMin / 60);
+            const cM = deptTotalMin % 60;
+            const cManpower = (deptTotalMin / 480).toFixed(2);
+            const cTimeText = `${cM > 0 ? `${cH}時間${cM}分` : `${cH}時間`} (${cManpower}人工)`;
+
+            const tableRows = list.length === 0
+                ? `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当するデータがありません。</td></tr>`
+                : list.map(rep => generateTableRow(rep)).join('');
+            
+            html += `
+                <div class="dept-accordion" style="border: 1px solid var(--border-light); border-radius: 12px; overflow: hidden; background: var(--bg-card); box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1rem;">
+                    <div class="dept-header" style="padding: 1rem 1.25rem; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="display: inline-block; width: 4px; height: 1.35rem; background: ${info.color}; border-radius: 4px;"></span>
+                            <strong style="font-size: 1rem; color: var(--text-main);">${info.name}</strong>
+                            <span style="background: rgba(255, 255, 255, 0.06); padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-family: 'Inter'; font-weight: 600; color: var(--text-muted);">${list.length} 件</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">${cTimeText}</span>
                         </div>
-                        <div class="dept-content" style="display: none; border-top: 1px solid var(--border-light);">
-                            <div class="table-responsive" style="margin: 0;">
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 90px; text-align: left; padding: 0.75rem;">日付</th>
-                                            <th style="width: 100px; text-align: left; padding: 0.75rem;">工事番号</th>
-                                            <th style="text-align: left; padding: 0.75rem;">現場名称</th>
-                                            <th style="text-align: left; padding: 0.75rem;">受注先</th>
-                                            <th style="text-align: left; padding: 0.75rem;">作業内容</th>
-                                            <th style="width: 90px; text-align: center; padding: 0.75rem;">開始</th>
-                                            <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
-                                            <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
-                                            <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
-                                            <th style="width: 90px; text-align: center; padding: 0.75rem;">同伴者(自社)</th>
-                                            <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${tableRows}
-                                    </tbody>
-                                </table>
-                            </div>
+                        <i data-lucide="chevron-down" class="accordion-icon" style="width: 1.2rem; height: 1.2rem; color: var(--text-muted); transition: transform 0.2s;"></i>
+                    </div>
+                    <div class="dept-content" style="display: none; border-top: 1px solid var(--border-light);">
+                        <div class="table-responsive" style="margin: 0;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 90px; text-align: left; padding: 0.75rem;">日付</th>
+                                        <th style="width: 110px; text-align: left; padding: 0.75rem;">協力業者</th>
+                                        <th style="width: 100px; text-align: left; padding: 0.75rem;">工事番号</th>
+                                        <th style="text-align: left; padding: 0.75rem;">現場名称</th>
+                                        <th style="text-align: left; padding: 0.75rem;">受注先</th>
+                                        <th style="text-align: left; padding: 0.75rem;">作業内容</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">開始</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
+                                        <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                        <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">同伴者(自社)</th>
+                                        <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRows}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                `;
-            });
+                </div>
+            `;
+        });
+
+        if (!hasAnyData) {
+            html = `<p style="text-align:center; padding:2rem; color:var(--text-muted);">該当するデータがありません。</p>`;
         }
     }
 
