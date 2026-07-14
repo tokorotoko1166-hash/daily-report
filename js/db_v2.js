@@ -309,11 +309,16 @@ function initDatabase() {
     const hasNewFields = reports.length > 0 && reports[0] && reports[0].hasOwnProperty('departureTime');
     const missingSupplierField = purchases.length > 0 && (!purchases[0] || !purchases[0].hasOwnProperty('supplier'));
 
+    // 【データ安全保護】
+    // 古いデータ形式チェックによる勝手な全消去・デモデータへの先祖返りを防ぐため、
+    // 本番データ誤消去のリスクがある自動リセット処理を完全に安全に無効化（コメントアウト）します。
+    /*
     if (!safeStorage.getItem(STORAGE_KEYS.PURCHASES) || !hasNewFields || hasOldCodes || missingEstimateField || missingSupplierField || sites.length === 0) {
         safeStorage.removeItem(STORAGE_KEYS.SITES);
         safeStorage.removeItem(STORAGE_KEYS.REPORTS);
         safeStorage.removeItem(STORAGE_KEYS.PURCHASES);
     }
+    */
 
     if (!safeStorage.getItem(STORAGE_KEYS.SITES)) {
         safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(DEMO_SITES));
