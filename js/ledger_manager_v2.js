@@ -5176,6 +5176,30 @@ function refreshPartnerLedgerTable(filter = {}) {
 
 
 
+    // 時間計算用ヘルパー
+    const calculateWorkTime = (startStr, endStr) => {
+        if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
+        const parseMin = (str) => {
+            const [h, m] = str.split(':').map(Number);
+            return h * 60 + m;
+        };
+        const startMin = parseMin(startStr);
+        const endMin = parseMin(endStr);
+        if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
+            return { start: startStr, end: endStr, breakTime: '-', total: '-' };
+        }
+        const breakStart = 12 * 60; // 12:00
+        const breakEnd = 13 * 60;   // 13:00
+        const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
+        const breakMin = hasBreak ? 60 : 0;
+        const totalMin = (endMin - startMin) - breakMin;
+        const breakHours = hasBreak ? '1時間' : '0時間';
+        const totalH = Math.floor(totalMin / 60);
+        const totalM = totalMin % 60;
+        const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
+        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
+    };
+
     const generateTableRow = (rep) => {
         const site = siteMap.get(rep.siteId);
         const siteCode = rep.siteCode || (site ? site.code : '-');
