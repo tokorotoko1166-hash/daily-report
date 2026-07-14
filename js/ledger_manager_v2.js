@@ -4805,7 +4805,8 @@ function openExcelImportModal(callback) {
                     throw new Error(`サーバーへの保存に失敗しました (Status: ${res.status})`);
                 }
             } else {
-                localStorage.setItem('SiteDB', JSON.stringify(allSites));
+                // 【バグ修正】LocalStorageへの保存キーを db_v2.js 側の規格 'SiteDB_v2' に修正
+                localStorage.setItem('SiteDB_v2', JSON.stringify(allSites));
             }
 
             window.app.showToast(`${addCount}件の新規登録、${updateCount}件の上書き更新が完了しました！`, 'success');
