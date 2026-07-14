@@ -1481,17 +1481,6 @@ function refreshLedgerTable(filter = {}) {
 
     let reports = window.ReportDB.getAll() || [];
     const sites = window.SiteDB.getAll() || [];
-    const deptTotals = {}; // 各事業部の総作業時間を蓄積用 (ReferenceError防止のため関数スコープで定義)
-    
-    // 事業部のマスター定義（ReferenceError防止のため関数スコープで定義）
-    const departments = {
-        'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
-        'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
-        'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
-        'QS': { name: '公共事業部 (QS)', color: '#06b6d4' },
-        'QY': { name: '本部 (QY)', color: '#a855f7' },
-        'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
-    };
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
@@ -1698,6 +1687,14 @@ function refreshLedgerTable(filter = {}) {
 
     } else {
         // ========== 従来の事業部別アコーディオンモード ==========
+        const departments = {
+            'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
+            'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
+            'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
+            'QS': { name: '公共事業部 (QS)', color: '#06b6d4' },
+            'QY': { name: '本部 (QY)', color: '#a855f7' },
+            'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
+        };
 
         const groups = { QK: [], QM: [], QT: [], QS: [], QY: [], OTHER: [] };
         reports.forEach(r => {
@@ -1804,15 +1801,6 @@ function refreshLedgerTable(filter = {}) {
                                 <tbody>
                                     ${tableRows}
                                 </tbody>
-                                <tfoot>
-                                    <tr style="background: rgba(255,255,255,0.015); border-top: 2px solid var(--border-light);">
-                                        <td colspan="9" style="text-align: right; font-weight: bold; padding: 0.75rem; color: var(--text-muted);">${info.name} 合計時間:</td>
-                                        <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 700; color: var(--color-primary); padding: 0.75rem;">
-                                            ${deptTimeText}
-                                        </td>
-                                        <td class="no-print"></td>
-                                    </tr>
-                                </tfoot>
                             </table>
                         </div>
                         ${loadMoreBtnHtml}
@@ -1827,36 +1815,10 @@ function refreshLedgerTable(filter = {}) {
     const manpower = (grandTotalMin / 480).toFixed(2);
     const sumText = `${sumM > 0 ? `${sumH}時間${sumM}分` : `${sumH}時間`} (${manpower}人工)`;
 
-    // 各事業部の内訳バッジHTMLを生成
-    let deptBreakdownHtml = '';
-    if (Object.keys(deptTotals).length > 0) {
-        deptBreakdownHtml = `
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; width: 100%; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border-light);">
-                ${Object.entries(deptTotals).map(([k, tMin]) => {
-                    const info = departments[k] || { name: 'その他', color: '#6b7280' };
-                    const h = Math.floor(tMin / 60);
-                    const m = tMin % 60;
-                    const mp = (tMin / 480).toFixed(1);
-                    const timeStr = `${h}時間${m > 0 ? `${m}分` : ''} (${mp}人工)`;
-                    return `
-                        <div style="display: flex; align-items: center; gap: 0.45rem; background: rgba(255,255,255,0.015); border: 1px solid var(--border-light); padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.8rem;">
-                            <span style="display: inline-block; width: 6px; height: 6px; background: ${info.color}; border-radius: 50%;"></span>
-                            <span style="color: var(--text-muted);">${info.name}:</span>
-                            <strong style="color: var(--text-main); font-family: 'Inter';">${timeStr}</strong>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    }
-
     html += `
-        <div class="card no-print" style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; font-weight: bold; border: 1px solid var(--border-light); border-radius: 12px; margin-top: 1rem; background: var(--bg-card);">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div style="font-size: 0.95rem; color: var(--text-muted);">総作業時間合計 (※社内業務を除く):</div>
-                <div style="font-family: 'Inter', sans-serif; font-size: 1.35rem; font-weight: bold; color: var(--color-primary);">${sumText}</div>
-            </div>
-            ${deptBreakdownHtml}
+        <div class="card no-print" style="padding: 1.25rem 1.5rem; display: flex; justify-content: flex-end; align-items: center; font-weight: bold; border: 1px solid var(--border-light); border-radius: 12px; margin-top: 1rem; background: var(--bg-card);">
+            <div style="font-size: 1rem; color: var(--text-muted); margin-right: 1rem;">総作業時間合計 (※社内業務を除く):</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 1.25rem; font-weight: 700; color: var(--color-primary);">${sumText}</div>
         </div>
     `;
 
