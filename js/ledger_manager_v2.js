@@ -134,6 +134,12 @@ function renderPurchaseListTable(container) {
                     </select>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">仕入先:</span>
+                    <select id="list-purchase-supplier-filter" class="form-control" style="width: 170px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem; background-color: rgba(59, 130, 246, 0.05); border-color: var(--color-primary); font-weight: bold; color: var(--color-primary);">
+                        <option value="all">仕入先すべて</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">期間:</span>
                     <input type="date" id="list-purchase-start-date" class="form-control" style="width: 135px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
                     <span style="font-size: 0.85rem; color: var(--text-muted);">〜</span>
@@ -177,15 +183,27 @@ function renderPurchaseListTable(container) {
     const searchInput = document.getElementById('list-purchase-search');
     const departmentFilter = document.getElementById('list-purchase-department-filter');
     const periodFilter = document.getElementById('list-purchase-period-filter');
+    const supplierFilter = document.getElementById('list-purchase-supplier-filter');
     const startDateInput = document.getElementById('list-purchase-start-date');
     const endDateInput = document.getElementById('list-purchase-end-date');
     const newPurchaseBtn = document.getElementById('btn-list-new-purchase');
     const printBtn = document.getElementById('btn-list-purchase-print');
     
+    // 全仕入れデータからユニークな仕入先リストを動的に抽出してセット
+    const allPurchases = window.PurchaseDB.getAll() || [];
+    const uniqueSuppliers = [...new Set(allPurchases.map(p => p.supplier).filter(s => s && s.trim().length > 0))];
+    uniqueSuppliers.sort().forEach(sup => {
+        const opt = document.createElement('option');
+        opt.value = sup;
+        opt.textContent = sup;
+        supplierFilter.appendChild(opt);
+    });
+
     const updateTable = () => {
         const filter = {
             search: searchInput.value,
             department: departmentFilter ? departmentFilter.value : 'all',
+            supplier: supplierFilter ? supplierFilter.value : 'all',
             period: periodFilter.value,
             startDate: startDateInput.value,
             endDate: endDateInput.value
@@ -194,6 +212,7 @@ function renderPurchaseListTable(container) {
     };
 
     if (departmentFilter) departmentFilter.addEventListener('change', updateTable);
+    if (supplierFilter) supplierFilter.addEventListener('change', updateTable);
 
     searchInput.addEventListener('input', updateTable);
     periodFilter.addEventListener('change', updateTable);
@@ -259,6 +278,11 @@ function generatePrintPurchaseTableHtml() {
 
     if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
     if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
+    
+    // 仕入先フィルターの適用 (動的選択)
+    if (filter.supplier && filter.supplier !== 'all') {
+        purchases = purchases.filter(p => p.supplier === filter.supplier);
+    }
     
     // 事業部フィルターの適用 (データ自体を事前に絞り込んで合計値カード等に連動させる)
     if (filter.department && filter.department !== 'all') {
@@ -423,6 +447,11 @@ function refreshPurchaseListTable(filter) {
 
     if (filter.startDate) purchases = purchases.filter(p => p.date >= filter.startDate);
     if (filter.endDate) purchases = purchases.filter(p => p.date <= filter.endDate);
+    
+    // 仕入先フィルターの適用 (動的選択)
+    if (filter.supplier && filter.supplier !== 'all') {
+        purchases = purchases.filter(p => p.supplier === filter.supplier);
+    }
     
     // 事業部フィルターの適用 (データ自体を事前に絞り込んで合計値カード等に連動させる)
     if (filter.department && filter.department !== 'all') {
