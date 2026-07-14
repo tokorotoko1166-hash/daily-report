@@ -4465,6 +4465,15 @@ function openCloudSettingsModal() {
 
 // Excel/CSV一括インポートモーダルの表示
 function openExcelImportModal(callback) {
+    // 【一時的デバッグ】エラー検知用アラート
+    window.onerror = function(message, source, lineno, colno, error) {
+        alert("【JS実行エラー】\n内容: " + message + "\n場所: " + source + ":" + lineno);
+        return false;
+    };
+    try {
+        console.log("openExcelImportModal started");
+    } catch(e) {}
+
     const backdrop = document.getElementById('modal-backdrop');
     const title = document.getElementById('modal-title');
     const body = document.getElementById('modal-body');
@@ -4733,6 +4742,7 @@ function openExcelImportModal(callback) {
                 window.app.showToast(`Excelの解析が完了しました (合計${parsedSites.length}件)`, 'success');
             } catch (err) {
                 console.error(err);
+                alert("【Excel解析エラー】\nエラー詳細: " + err.message + "\nスタックトレース:\n" + err.stack);
                 window.app.showToast('Excelファイルの読み込みに失敗しました。正しいフォーマットかご確認ください。', 'error');
             }
         };
@@ -4810,6 +4820,7 @@ function openExcelImportModal(callback) {
             if (callback) callback();
         } catch (err) {
             console.error('Batch import failed:', err);
+            alert("【一括登録実行エラー】\nエラー詳細: " + err.message + "\nスタックトレース:\n" + err.stack);
             window.app.showToast('インポート処理中にエラーが発生しました', 'error');
             submitBtn.disabled = false;
             submitBtn.textContent = `一括インポートを再実行`;
