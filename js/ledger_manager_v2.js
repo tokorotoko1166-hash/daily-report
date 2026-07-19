@@ -108,7 +108,7 @@ function formatDateMD(dateStr) { return dateStr; }
 // ==========================================
 function renderPurchaseListTable(container) {
     container.innerHTML = `
-        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 90; background: var(--bg-body); padding: 1rem 0; border-bottom: 1px solid var(--border-light); transition: all 0.2s ease;">
             <div class="search-filter-group" style="display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1;">
                 <div class="input-search-wrapper" style="position: relative; min-width: 250px; flex: 1;">
                     <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted);"></i>
@@ -238,6 +238,72 @@ function renderPurchaseListTable(container) {
 
     updateTable();
     if (window.lucide) window.lucide.createIcons();
+
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（仕入れ一覧）
+    setTimeout(() => {
+        const toolbar = container.querySelector('.toolbar');
+        const mainContent = document.querySelector('.main-content');
+        if (!toolbar) return;
+
+        const initialRect = toolbar.getBoundingClientRect();
+        const scrollOffset = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+        const initialAbsoluteTop = initialRect.top + scrollOffset;
+        const header = document.querySelector('.app-header');
+        
+        const placeholder = document.createElement('div');
+        placeholder.style.display = 'none';
+        placeholder.style.height = `${toolbar.offsetHeight + 24}px`;
+        placeholder.style.marginBottom = '1.5rem';
+        toolbar.parentNode.insertBefore(placeholder, toolbar);
+
+        const handleScroll = () => {
+            const headerHeight = header ? header.offsetHeight : 73;
+            const currentScroll = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+            
+            if (currentScroll >= initialAbsoluteTop - headerHeight - 16) {
+                toolbar.style.position = 'fixed';
+                toolbar.style.top = `${headerHeight}px`;
+                const containerRect = container.getBoundingClientRect();
+                toolbar.style.left = `${containerRect.left}px`;
+                toolbar.style.width = `${containerRect.width}px`;
+                toolbar.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.2)';
+                toolbar.style.borderRadius = '0 0 12px 12px';
+                toolbar.style.padding = '1rem 2rem';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '999';
+                placeholder.style.display = 'block';
+            } else {
+                toolbar.style.position = 'relative';
+                toolbar.style.top = 'auto';
+                toolbar.style.left = 'auto';
+                toolbar.style.width = 'auto';
+                toolbar.style.boxShadow = 'none';
+                toolbar.style.borderRadius = '0';
+                toolbar.style.padding = '1rem 0';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '90';
+                placeholder.style.display = 'none';
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        if (mainContent) mainContent.addEventListener('scroll', handleScroll, true);
+        window.addEventListener('resize', handleScroll);
+        
+        handleScroll();
+
+        const observer = new MutationObserver((mutations) => {
+            if (!document.body.contains(toolbar)) {
+                window.removeEventListener('scroll', handleScroll, true);
+                if (mainContent) mainContent.removeEventListener('scroll', handleScroll, true);
+                window.removeEventListener('resize', handleScroll);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }, 300);
 }
 
 function generatePrintPurchaseTableHtml() {
@@ -936,6 +1002,72 @@ function renderSiteListTable(container) {
     if (window.lucide) {
         window.lucide.createIcons();
     }
+
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（現場台帳一覧）
+    setTimeout(() => {
+        const toolbar = container.querySelector('.toolbar');
+        const mainContent = document.querySelector('.main-content');
+        if (!toolbar) return;
+
+        const initialRect = toolbar.getBoundingClientRect();
+        const scrollOffset = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+        const initialAbsoluteTop = initialRect.top + scrollOffset;
+        const header = document.querySelector('.app-header');
+        
+        const placeholder = document.createElement('div');
+        placeholder.style.display = 'none';
+        placeholder.style.height = `${toolbar.offsetHeight + 24}px`;
+        placeholder.style.marginBottom = '1.5rem';
+        toolbar.parentNode.insertBefore(placeholder, toolbar);
+
+        const handleScroll = () => {
+            const headerHeight = header ? header.offsetHeight : 73;
+            const currentScroll = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+            
+            if (currentScroll >= initialAbsoluteTop - headerHeight - 16) {
+                toolbar.style.position = 'fixed';
+                toolbar.style.top = `${headerHeight}px`;
+                const containerRect = container.getBoundingClientRect();
+                toolbar.style.left = `${containerRect.left}px`;
+                toolbar.style.width = `${containerRect.width}px`;
+                toolbar.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.2)';
+                toolbar.style.borderRadius = '0 0 12px 12px';
+                toolbar.style.padding = '1rem 2rem';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '999';
+                placeholder.style.display = 'block';
+            } else {
+                toolbar.style.position = 'relative';
+                toolbar.style.top = 'auto';
+                toolbar.style.left = 'auto';
+                toolbar.style.width = 'auto';
+                toolbar.style.boxShadow = 'none';
+                toolbar.style.borderRadius = '0';
+                toolbar.style.padding = '1rem 0';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '90';
+                placeholder.style.display = 'none';
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        if (mainContent) mainContent.addEventListener('scroll', handleScroll, true);
+        window.addEventListener('resize', handleScroll);
+        
+        handleScroll();
+
+        const observer = new MutationObserver((mutations) => {
+            if (!document.body.contains(toolbar)) {
+                window.removeEventListener('scroll', handleScroll, true);
+                if (mainContent) mainContent.removeEventListener('scroll', handleScroll, true);
+                window.removeEventListener('resize', handleScroll);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }, 300);
 }
 
 // 代表する請求データを取得する共通ヘルパー (未入金の最古の請求、すべて入金済みの場合は最後の請求)
@@ -1489,7 +1621,7 @@ function refreshSiteTable(filter = {}) {
 
 function renderLedgerList(container) {
     container.innerHTML = `
-        <div class="toolbar no-print">
+        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 90; background: var(--bg-body); padding: 1rem 0; border-bottom: 1px solid var(--border-light); transition: all 0.2s ease;">
             <div class="search-filter-group" style="display: flex; align-items: center; flex-wrap: nowrap; gap: 0.5rem; flex: 1; min-width: 0;">
                 <div class="input-search-wrapper" style="min-width: 180px; flex: 1; position: relative;">
                     <i data-lucide="search" style="position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted); pointer-events: none;"></i>
@@ -1589,6 +1721,72 @@ function renderLedgerList(container) {
     if (window.lucide) {
         window.lucide.createIcons();
     }
+
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（現場台帳一覧）
+    setTimeout(() => {
+        const toolbar = container.querySelector('.toolbar');
+        const mainContent = document.querySelector('.main-content');
+        if (!toolbar) return;
+
+        const initialRect = toolbar.getBoundingClientRect();
+        const scrollOffset = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+        const initialAbsoluteTop = initialRect.top + scrollOffset;
+        const header = document.querySelector('.app-header');
+        
+        const placeholder = document.createElement('div');
+        placeholder.style.display = 'none';
+        placeholder.style.height = `${toolbar.offsetHeight + 24}px`;
+        placeholder.style.marginBottom = '1.5rem';
+        toolbar.parentNode.insertBefore(placeholder, toolbar);
+
+        const handleScroll = () => {
+            const headerHeight = header ? header.offsetHeight : 73;
+            const currentScroll = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+            
+            if (currentScroll >= initialAbsoluteTop - headerHeight - 16) {
+                toolbar.style.position = 'fixed';
+                toolbar.style.top = `${headerHeight}px`;
+                const containerRect = container.getBoundingClientRect();
+                toolbar.style.left = `${containerRect.left}px`;
+                toolbar.style.width = `${containerRect.width}px`;
+                toolbar.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.2)';
+                toolbar.style.borderRadius = '0 0 12px 12px';
+                toolbar.style.padding = '1rem 2rem';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '999';
+                placeholder.style.display = 'block';
+            } else {
+                toolbar.style.position = 'relative';
+                toolbar.style.top = 'auto';
+                toolbar.style.left = 'auto';
+                toolbar.style.width = 'auto';
+                toolbar.style.boxShadow = 'none';
+                toolbar.style.borderRadius = '0';
+                toolbar.style.padding = '1rem 0';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '90';
+                placeholder.style.display = 'none';
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        if (mainContent) mainContent.addEventListener('scroll', handleScroll, true);
+        window.addEventListener('resize', handleScroll);
+        
+        handleScroll();
+
+        const observer = new MutationObserver((mutations) => {
+            if (!document.body.contains(toolbar)) {
+                window.removeEventListener('scroll', handleScroll, true);
+                if (mainContent) mainContent.removeEventListener('scroll', handleScroll, true);
+                window.removeEventListener('resize', handleScroll);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }, 300);
 }
 
 function refreshLedgerTable(filter = {}) {
@@ -5076,7 +5274,7 @@ function parsePurchaseText(text) {
 
 function renderPartnerLedger(container) {
     container.innerHTML = `
-        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 90; background: var(--bg-body); padding: 1rem 0; border-bottom: 1px solid var(--border-light); transition: all 0.2s ease;">
             <div class="search-filter-group" style="display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1;">
                 <div class="input-search-wrapper" style="position: relative; min-width: 250px; flex: 1;">
                     <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted);"></i>
@@ -5193,6 +5391,72 @@ function renderPartnerLedger(container) {
     partnerFilter.addEventListener('change', updateTable);
 
     updateTable();
+
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（協力業者台帳）
+    setTimeout(() => {
+        const toolbar = container.querySelector('.toolbar');
+        const mainContent = document.querySelector('.main-content');
+        if (!toolbar) return;
+
+        const initialRect = toolbar.getBoundingClientRect();
+        const scrollOffset = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+        const initialAbsoluteTop = initialRect.top + scrollOffset;
+        const header = document.querySelector('.app-header');
+        
+        const placeholder = document.createElement('div');
+        placeholder.style.display = 'none';
+        placeholder.style.height = `${toolbar.offsetHeight + 24}px`;
+        placeholder.style.marginBottom = '1.5rem';
+        toolbar.parentNode.insertBefore(placeholder, toolbar);
+
+        const handleScroll = () => {
+            const headerHeight = header ? header.offsetHeight : 73;
+            const currentScroll = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+            
+            if (currentScroll >= initialAbsoluteTop - headerHeight - 16) {
+                toolbar.style.position = 'fixed';
+                toolbar.style.top = `${headerHeight}px`;
+                const containerRect = container.getBoundingClientRect();
+                toolbar.style.left = `${containerRect.left}px`;
+                toolbar.style.width = `${containerRect.width}px`;
+                toolbar.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.2)';
+                toolbar.style.borderRadius = '0 0 12px 12px';
+                toolbar.style.padding = '1rem 2rem';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '999';
+                placeholder.style.display = 'block';
+            } else {
+                toolbar.style.position = 'relative';
+                toolbar.style.top = 'auto';
+                toolbar.style.left = 'auto';
+                toolbar.style.width = 'auto';
+                toolbar.style.boxShadow = 'none';
+                toolbar.style.borderRadius = '0';
+                toolbar.style.padding = '1rem 0';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '90';
+                placeholder.style.display = 'none';
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        if (mainContent) mainContent.addEventListener('scroll', handleScroll, true);
+        window.addEventListener('resize', handleScroll);
+        
+        handleScroll();
+
+        const observer = new MutationObserver((mutations) => {
+            if (!document.body.contains(toolbar)) {
+                window.removeEventListener('scroll', handleScroll, true);
+                if (mainContent) mainContent.removeEventListener('scroll', handleScroll, true);
+                window.removeEventListener('resize', handleScroll);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }, 300);
 }
 
 function refreshPartnerLedgerTable(filter = {}) {
