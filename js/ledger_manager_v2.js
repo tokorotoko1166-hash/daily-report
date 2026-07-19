@@ -738,7 +738,7 @@ function refreshPurchaseListTable(filter) {
 
 function renderSiteListTable(container) {
     container.innerHTML = `
-        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: sticky; top: -2rem; z-index: 90; background: var(--bg-body); padding: 1rem 2rem; margin-left: -2rem; margin-right: -2rem; border-bottom: 1px solid var(--border-light);">
+        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 90; background: var(--bg-body); padding: 1rem 0; border-bottom: 1px solid var(--border-light); transition: all 0.2s ease;">
             <div class="search-filter-group" style="display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1;">
                 <div class="input-search-wrapper" style="position: relative; min-width: 250px; flex: 1;">
                     <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted);"></i>
@@ -829,6 +829,66 @@ function renderSiteListTable(container) {
     searchInput.addEventListener('input', updateTable);
     departmentFilter.addEventListener('change', updateTable); // 【バグ修正】事業部フィルターの変更時にもテーブルを更新
     rolloverFilter.addEventListener('change', updateTable);
+
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御
+    setTimeout(() => {
+        const toolbar = container.querySelector('.toolbar');
+        const mainContent = document.querySelector('.main-content');
+        if (!toolbar || !mainContent) return;
+
+        const initialTop = toolbar.offsetTop;
+        const header = document.querySelector('.app-header');
+        
+        // プレースホルダーを挿入（固定時のカタつき防止）
+        const placeholder = document.createElement('div');
+        placeholder.style.display = 'none';
+        placeholder.style.height = `${toolbar.offsetHeight + 24}px`;
+        placeholder.style.marginBottom = '1.5rem';
+        toolbar.parentNode.insertBefore(placeholder, toolbar);
+
+        const handleScroll = () => {
+            const headerHeight = header ? header.offsetHeight : 73;
+            // メインコンテンツ内の実質スクロール位置判定
+            if (mainContent.scrollTop >= initialTop - 32) {
+                // 固定モード
+                toolbar.style.position = 'fixed';
+                toolbar.style.top = `${headerHeight}px`;
+                toolbar.style.left = `${mainContent.getBoundingClientRect().left + 32}px`;
+                toolbar.style.width = `${mainContent.clientWidth - 64}px`;
+                toolbar.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.2)';
+                toolbar.style.borderRadius = '0 0 12px 12px';
+                toolbar.style.padding = '1rem 2rem';
+                toolbar.style.marginLeft = '-2rem';
+                toolbar.style.marginRight = '-2rem';
+                placeholder.style.display = 'block';
+            } else {
+                // 通常モード
+                toolbar.style.position = 'relative';
+                toolbar.style.top = 'auto';
+                toolbar.style.left = 'auto';
+                toolbar.style.width = 'auto';
+                toolbar.style.boxShadow = 'none';
+                toolbar.style.borderRadius = '0';
+                toolbar.style.padding = '1rem 0';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                placeholder.style.display = 'none';
+            }
+        };
+
+        mainContent.addEventListener('scroll', handleScroll);
+        window.addEventListener('resize', handleScroll);
+        
+        // タブ切り替えなどで破棄された時のために、イベントリスナーのお掃除用ハンドラを仕込む
+        const observer = new MutationObserver((mutations) => {
+            if (!document.body.contains(toolbar)) {
+                mainContent.removeEventListener('scroll', handleScroll);
+                window.removeEventListener('resize', handleScroll);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }, 150);
     managerFilter.addEventListener('change', updateTable);
     newSiteBtn.addEventListener('click', () => openSiteModal(null, updateTable));
     importExcelBtn.addEventListener('click', () => openExcelImportModal(updateTable));
