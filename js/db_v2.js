@@ -431,7 +431,8 @@ const SiteDB = {
             sites = sites.filter(s => s.status === filter.status);
         }
 
-        return sites.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        // 【仕様変更】工事番号の若い順 (自然順昇順: 000から順に並ぶ) でソート
+        return sites.sort((a, b) => (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' }));
     },
 
     getById(id) {

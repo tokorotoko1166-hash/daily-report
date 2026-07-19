@@ -738,7 +738,7 @@ function refreshPurchaseListTable(filter) {
 
 function renderSiteListTable(container) {
     container.innerHTML = `
-        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: sticky; top: 73px; z-index: 90; background: var(--bg-body); padding: 0.75rem 0; border-bottom: 1px solid var(--border-light);">
             <div class="search-filter-group" style="display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1;">
                 <div class="input-search-wrapper" style="position: relative; min-width: 250px; flex: 1;">
                     <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted);"></i>
@@ -1619,6 +1619,7 @@ function refreshLedgerTable(filter = {}) {
         return `
             <tr style="border-bottom: 1px solid var(--border-light);">
                 <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
+                <td style="padding: 0.75rem;"><strong>${rep._targetPartner}</strong></td>
                 <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem;">
                     <a href="#ledger/detail/${rep.siteId}">${siteCode}</a>
                 </td>
@@ -5232,6 +5233,7 @@ function refreshPartnerLedgerTable(filter = {}) {
         return `
             <tr style="border-bottom: 1px solid var(--border-light);">
                 <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
+                <td style="padding: 0.75rem;"><strong>${rep._targetPartner}</strong></td>
                 <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem;">
                     <a href="#ledger/detail/${rep.siteId}">${siteCode}</a>
                 </td>
@@ -5423,7 +5425,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
                                         <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
-                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">同伴者(自社)</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                         <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
                                     </tr>
                                 </thead>
