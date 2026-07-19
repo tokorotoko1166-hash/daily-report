@@ -830,16 +830,20 @@ function renderSiteListTable(container) {
     departmentFilter.addEventListener('change', updateTable); // 【バグ修正】事業部フィルターの変更時にもテーブルを更新
     rolloverFilter.addEventListener('change', updateTable);
 
-    // 【仕様追加】JSスクロールによるツールバー強制固定化制御
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（ハイブリッド検知＆絶対位置計算版）
     setTimeout(() => {
         const toolbar = container.querySelector('.toolbar');
         const mainContent = document.querySelector('.main-content');
-        if (!toolbar || !mainContent) return;
+        if (!toolbar) return;
 
-        const initialTop = toolbar.offsetTop;
+        // ページ最上部からの初期絶対位置を算出
+        const initialRect = toolbar.getBoundingClientRect();
+        const scrollOffset = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+        const initialAbsoluteTop = initialRect.top + scrollOffset;
+
         const header = document.querySelector('.app-header');
         
-        // プレースホルダーを挿入（固定時のカタつき防止）
+        // プレースホルダーを挿入（固定時のガタつき防止）
         const placeholder = document.createElement('div');
         placeholder.style.display = 'none';
         placeholder.style.height = `${toolbar.offsetHeight + 24}px`;
@@ -848,18 +852,26 @@ function renderSiteListTable(container) {
 
         const handleScroll = () => {
             const headerHeight = header ? header.offsetHeight : 73;
-            // メインコンテンツ内の実質スクロール位置判定
-            if (mainContent.scrollTop >= initialTop - 32) {
-                // 固定モード
+            // どの要素がスクロールしていても現在のスクロール値を取得
+            const currentScroll = window.scrollY || document.documentElement.scrollTop || (mainContent ? mainContent.scrollTop : 0);
+            
+            // 判定：スクロール位置がツールバーの初期位置を超えた場合（ヘッダーの高さを引く）
+            if (currentScroll >= initialAbsoluteTop - headerHeight - 16) {
+                // 固定モード (fixed)
                 toolbar.style.position = 'fixed';
                 toolbar.style.top = `${headerHeight}px`;
-                toolbar.style.left = `${mainContent.getBoundingClientRect().left + 32}px`;
-                toolbar.style.width = `${mainContent.clientWidth - 64}px`;
+                
+                // 横幅と左右位置を親コンテナから直接コピーして固定
+                const containerRect = container.getBoundingClientRect();
+                toolbar.style.left = `${containerRect.left}px`;
+                toolbar.style.width = `${containerRect.width}px`;
+                
                 toolbar.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.2)';
                 toolbar.style.borderRadius = '0 0 12px 12px';
                 toolbar.style.padding = '1rem 2rem';
-                toolbar.style.marginLeft = '-2rem';
-                toolbar.style.marginRight = '-2rem';
+                toolbar.style.marginLeft = '0';
+                toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '999'; // 最前面に表示
                 placeholder.style.display = 'block';
             } else {
                 // 通常モード
@@ -872,23 +884,34 @@ function renderSiteListTable(container) {
                 toolbar.style.padding = '1rem 0';
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
+                toolbar.style.zIndex = '90';
                 placeholder.style.display = 'none';
             }
         };
 
-        mainContent.addEventListener('scroll', handleScroll);
+        // windowとmainContentの両方のスクロールイベントを監視する（useCaptureを有効化）
+        window.addEventListener('scroll', handleScroll, true);
+        if (mainContent) {
+            mainContent.addEventListener('scroll', handleScroll, true);
+        }
         window.addEventListener('resize', handleScroll);
         
-        // タブ切り替えなどで破棄された時のために、イベントリスナーのお掃除用ハンドラを仕込む
+        // 初回判定を実行
+        handleScroll();
+
+        // タブ切り替えなどで破棄された時のイベントクリーンアップ
         const observer = new MutationObserver((mutations) => {
             if (!document.body.contains(toolbar)) {
-                mainContent.removeEventListener('scroll', handleScroll);
+                window.removeEventListener('scroll', handleScroll, true);
+                if (mainContent) {
+                    mainContent.removeEventListener('scroll', handleScroll, true);
+                }
                 window.removeEventListener('resize', handleScroll);
                 observer.disconnect();
             }
         });
         observer.observe(document.body, { childList: true, subtree: true });
-    }, 150);
+    }, 300);
     managerFilter.addEventListener('change', updateTable);
     newSiteBtn.addEventListener('click', () => openSiteModal(null, updateTable));
     importExcelBtn.addEventListener('click', () => openExcelImportModal(updateTable));
