@@ -272,6 +272,11 @@ function renderPurchaseListTable(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '999';
+                // 【Glassmorphism】背後の文字をボカすためのすりガラス効果
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                toolbar.style.background = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.85)';
+                toolbar.style.backdropFilter = 'blur(12px)';
+                toolbar.style.webkitBackdropFilter = 'blur(12px)';
                 placeholder.style.display = 'block';
             } else {
                 toolbar.style.position = 'relative';
@@ -284,6 +289,10 @@ function renderPurchaseListTable(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '90';
+                // 背景を元に戻す
+                toolbar.style.background = 'var(--bg-body)';
+                toolbar.style.backdropFilter = 'none';
+                toolbar.style.webkitBackdropFilter = 'none';
                 placeholder.style.display = 'none';
             }
         };
@@ -932,18 +941,19 @@ function renderSiteListTable(container) {
                 toolbar.style.left = `${containerRect.left}px`;
                 toolbar.style.width = `${containerRect.width}px`;
                 
-                // 【Glassmorphism】背後の重なる文字を綺麗にボカすためのすりガラス効果
-                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                toolbar.style.background = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.85)';
-                toolbar.style.backdropFilter = 'blur(12px)';
-                toolbar.style.webkitBackdropFilter = 'blur(12px)';
+
                 
                 toolbar.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.2)';
                 toolbar.style.borderRadius = '0 0 12px 12px';
                 toolbar.style.padding = '1rem 2rem';
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
-                toolbar.style.zIndex = '999'; // 最前面に表示
+                toolbar.style.zIndex = '999';
+                // 【Glassmorphism】背後の文字をボカすためのすりガラス効果
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                toolbar.style.background = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.85)';
+                toolbar.style.backdropFilter = 'blur(12px)';
+                toolbar.style.webkitBackdropFilter = 'blur(12px)';
                 placeholder.style.display = 'block';
             } else {
                 // 通常モード
@@ -952,10 +962,7 @@ function renderSiteListTable(container) {
                 toolbar.style.left = 'auto';
                 toolbar.style.width = 'auto';
                 
-                // 背景を通常状態に戻す
-                toolbar.style.background = 'var(--bg-body)';
-                toolbar.style.backdropFilter = 'none';
-                toolbar.style.webkitBackdropFilter = 'none';
+
                 
                 toolbar.style.boxShadow = 'none';
                 toolbar.style.borderRadius = '0';
@@ -963,6 +970,10 @@ function renderSiteListTable(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '90';
+                // 背景を元に戻す
+                toolbar.style.background = 'var(--bg-body)';
+                toolbar.style.backdropFilter = 'none';
+                toolbar.style.webkitBackdropFilter = 'none';
                 placeholder.style.display = 'none';
             }
         };
@@ -1048,6 +1059,11 @@ function renderSiteListTable(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '999';
+                // 【Glassmorphism】背後の文字をボカすためのすりガラス効果
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                toolbar.style.background = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.85)';
+                toolbar.style.backdropFilter = 'blur(12px)';
+                toolbar.style.webkitBackdropFilter = 'blur(12px)';
                 placeholder.style.display = 'block';
             } else {
                 toolbar.style.position = 'relative';
@@ -1060,6 +1076,10 @@ function renderSiteListTable(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '90';
+                // 背景を元に戻す
+                toolbar.style.background = 'var(--bg-body)';
+                toolbar.style.backdropFilter = 'none';
+                toolbar.style.webkitBackdropFilter = 'none';
                 placeholder.style.display = 'none';
             }
         };
@@ -1767,6 +1787,11 @@ function renderLedgerList(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '999';
+                // 【Glassmorphism】背後の文字をボカすためのすりガラス効果
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                toolbar.style.background = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.85)';
+                toolbar.style.backdropFilter = 'blur(12px)';
+                toolbar.style.webkitBackdropFilter = 'blur(12px)';
                 placeholder.style.display = 'block';
             } else {
                 toolbar.style.position = 'relative';
@@ -1779,6 +1804,10 @@ function renderLedgerList(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '90';
+                // 背景を元に戻す
+                toolbar.style.background = 'var(--bg-body)';
+                toolbar.style.backdropFilter = 'none';
+                toolbar.style.webkitBackdropFilter = 'none';
                 placeholder.style.display = 'none';
             }
         };
@@ -5437,6 +5466,11 @@ function renderPartnerLedger(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '999';
+                // 【Glassmorphism】背後の文字をボカすためのすりガラス効果
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                toolbar.style.background = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.85)';
+                toolbar.style.backdropFilter = 'blur(12px)';
+                toolbar.style.webkitBackdropFilter = 'blur(12px)';
                 placeholder.style.display = 'block';
             } else {
                 toolbar.style.position = 'relative';
@@ -5449,6 +5483,10 @@ function renderPartnerLedger(container) {
                 toolbar.style.marginLeft = '0';
                 toolbar.style.marginRight = '0';
                 toolbar.style.zIndex = '90';
+                // 背景を元に戻す
+                toolbar.style.background = 'var(--bg-body)';
+                toolbar.style.backdropFilter = 'none';
+                toolbar.style.webkitBackdropFilter = 'none';
                 placeholder.style.display = 'none';
             }
         };
