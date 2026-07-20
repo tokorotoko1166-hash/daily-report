@@ -2328,9 +2328,10 @@ function refreshLedgerTable(filter = {}) {
             }
 
             const count = list.length;
-            const isDefaultOpen = !!filter.search;
-            const displayStyle = isDefaultOpen ? 'block' : 'none';
-            const rotateStyle = isDefaultOpen ? 'transform: rotate(180deg);' : '';
+            if (!window.ledgerAccordionStates) window.ledgerAccordionStates = {};
+            const isOpen = !!window.ledgerAccordionStates[key] || !!filter.search;
+            const displayStyle = isOpen ? 'block' : 'none';
+            const rotateStyle = isOpen ? 'transform: rotate(180deg);' : '';
 
             if (!window.ledgerDeptLimits) window.ledgerDeptLimits = {};
             if (!window.ledgerDeptLimits[key]) window.ledgerDeptLimits[key] = 100;
@@ -2465,30 +2466,37 @@ function refreshLedgerTable(filter = {}) {
         });
     }
 
-    // アコーディオン開閉
+    // アコーディオン開閉 (状態の確実記憶)
     container.querySelectorAll('.dept-header').forEach(header => {
         header.addEventListener('click', () => {
             const parent = header.closest('.dept-accordion');
+            const key = parent ? parent.getAttribute('data-dept') : null;
             const content = parent.querySelector('.dept-content');
             const icon = header.querySelector('.accordion-icon');
             const isVisible = content.style.display === 'block';
-            if (isVisible) {
-                content.style.display = 'none';
-                icon.style.transform = '';
-            } else {
-                content.style.display = 'block';
-                icon.style.transform = 'rotate(180deg)';
+
+            const nextVisible = !isVisible;
+            content.style.display = nextVisible ? 'block' : 'none';
+            icon.style.transform = nextVisible ? 'rotate(180deg)' : '';
+
+            if (key) {
+                if (!window.ledgerAccordionStates) window.ledgerAccordionStates = {};
+                window.ledgerAccordionStates[key] = nextVisible;
             }
         });
     });
 
-    // もっと見る
+    // さらに100件を表示 (開いた状態を完全保持)
     container.querySelectorAll('.btn-ledger-load-more').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const key = btn.getAttribute('data-dept');
             if (!window.ledgerDeptLimits) window.ledgerDeptLimits = {};
-            window.ledgerDeptLimits[key] += 100;
+            window.ledgerDeptLimits[key] = (window.ledgerDeptLimits[key] || 100) + 100;
+
+            if (!window.ledgerAccordionStates) window.ledgerAccordionStates = {};
+            window.ledgerAccordionStates[key] = true; // アコーディオンを開いたまま維持
+
             refreshLedgerTable(filter);
         });
     });
@@ -6246,18 +6254,22 @@ function refreshPartnerLedgerTable(filter = {}) {
 
     container.innerHTML = html;
 
-    // アコーディオン開閉
+    // アコーディオン開閉 (状態の完全記憶)
     container.querySelectorAll('.dept-header').forEach(header => {
         header.addEventListener('click', () => {
+            const parent = header.closest('.dept-accordion');
+            const key = parent ? parent.getAttribute('data-dept') : null;
             const content = header.nextElementSibling;
             const icon = header.querySelector('.accordion-icon');
             const isVisible = content.style.display === 'block';
-            if (isVisible) {
-                content.style.display = 'none';
-                icon.style.transform = '';
-            } else {
-                content.style.display = 'block';
-                icon.style.transform = 'rotate(180deg)';
+
+            const nextVisible = !isVisible;
+            content.style.display = nextVisible ? 'block' : 'none';
+            icon.style.transform = nextVisible ? 'rotate(180deg)' : '';
+
+            if (key) {
+                if (!window.ledgerAccordionStates) window.ledgerAccordionStates = {};
+                window.ledgerAccordionStates[key] = nextVisible;
             }
         });
     });
