@@ -118,12 +118,12 @@ function renderPurchaseListTable(container) {
                     <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">事業部:</span>
                     <select id="list-purchase-department-filter" class="form-control" style="width: 155px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
                         <option value="all">すべての事業部</option>
-                        <option value="QK">仮設事業部 (QK)</option>
-                        <option value="QM">施設住宅事業部 (QM)</option>
-                        <option value="QT">設備改修事業部 (QT)</option>
-                        <option value="QS">公共事業部 (QS)</option>
-                        <option value="QY">本部 (QY)</option>
-                        <option value="OTHER">その他 (OTHER)</option>
+                        <option value="QK">仮設事業部</option>
+                        <option value="QM">施設住宅事業部</option>
+                        <option value="QT">設備改修事業部</option>
+                        <option value="QS">公共事業部</option>
+                        <option value="QY">本部</option>
+                        <option value="OTHER">その他</option>
                     </select>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -403,12 +403,12 @@ function generatePrintPurchaseTableHtml() {
     };
 
     const DEPT_INFO = {
-        'QK': { name: '仮設事業部 (QK)', color: '#3b82f6' },
-        'QM': { name: '施設住宅事業部 (QM)', color: '#10b981' },
-        'QT': { name: '設備改修事業部 (QT)', color: '#f59e0b' },
-        'QS': { name: '公共事業部 (QS)', color: '#0ea5e9' },
-        'QY': { name: '本部 (QY)', color: '#8b5cf6' },
-        'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
+        'QK': { name: '仮設事業部', color: '#3b82f6' },
+        'QM': { name: '施設住宅事業部', color: '#10b981' },
+        'QT': { name: '設備改修事業部', color: '#f59e0b' },
+        'QS': { name: '公共事業部', color: '#0ea5e9' },
+        'QY': { name: '本部', color: '#8b5cf6' },
+        'OTHER': { name: 'その他・不明現場', color: '#6b7280' }
     };
 
     const deptGroups = { 'QK': [], 'QM': [], 'QT': [], 'QS': [], 'QY': [], 'OTHER': [] };
@@ -598,12 +598,12 @@ function refreshPurchaseListTable(filter) {
     };
 
     const DEPT_INFO = {
-        'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
-        'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
-        'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
-        'QS': { name: '公共事業部 (QS)', color: 'var(--color-info)' },
-        'QY': { name: '本部 (QY)', color: '#8b5cf6' },
-        'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
+        'QK': { name: '仮設事業部', color: 'var(--color-primary)' },
+        'QM': { name: '施設住宅事業部', color: 'var(--color-success)' },
+        'QT': { name: '設備改修事業部', color: 'var(--color-warning)' },
+        'QS': { name: '公共事業部', color: 'var(--color-info)' },
+        'QY': { name: '本部', color: '#8b5cf6' },
+        'OTHER': { name: 'その他・不明現場', color: '#6b7280' }
     };
 
     const deptGroups = { 'QK': [], 'QM': [], 'QT': [], 'QS': [], 'QY': [], 'OTHER': [] };
@@ -822,12 +822,12 @@ function renderSiteListTable(container) {
                 <div style="width: 150px;">
                     <select id="site-department-filter" class="form-control" style="padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
                         <option value="all">すべての事業部</option>
-                        <option value="QK">仮設事業部 (QK)</option>
-                        <option value="QM">施設住宅事業部 (QM)</option>
-                        <option value="QT">設備改修事業部 (QT)</option>
-                        <option value="QS">公共事業部 (QS)</option>
-                        <option value="QY">本部 (QY)</option>
-                        <option value="OTHER">その他 (OTHER)</option>
+                        <option value="QK">仮設事業部</option>
+                        <option value="QM">施設住宅事業部</option>
+                        <option value="QT">設備改修事業部</option>
+                        <option value="QS">公共事業部</option>
+                        <option value="QY">本部</option>
+                        <option value="OTHER">その他</option>
                     </select>
                 </div>
                 <div style="width: 150px;">
@@ -1662,12 +1662,12 @@ function renderLedgerList(container) {
                 <div style="width: 140px; flex-shrink: 0;">
                     <select id="ledger-department-filter">
                         <option value="all">すべての事業部</option>
-                        <option value="QK">仮設事業部 (QK)</option>
-                        <option value="QM">施設住宅事業部 (QM)</option>
-                        <option value="QT">設備改修事業部 (QT)</option>
-                        <option value="QS">公共事業部 (QS)</option>
-                        <option value="QY">本部 (QY)</option>
-                        <option value="OTHER">その他 (OTHER)</option>
+                        <option value="QK">仮設事業部</option>
+                        <option value="QM">施設住宅事業部</option>
+                        <option value="QT">設備改修事業部</option>
+                        <option value="QS">公共事業部</option>
+                        <option value="QY">本部</option>
+                        <option value="OTHER">その他</option>
                     </select>
                 </div>
                 <div style="width: 140px; flex-shrink: 0;">
@@ -2048,12 +2048,12 @@ function refreshLedgerTable(filter = {}) {
     } else {
         // ========== 従来の事業部別アコーディオンモード ==========
         const departments = {
-            'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
-            'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
-            'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
-            'QS': { name: '公共事業部 (QS)', color: '#06b6d4' },
-            'QY': { name: '本部 (QY)', color: '#a855f7' },
-            'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
+            'QK': { name: '仮設事業部', color: 'var(--color-primary)' },
+            'QM': { name: '施設住宅事業部', color: 'var(--color-success)' },
+            'QT': { name: '設備改修事業部', color: 'var(--color-warning)' },
+            'QS': { name: '公共事業部', color: '#06b6d4' },
+            'QY': { name: '本部', color: '#a855f7' },
+            'OTHER': { name: 'その他・不明現場', color: '#6b7280' }
         };
 
         const groups = { QK: [], QM: [], QT: [], QS: [], QY: [], OTHER: [] };
@@ -5341,12 +5341,12 @@ function renderPartnerLedger(container) {
                 <div style="width: 150px;">
                     <select id="partner-ledger-department-filter" class="form-control" style="padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
                         <option value="all">すべての事業部</option>
-                        <option value="QK">仮設事業部 (QK)</option>
-                        <option value="QM">施設住宅事業部 (QM)</option>
-                        <option value="QT">設備改修事業部 (QT)</option>
-                        <option value="QS">公共事業部 (QS)</option>
-                        <option value="QY">本部 (QY)</option>
-                        <option value="OTHER">その他 (OTHER)</option>
+                        <option value="QK">仮設事業部</option>
+                        <option value="QM">施設住宅事業部</option>
+                        <option value="QT">設備改修事業部</option>
+                        <option value="QS">公共事業部</option>
+                        <option value="QY">本部</option>
+                        <option value="OTHER">その他</option>
                     </select>
                 </div>
                 <div style="width: 150px;">
@@ -5753,12 +5753,12 @@ function refreshPartnerLedgerTable(filter = {}) {
     } else {
         // ========== 事業部別アコーディオンモード ==========
         const departments = {
-            'QK': { name: '仮設事業部 (QK)', color: 'var(--color-primary)' },
-            'QM': { name: '施設住宅事業部 (QM)', color: 'var(--color-success)' },
-            'QT': { name: '設備改修事業部 (QT)', color: 'var(--color-warning)' },
-            'QS': { name: '公共事業部 (QS)', color: '#06b6d4' },
-            'QY': { name: '本部 (QY)', color: '#a855f7' },
-            'OTHER': { name: 'その他・不明現場 (OTHER)', color: '#6b7280' }
+            'QK': { name: '仮設事業部', color: 'var(--color-primary)' },
+            'QM': { name: '施設住宅事業部', color: 'var(--color-success)' },
+            'QT': { name: '設備改修事業部', color: 'var(--color-warning)' },
+            'QS': { name: '公共事業部', color: '#06b6d4' },
+            'QY': { name: '本部', color: '#a855f7' },
+            'OTHER': { name: 'その他・不明現場', color: '#6b7280' }
         };
 
         const getDeptKey = (code) => {
