@@ -626,17 +626,17 @@ function generatePrintPurchaseTableHtml() {
                 <table class="data-table print-fit-table" style="width: 100%; border-collapse: collapse; border: 1px solid #333; color: #000; font-size: 0.8rem;">
                     <thead>
                         <tr style="background: #e5e7eb; border-bottom: 2px solid #333;">
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 75px;">日付</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 85px;">工事番号</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 140px;">現場名称</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 60px;">発注者</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left;">仕入れ先</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 70px;">日付</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 80px;">工事番号</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 160px;">現場名称</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 70px;">発注者</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: left; width: 120px;">仕入れ先</th>
                             <th style="border: 1px solid #333; padding: 0.4rem; text-align: left;">品名・型式</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: center; width: 40px;">伝票</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 65px;">定価</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: center; width: 35px;">伝票</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 75px;">定価</th>
                             <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 40px;">数量</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 65px;">単価</th>
-                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 75px;">金額</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 75px;">単価</th>
+                            <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 85px;">金額</th>
                             <th style="border: 1px solid #333; padding: 0.4rem; text-align: right; width: 55px;">掛率</th>
                         </tr>
                     </thead>
@@ -651,7 +651,7 @@ function generatePrintPurchaseTableHtml() {
                 <tr style="border-bottom: 1px solid #333;">
                     <td style="border: 1px solid #333; padding: 0.4rem;">${pur.date.replace(/-/g, '/')}</td>
                     <td style="border: 1px solid #333; padding: 0.4rem;">${site ? site.code : '-'}</td>
-                    <td style="border: 1px solid #333; padding: 0.4rem; width: 140px; word-break: break-all;"><strong>${site ? cleanDeptCode(site.name) : '不明'}</strong></td>
+                    <td style="border: 1px solid #333; padding: 0.4rem; width: 160px; word-break: break-all;"><strong>${site ? cleanDeptCode(site.name) : '不明'}</strong></td>
                     <td style="border: 1px solid #333; padding: 0.4rem;">${pur.orderedBy || '-'}</td>
                     <td style="border: 1px solid #333; padding: 0.4rem;">${pur.supplier || '-'}</td>
                     <td style="border: 1px solid #333; padding: 0.4rem;">${pur.itemName}</td>
@@ -855,7 +855,7 @@ function refreshPurchaseListTable(filter) {
                         <input type="checkbox" class="purchase-match-check" data-id="${pur.id}" ${pur.matched ? 'checked' : ''} style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
                     </td>
                     <td style="padding: 0.75rem; font-family: 'Inter', sans-serif; font-size: 0.85rem;">${pur.date.replace(/-/g, '/')}</td>
-                    <td style="padding: 0.75rem; width: 150px; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">
+                    <td style="padding: 0.75rem 0.5rem; width: 180px;">
                         <div style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Inter', sans-serif;">${site ? site.code : '-'}</div>
                         <div style="font-weight: 600; color: var(--text-main); margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${site ? site.name : ''}">${site ? cleanDeptCode(site.name) : '不明な現場'}</div>
                     </td>
@@ -915,18 +915,18 @@ function refreshPurchaseListTable(filter) {
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 45px; text-align: center; padding: 0.75rem;">照合</th>
-                                    <th style="width: 85px; text-align: left; padding: 0.75rem;">日付</th>
-                                    <th style="width: 150px; max-width: 150px; text-align: left; padding: 0.75rem;">現場</th>
-                                    <th style="width: 70px; text-align: left; padding: 0.75rem;">発注者</th>
-                                    <th style="width: 110px; text-align: left; padding: 0.75rem;">仕入れ先</th>
-                                    <th style="text-align: left; padding: 0.75rem;">品名・メーカー</th>
-                                    <th style="width: 85px; text-align: right; padding: 0.75rem;">定価</th>
-                                    <th style="width: 55px; text-align: right; padding: 0.75rem;">数量</th>
-                                    <th style="width: 85px; text-align: right; padding: 0.75rem;">単価</th>
-                                    <th style="width: 95px; text-align: right; padding: 0.75rem;">金額</th>
-                                    <th style="width: 65px; text-align: right; padding: 0.75rem;">掛率</th>
-                                    <th style="width: 75px; text-align: center; padding: 0.75rem;">操作</th>
+                                    <th style="width: 45px; text-align: center; padding: 0.75rem 0.4rem;">照合</th>
+                                    <th style="width: 90px; text-align: left; padding: 0.75rem 0.5rem;">日付</th>
+                                    <th style="width: 180px; text-align: left; padding: 0.75rem 0.5rem;">現場名称</th>
+                                    <th style="width: 90px; text-align: left; padding: 0.75rem 0.5rem;">発注者</th>
+                                    <th style="width: 140px; text-align: left; padding: 0.75rem 0.5rem;">仕入れ先</th>
+                                    <th style="min-width: 180px; text-align: left; padding: 0.75rem 0.5rem;">品名・メーカー</th>
+                                    <th style="width: 95px; text-align: right; padding: 0.75rem 0.5rem;">定価</th>
+                                    <th style="width: 55px; text-align: right; padding: 0.75rem 0.5rem;">数量</th>
+                                    <th style="width: 95px; text-align: right; padding: 0.75rem 0.5rem;">単価</th>
+                                    <th style="width: 110px; text-align: right; padding: 0.75rem 0.5rem;">金額</th>
+                                    <th style="width: 75px; text-align: right; padding: 0.75rem 0.5rem;">掛率</th>
+                                    <th style="width: 75px; text-align: center; padding: 0.75rem 0.4rem;">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
