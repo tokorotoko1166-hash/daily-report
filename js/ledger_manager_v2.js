@@ -3960,9 +3960,14 @@ function checkAdminPasswordLock() {
                 管理画面を開くには管理者パスワードを入力してください。<br>
                 (セキュリティ保護)
             </p>
-            <form id="admin-lock-form" style="display:flex; flex-direction:column; gap:0.85rem; margin:0; padding:0;">
-                <input type="password" id="admin-lock-pass" placeholder="パスワードを入力..." required style="padding:0.6rem 0.85rem; font-size:0.95rem; border-radius:6px; border:1px solid var(--border-light, #414868); background:var(--bg-main, #1a1b26); color:var(--text-main, #a9b1d6); text-align:center; font-family:monospace; box-sizing:border-box; width:100%;">
-                <button type="submit" class="btn btn-primary" style="padding:0.6rem; font-size:0.95rem; font-weight:bold; border-radius:6px; width:100%; box-sizing:border-box; cursor:pointer;">ロックを解除する</button>
+            <form id="admin-lock-form" style="display:flex; flex-direction:column; gap:1rem; margin:0; padding:0;">
+                <div style="position:relative; width:100%;">
+                    <input type="password" id="admin-lock-pass" placeholder="パスワードを入力..." required style="padding:0.75rem 2.8rem 0.75rem 1rem; font-size:1.05rem; font-weight:600; border-radius:8px; border:2px solid var(--color-primary, #3b82f6); background:#ffffff !important; color:#0f172a !important; text-align:center; font-family:monospace, sans-serif; box-sizing:border-box; width:100%; letter-spacing:0.15em; outline:none; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                    <button type="button" id="toggle-admin-pass" style="position:absolute; right:0.5rem; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#64748b; padding:0.4rem; display:flex; align-items:center; justify-content:center; border-radius:6px;" title="パスワードの表示/非表示">
+                        <i data-lucide="eye" style="width:1.25rem; height:1.25rem;"></i>
+                    </button>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding:0.75rem; font-size:1rem; font-weight:bold; border-radius:8px; width:100%; box-sizing:border-box; cursor:pointer; background:var(--color-primary, #3b82f6); color:white; border:none; box-shadow:0 4px 10px rgba(59,130,246,0.3);">ロックを解除する</button>
             </form>
             <div id="admin-lock-error" style="color:var(--color-danger, #f7768e); font-size:0.8rem; margin-top:0.75rem; display:none; font-weight:bold;">パスワードが一致しません。</div>
         </div>
@@ -3973,6 +3978,18 @@ function checkAdminPasswordLock() {
     const form = document.getElementById('admin-lock-form');
     const input = document.getElementById('admin-lock-pass');
     const errorMsg = document.getElementById('admin-lock-error');
+    const togglePassBtn = document.getElementById('toggle-admin-pass');
+
+    if (togglePassBtn) {
+        togglePassBtn.addEventListener('click', () => {
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            togglePassBtn.innerHTML = isPass 
+                ? '<i data-lucide="eye-off" style="width:1.25rem; height:1.25rem;"></i>' 
+                : '<i data-lucide="eye" style="width:1.25rem; height:1.25rem;"></i>';
+            if (window.lucide) window.lucide.createIcons();
+        });
+    }
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
