@@ -43,28 +43,28 @@
     --scrollbar-thumb: #334155;
 }
 
-/* ライトテーマ用変数 (青ベースの爽やかで高視認性なライトテーマ) */
+/* ライトテーマ用変数 (シックで明るい高級感あふれるプレミアムデザイン) */
 [data-theme="light"] {
-    --bg-app: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%); /* 淡く透き通った爽やかなライトブルーのグラデーション */
+    --bg-app: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 60%, #e2e8f0 100%); /* 清潔感と洗練された透明感あふれるパールスレート */
     --bg-sidebar: rgba(255, 255, 255, 0.85);
-    --bg-card: rgba(255, 255, 255, 0.8); /* 屋外でもしっかり見える白背景 */
-    --bg-card-hover: rgba(255, 255, 255, 0.9);
-    --bg-input: #ffffff; /* 入力エリアは純白で視認性を最大化 */
-    --bg-header: rgba(224, 242, 254, 0.5);
+    --bg-card: #ffffff; /* 純白カードで最高峰のコントラストと視認性 */
+    --bg-card-hover: #ffffff;
+    --bg-input: #ffffff;
+    --bg-header: rgba(255, 255, 255, 0.85);
     
-    --text-main: #0f172a; /* 濃いブルーグレーで文字をくっきり表示 */
-    --text-muted: #475569; /* 直射日光下でも視認しやすい少し濃いグレー */
+    --text-main: #0f172a; /* 高級感あふれるディープスレートブラック */
+    --text-muted: #64748b; /* 洗練された上品なスレートグレー */
     --text-inverse: #ffffff;
     
-    --border-light: rgba(59, 130, 246, 0.12); /* 境界線にもうっすら青み */
-    --border-focus: rgba(59, 130, 246, 0.6);
+    --border-light: #e2e8f0; /* 極細の洗練されたエレガントなボーダー */
+    --border-focus: #2563eb;
     
-    --glass-blur: blur(12px);
-    --card-shadow: 0 8px 30px 0 rgba(14, 165, 233, 0.08); /* 爽やかなライトブルーの影 */
-    --modal-shadow: 0 20px 40px 0 rgba(15, 23, 42, 0.12);
+    --glass-blur: blur(16px);
+    --card-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 4px 10px -2px rgba(15, 23, 42, 0.02); /* 上品で柔らかなフローティングシャドウ */
+    --modal-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.15);
     
-    --scrollbar-track: #f0f7ff;
-    --scrollbar-thumb: #bae6fd;
+    --scrollbar-track: #f8fafc;
+    --scrollbar-thumb: #cbd5e1;
 }
 
 /* ==========================================================================
@@ -1200,3 +1200,113 @@ label {
     }
 }
 
+
+
+/* ==========================================================================
+   ✨ シック＆ブライト プレミアムUIブラッシュアップ
+   ========================================================================== */
+
+/* カード・アコーディオンの立体感 */
+.dept-accordion, .card, #partner-flat-view-container, #worker-flat-view-container {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.01) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dept-header {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border-bottom: 1px solid #e2e8f0;
+}
+.dept-header:hover {
+    background: #f1f5f9 !important;
+}
+
+/* テーブルデザイン */
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.data-table th {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid #e2e8f0 !important;
+    text-transform: uppercase;
+}
+
+.data-table td {
+    border-bottom: 1px solid #f1f5f9 !important;
+    color: #1e293b;
+    font-size: 0.875rem;
+    transition: background 0.15s ease;
+}
+
+.data-table tr:hover td {
+    background: rgba(37, 99, 235, 0.025) !important;
+}
+
+/* ツールバー */
+.toolbar {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* ボタン類のシックな高級感 */
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35) !important;
+}
+
+.btn-secondary {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03) !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+.btn-secondary:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+/* テストボタンのシックアンバー調 */
+#btn-header-massive-test {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+    color: #d97706 !important;
+    border: 1px solid #fcd34d !important;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.15) !important;
+}
+#btn-header-massive-test:hover {
+    background: #fef3c7 !important;
+    transform: translateY(-1px);
+}
+
+/* 入力フォーム・プルダウン */
+input[type="text"], input[type="date"], select, textarea {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+input:focus, select:focus, textarea:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
