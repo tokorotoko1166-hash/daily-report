@@ -2162,7 +2162,7 @@ function refreshLedgerTable(filter = {}) {
         return `
             <tr style="border-bottom: 1px solid var(--border-light);">
                 <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
-                <td style="padding: 0.75rem; color: var(--color-primary); font-weight: bold;">${rep._targetPartner || '-'}</td>
+                <td style="padding: 0.75rem; color: var(--color-primary); font-weight: bold;">${rep._targetPartner || rep.partnerCompanions || rep.partner || '-'}</td>
                 <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem;">
                     <a href="#ledger/detail/${rep.siteId}">${siteCode}</a>
                 </td>
