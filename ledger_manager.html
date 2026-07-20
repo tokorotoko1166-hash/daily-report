@@ -16,8 +16,13 @@
     <link rel="stylesheet" href="css/style.css?v=20260627">
     <script>
         window.onerror = function(msg, url, line, col, error) {
-            alert("⚠️ 実行エラーを検出しました！\n\nエラー内容: " + msg + "\n発生ファイル: " + url.substring(url.lastIndexOf('/') + 1) + "\n発生行: " + line + " 行目 (列: " + col + ")");
-            return false;
+            // 無害な「Script error. (発生行: 0)」や空URLはポップアップを出さずに無視
+            if (!msg || msg === 'Script error.' || line === 0 || !url) {
+                console.warn('Suppressed script error:', msg);
+                return true;
+            }
+            console.error("JavaScript Error:", msg, url, line);
+            return true;
         };
     </script>
 </head>
@@ -121,7 +126,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- PDF.js SDK -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <!-- Crypto-JS SDK (Updated: 20260720_145757) -->
+    <!-- Crypto-JS SDK (Updated: 20260720_150143) -->
     <script src="js/crypto-js.min.js"></script>
     <script src="js/db_v2.js?v=20260706_141001"></script>
     <script src="js/ledger_manager_v2.js?v=20260706_141001"></script>
