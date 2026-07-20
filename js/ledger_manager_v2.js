@@ -4185,6 +4185,18 @@ function checkAdminPasswordLock() {
 // アプリ初期化
 document.addEventListener('DOMContentLoaded', () => {
     try {
+        // パスワードロック画面チェック
+        if (typeof checkAdminPasswordLock === 'function') {
+            checkAdminPasswordLock();
+        }
+        // ルーティング実行
+        if (typeof router === 'function') {
+            router();
+        }
+    } catch(e) {
+        console.error("Initialization router error:", e);
+    }
+    try {
     checkAdminPasswordLock(); // ロック画面の割り込みチェック実行
 
     // 1. 保存されたテーマ（ダーク/ライト）の適用
