@@ -1,3 +1,185 @@
+
+// =========================================================================
+// 🚀 15万件規模 超大規模負荷テストデータ生成エンジン (オンメモリロード)
+// =========================================================================
+window.generateMassiveDatasetOnMemory = function(onComplete) {
+    console.time("MassiveDataGen");
+    
+    // 作業員 36名
+    const firstNames = ["健太", "一郎", "誠", "大樹", "翔太", "拓也", "直樹", "達也", "裕太", "竜也", "慎吾", "哲也"];
+    const lastNames = ["佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤", "吉田", "山田"];
+    const workers = [];
+    lastNames.forEach(l => {
+        firstNames.forEach(f => {
+            if (workers.length < 36) workers.push(`${l} ${f}`);
+        });
+    });
+
+    // 協力業者 50社
+    const pPrefixes = ["大和", "東洋", "日本", "三和", "新日本", "協和", "中央", "太平", "共栄", "第一"];
+    const pSuffixes = ["建設", "電工", "工業", "設備", "架設", "塗装", "防水", "管工", "組", "建工"];
+    const partners = [];
+    pPrefixes.forEach(p => {
+        pSuffixes.forEach(s => {
+            if (partners.length < 50) partners.push(`株式会社 ${p}${s}`);
+        });
+    });
+
+    // 仕入先 20社
+    const suppliers = [
+        "東京鋼材 株式会社", "三多摩電材 株式会社", "建材センター 新宿店", "関東機材 株式会社",
+        "吉野石膏 販売", "積水化学 パイプ販売", "日立建機 リーガル", "マキタ 電工ツール",
+        "パナソニック ライフソリューションズ", "LIXIL 建材サプライ", "TOTO 機器特約店", "住友林業 資材部",
+        "大建工業 関東支店", "サンゲツ インテリア", "東リ 床材サプライ", "文化シヤッター 販売",
+        "三協立山 アルミ部", "YKK AP 建材販売", "アイカ工業 化成品", "ノーリツ 設備資材"
+    ];
+
+    // 現場 800件 (5事業部 x 160件)
+    const departments = ["QK", "QM", "QT", "QS", "QY"];
+    const siteTypes = ["ビル新築工事", "マンション改修工事", "商業施設電気設備工事", "公共道路舗装工事", "学校耐震補強工事", "オフィス内装工事"];
+    const sites = [];
+    const siteIds = [];
+
+    let siteCounter = 1;
+    departments.forEach(dept => {
+        for (let i = 1; i <= 160; i++) {
+            const id = `site_mass_${siteCounter}`;
+            const code = `${dept}-${1000 + i}`;
+            const name = `${dept} ${pPrefixes[i % pPrefixes.length]}${siteTypes[i % siteTypes.length]}`;
+            const client = `${pPrefixes[i % pPrefixes.length]}不動産 株式会社`;
+            const manager = workers[i % workers.length];
+            
+            sites.push({
+                id: id,
+                code: code,
+                name: name,
+                client: client,
+                clientManager: `${lastNames[i % lastNames.length]} 担当`,
+                address: `東京都新宿区西新宿 ${i % 8 + 1}-${i % 30 + 1}`,
+                manager: manager,
+                managerConstruction: workers[(i + 1) % workers.length],
+                status: i % 3 === 0 ? "completed" : "ongoing",
+                startDate: "2025-10-01",
+                createdAt: new Date().toISOString()
+            });
+            siteIds.push(id);
+            siteCounter++;
+        }
+    });
+
+    // 日報 50,000件 (過去365日)
+    const reports = [];
+    const workContents = [
+        "1階足場組み立ておよび飛散防止シートの設置完了。",
+        "2階型枠支保工組み立ておよび受入れ検査立会い。",
+        "屋上防水層下地清掃およびウレタン塗膜防水1回目塗布。",
+        "受変電設備更新に伴う幹線引き込み配線作業および絶縁抵抗測定。",
+        "外壁タイルの打上音診断および浮き部エポキシ樹脂注入補修。"
+    ];
+    
+    const nowMs = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    for (let i = 1; i <= 50000; i++) {
+        const offset = (i % 365);
+        const d = new Date(nowMs - offset * dayMs);
+        const dateStr = d.toISOString().split('T')[0];
+        const siteId = siteIds[i % siteIds.length];
+        const writer = workers[i % workers.length];
+        const partnerStr = (i % 10 < 7) ? `${partners[i % partners.length]}、${partners[(i + 3) % partners.length]}` : "";
+        
+        reports.push({
+            id: `rep_mass_${i}`,
+            siteId: siteId,
+            date: dateStr,
+            writer: writer,
+            startTime: "08:00",
+            endTime: "17:00",
+            workContent: workContents[i % workContents.length],
+            partnerCompanions: partnerStr,
+            isOfficeWork: false,
+            createdAt: new Date().toISOString()
+        });
+    }
+
+    // 仕入れ 100,000件
+    const purchases = [];
+    const itemSamples = [
+        ["D19 異形鉄筋 5.5m", "t", "東京製鉄", 110000],
+        ["塩ビ管 VP50 4m", "本", "積水化学", 1200],
+        ["タイガーボード 9.5mm", "枚", "吉野石膏", 450],
+        ["CVTケーブル 60sq 100m", "巻", "フジクラ", 85000],
+        ["単管パイプ 4.0m", "本", "日信金属", 1800]
+    ];
+
+    for (let i = 1; i <= 100000; i++) {
+        const offset = (i % 365);
+        const d = new Date(nowMs - offset * dayMs);
+        const dateStr = d.toISOString().split('T')[0];
+        const siteId = siteIds[i % siteIds.length];
+        const item = itemSamples[i % itemSamples.length];
+        
+        purchases.push({
+            id: `pur_mass_${i}`,
+            siteId: siteId,
+            date: dateStr,
+            orderedBy: workers[i % workers.length],
+            supplier: suppliers[i % suppliers.length],
+            itemName: item[0],
+            unit: item[1],
+            maker: item[2],
+            quantity: (i % 30) + 1,
+            unitPrice: item[3],
+            slipChecked: (i % 5 !== 0),
+            matched: (i % 3 !== 0),
+            createdAt: new Date().toISOString()
+        });
+    }
+
+    console.timeEnd("MassiveDataGen");
+
+    // メモリ上のDB(window.SiteDB, ReportDB, PurchaseDB)に一括バインド
+    window._massiveMemoryDb = {
+        sites: sites,
+        reports: reports,
+        purchases: purchases
+    };
+
+    // SiteDB, ReportDB, PurchaseDB の getAll をフックして超高速に返す
+    const origSiteGetAll = window.SiteDB.getAll;
+    const origReportGetAll = window.ReportDB.getAll;
+    const origPurGetAll = window.PurchaseDB.getAll;
+
+    window.SiteDB.getAll = function(filter) {
+        let list = window._massiveMemoryDb.sites;
+        if (filter && filter.search) {
+            const q = filter.search.toLowerCase();
+            list = list.filter(s => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q));
+        }
+        return list;
+    };
+
+    window.ReportDB.getAll = function(filter) {
+        let list = window._massiveMemoryDb.reports;
+        if (filter && filter.search) {
+            const q = filter.search.toLowerCase();
+            list = list.filter(r => (r.workContent && r.workContent.toLowerCase().includes(q)) || r.writer.toLowerCase().includes(q));
+        }
+        return list;
+    };
+
+    window.PurchaseDB.getAll = function(filter) {
+        let list = window._massiveMemoryDb.purchases;
+        if (filter && filter.search) {
+            const q = filter.search.toLowerCase();
+            list = list.filter(p => p.itemName.toLowerCase().includes(q) || p.supplier.toLowerCase().includes(q));
+        }
+        return list;
+    };
+
+    if (onComplete) onComplete(sites.length, reports.length, purchases.length);
+};
+
 // 現場名や各種名称に含まれる (QK), (QM) などの不要な記号を動的に消去するクリーナー
 function cleanDeptCode(str) {
     if (!str) return '';
