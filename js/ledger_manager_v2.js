@@ -3175,7 +3175,7 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                     <input type="text" id="form-pur-supplier" required value="${pur ? (pur.supplier || '') : ''}" placeholder="〇〇資材">
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
-                    <input type="checkbox" id="form-pur-slip" ${pur && pur.slipChecked ? 'checked' : ''} style="width: 1.25rem; height: 1.25rem; cursor: pointer;">
+                    <input type="checkbox" id="form-pur-slip" ${!isEdit || (pur && pur.slipChecked) ? 'checked' : ''} style="width: 1.25rem; height: 1.25rem; cursor: pointer;">
                     <label for="form-pur-slip" style="margin: 0; cursor: pointer;">伝票の有無 (有る場合チェック)</label>
                 </div>
             </div>
