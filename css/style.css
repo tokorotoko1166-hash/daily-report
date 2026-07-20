@@ -19,28 +19,35 @@
     --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* ダークテーマ用変数 */
-[data-theme="dark"] {
-    --bg-app: radial-gradient(circle at top right, #1e1b4b, #0f172a 60%);
-    --bg-sidebar: rgba(15, 23, 42, 0.75);
-    --bg-card: rgba(30, 41, 59, 0.45);
-    --bg-card-hover: rgba(30, 41, 59, 0.6);
-    --bg-input: rgba(15, 23, 42, 0.6);
-    --bg-header: rgba(15, 23, 42, 0.4);
+/* サイバーテーマ用変数 (近未来・ネオン発光・Glassmorphism) */
+[data-theme="dark"], [data-theme="cyber"] {
+    --bg-app: radial-gradient(ellipse at 80% 0%, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+    --bg-sidebar: rgba(15, 23, 42, 0.85);
+    --bg-card: rgba(15, 23, 42, 0.75);
+    --bg-card-hover: rgba(30, 41, 59, 0.85);
+    --bg-input: rgba(2, 6, 23, 0.8);
+    --bg-header: rgba(15, 23, 42, 0.7);
+    
+    --color-primary: #00f0ff;       /* ネオンシアン */
+    --color-primary-hover: #38bdf8;
+    --color-success: #00ffcc;       /* エレクトリックグリーン */
+    --color-warning: #facc15;       /* ネオンゴールド */
+    --color-danger: #ff0055;        /* ネオンレッド */
+    --color-info: #d946ef;          /* ネオンマゼンタ */
     
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
-    --text-inverse: #0f172a;
+    --text-inverse: #020617;
     
-    --border-light: rgba(255, 255, 255, 0.08);
-    --border-focus: rgba(59, 130, 246, 0.5);
+    --border-light: rgba(0, 240, 255, 0.18); /* ネオン枠線 */
+    --border-focus: #00f0ff;
     
-    --glass-blur: blur(16px);
-    --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    --modal-shadow: 0 20px 50px 0 rgba(0, 0, 0, 0.5);
+    --glass-blur: blur(20px);
+    --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.12);
+    --modal-shadow: 0 25px 60px 0 rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 240, 255, 0.25);
     
-    --scrollbar-track: #0f172a;
-    --scrollbar-thumb: #334155;
+    --scrollbar-track: #020617;
+    --scrollbar-thumb: #1e293b;
 }
 
 /* ライトテーマ用変数 (シックで明るい高級感あふれるプレミアムデザイン) */
@@ -1202,111 +1209,134 @@ label {
 
 
 
+
+
 /* ==========================================================================
-   ✨ シック＆ブライト プレミアムUIブラッシュアップ
+   ⚡ サイバーパンク・ネオフューチャー専用プレミアムUI
    ========================================================================== */
 
-/* カード・アコーディオンの立体感 */
-.dept-accordion, .card, #partner-flat-view-container, #worker-flat-view-container {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.01) !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+/* カード・アコーディオンのネオングロー */
+[data-theme="dark"] .dept-accordion, [data-theme="dark"] .card, [data-theme="dark"] #partner-flat-view-container, [data-theme="dark"] #worker-flat-view-container,
+[data-theme="cyber"] .dept-accordion, [data-theme="cyber"] .card, [data-theme="cyber"] #partner-flat-view-container, [data-theme="cyber"] #worker-flat-view-container {
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(0, 240, 255, 0.2) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.08) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.dept-header {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-    border-bottom: 1px solid #e2e8f0;
-}
-.dept-header:hover {
-    background: #f1f5f9 !important;
-}
-
-/* テーブルデザイン */
-.data-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
+[data-theme="dark"] .dept-accordion:hover, [data-theme="dark"] .card-interactive:hover,
+[data-theme="cyber"] .dept-accordion:hover, [data-theme="cyber"] .card-interactive:hover {
+    border-color: rgba(0, 240, 255, 0.6) !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 240, 255, 0.25) !important;
+    transform: translateY(-2px);
 }
 
-.data-table th {
-    background: #f8fafc !important;
-    color: #475569 !important;
-    font-weight: 600 !important;
+[data-theme="dark"] .dept-header, [data-theme="cyber"] .dept-header {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%) !important;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+/* サイバーロゴ & ネオンテキスト */
+.brand-name {
+    font-size: 1.25rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+    background: linear-gradient(135deg, #00f0ff 0%, #d946ef 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.4));
+}
+
+/* サイバーテーブルデザイン */
+[data-theme="dark"] .data-table th, [data-theme="cyber"] .data-table th {
+    background: rgba(15, 23, 42, 0.95) !important;
+    color: #00f0ff !important;
+    font-weight: 700 !important;
     font-size: 0.8rem !important;
-    letter-spacing: 0.03em;
-    border-bottom: 2px solid #e2e8f0 !important;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid rgba(0, 240, 255, 0.4) !important;
     text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(0, 240, 255, 0.3);
 }
 
-.data-table td {
-    border-bottom: 1px solid #f1f5f9 !important;
-    color: #1e293b;
+[data-theme="dark"] .data-table td, [data-theme="cyber"] .data-table td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    color: #f8fafc;
     font-size: 0.875rem;
-    transition: background 0.15s ease;
 }
 
-.data-table tr:hover td {
-    background: rgba(37, 99, 235, 0.025) !important;
+[data-theme="dark"] .data-table tr:hover td, [data-theme="cyber"] .data-table tr:hover td {
+    background: rgba(0, 240, 255, 0.08) !important;
 }
 
-/* ツールバー */
-.toolbar {
+/* ツールバーのサイバー化 */
+[data-theme="dark"] .toolbar, [data-theme="cyber"] .toolbar {
+    background: rgba(15, 23, 42, 0.85) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(0, 240, 255, 0.25) !important;
     border-radius: 12px;
-    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4), 0 0 15px rgba(0, 240, 255, 0.1);
 }
 
-/* ボタン類のシックな高級感 */
+/* ネオンサイバーボタン */
 .btn-primary {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    background: linear-gradient(135deg, #00f0ff 0%, #7c3aed 100%) !important;
     color: #ffffff !important;
     border: none !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
-    font-weight: 600 !important;
-    transition: all 0.2s ease !important;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.4) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.03em;
+    transition: all 0.25s ease !important;
+    text-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 .btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.7), 0 0 10px rgba(124, 58, 237, 0.5) !important;
 }
 
 .btn-secondary {
-    background: #ffffff !important;
-    color: #334155 !important;
-    border: 1px solid #cbd5e1 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03) !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease !important;
+    background: rgba(30, 41, 59, 0.8) !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(0, 240, 255, 0.3) !important;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3) !important;
+    font-weight: 600 !important;
+    transition: all 0.25s ease !important;
 }
 .btn-secondary:hover {
-    background: #f8fafc !important;
-    border-color: #94a3b8 !important;
-    color: #0f172a !important;
+    background: rgba(51, 65, 85, 0.9) !important;
+    border-color: #00f0ff !important;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.3) !important;
 }
 
-/* テストボタンのシックアンバー調 */
+/* サイバー15万件テストボタン */
 #btn-header-massive-test {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
-    color: #d97706 !important;
-    border: 1px solid #fcd34d !important;
-    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.15) !important;
+    background: linear-gradient(135deg, #ff0055 0%, #facc15 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.5) !important;
+    font-weight: 700 !important;
+    animation: cyberPulse 2s infinite alternate;
 }
-#btn-header-massive-test:hover {
-    background: #fef3c7 !important;
-    transform: translateY(-1px);
+@keyframes cyberPulse {
+    from { box-shadow: 0 0 10px rgba(255, 0, 85, 0.4); }
+    to { box-shadow: 0 0 20px rgba(255, 0, 85, 0.8), 0 0 10px rgba(250, 204, 21, 0.6); }
 }
 
-/* 入力フォーム・プルダウン */
-input[type="text"], input[type="date"], select, textarea {
-    background: #ffffff !important;
-    color: #0f172a !important;
-    border: 1px solid #cbd5e1 !important;
+/* 入力フォーム・プルダウンのサイバーネオン化 */
+[data-theme="dark"] input[type="text"], [data-theme="dark"] input[type="date"], [data-theme="dark"] select, [data-theme="dark"] textarea,
+[data-theme="cyber"] input[type="text"], [data-theme="cyber"] input[type="date"], [data-theme="cyber"] select, [data-theme="cyber"] textarea {
+    background: rgba(2, 6, 23, 0.85) !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(0, 240, 255, 0.3) !important;
     border-radius: 8px !important;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+    transition: all 0.2s ease !important;
 }
-input:focus, select:focus, textarea:focus {
-    border-color: #2563eb !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+[data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus,
+[data-theme="cyber"] input:focus, [data-theme="cyber"] select:focus, [data-theme="cyber"] textarea:focus {
+    border-color: #00f0ff !important;
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
 }
