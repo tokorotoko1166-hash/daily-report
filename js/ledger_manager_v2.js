@@ -1418,7 +1418,7 @@ function refreshSiteTable(filter = {}) {
                 <div class="dept-header" style="padding: 1rem 1.25rem; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                         <span style="display: inline-block; width: 4px; height: 1.35rem; background: ${info.color}; border-radius: 4px;"></span>
-                        <strong style="font-size: 1rem; color: var(--text-main);">${info.name} (${key})</strong>
+                        <strong style="font-size: 1rem; color: var(--text-main);">${info.name}</strong>
                         <span style="background: rgba(255,255,255,0.06); padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-family: 'Inter'; color: var(--text-muted); font-weight: 600;">${count} 件</span>
                     </div>
                     <i data-lucide="chevron-down" class="accordion-icon" style="width: 1.2rem; height: 1.2rem; color: var(--text-muted); transition: transform 0.2s; ${rotateStyle}"></i>
