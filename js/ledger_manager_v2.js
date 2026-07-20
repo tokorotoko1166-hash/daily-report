@@ -2141,49 +2141,7 @@ function refreshLedgerTable(filter = {}) {
         `;
     };
 
-    // 協力業者台帳用の専用行HTMLジェネレーター (12列)
-    const generatePartnerRow = (rep) => {
-        const site = siteMap.get(rep.siteId);
-        const siteCode = rep.siteCode || (site ? site.code : '-');
-        const siteName = rep.siteName || (site ? site.name : '不明な現場');
-        const clientName = rep.client || (site ? site.client : '-');
 
-        const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime);
-        const totalTimeText = isOfficeWork ? '-' : times.total;
-        const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
-
-        let snippet = rep.workContent || '';
-        if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
-        snippet = snippet.replace(/\n/g, ' ');
-
-        const displaySiteName = rep.isOfficeWork ? `<span style="background:var(--color-warning); color:white; padding:0.1rem 0.35rem; border-radius:4px; font-size:0.7rem; margin-right:0.35rem; vertical-align:text-bottom;">事務仕事</span>${cleanDeptCode(siteName)}` : cleanDeptCode(siteName);
-
-        return `
-            <tr style="border-bottom: 1px solid var(--border-light);">
-                <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
-                <td style="padding: 0.75rem; color: var(--color-primary); font-weight: bold;">${rep._targetPartner || rep.partnerCompanions || rep.partner || '-'}</td>
-                <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem;">
-                    <a href="#ledger/detail/${rep.siteId}">${siteCode}</a>
-                </td>
-                <td style="padding: 0.75rem;"><strong>${displaySiteName}</strong></td>
-                <td style="padding: 0.75rem;">${clientName}</td>
-                <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
-                <td style="font-size: 0.85rem; padding: 0.75rem;">${rep.writer || '-'}</td>
-                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
-                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
-                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
-                <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
-                    ${totalTimeText}
-                </td>
-                <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    };
 
     const generateOldRow = (rep) => {
         const site = siteMap.get(rep.siteId);
@@ -5830,6 +5788,49 @@ function renderPartnerLedger(container) {
 }
 
 function refreshPartnerLedgerTable(filter = {}) {
+    // 協力業者台帳用の専用行HTMLジェネレーター (12列)
+    const generatePartnerRow = (rep) => {
+        const site = siteMap.get(rep.siteId);
+        const siteCode = rep.siteCode || (site ? site.code : '-');
+        const siteName = rep.siteName || (site ? site.name : '不明な現場');
+        const clientName = rep.client || (site ? site.client : '-');
+
+        const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
+        const times = calculateWorkTime(rep.startTime, rep.endTime);
+        const totalTimeText = isOfficeWork ? '-' : times.total;
+        const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
+
+        let snippet = rep.workContent || '';
+        if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
+        snippet = snippet.replace(/\n/g, ' ');
+
+        const displaySiteName = rep.isOfficeWork ? `<span style="background:var(--color-warning); color:white; padding:0.1rem 0.35rem; border-radius:4px; font-size:0.7rem; margin-right:0.35rem; vertical-align:text-bottom;">事務仕事</span>${cleanDeptCode(siteName)}` : cleanDeptCode(siteName);
+
+        return `
+            <tr style="border-bottom: 1px solid var(--border-light);">
+                <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
+                <td style="padding: 0.75rem; color: var(--color-primary); font-weight: bold;">${rep._targetPartner || rep.partnerCompanions || rep.partner || '-'}</td>
+                <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem;">
+                    <a href="#ledger/detail/${rep.siteId}">${siteCode}</a>
+                </td>
+                <td style="padding: 0.75rem;"><strong>${displaySiteName}</strong></td>
+                <td style="padding: 0.75rem;">${clientName}</td>
+                <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
+                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
+                    ${totalTimeText}
+                </td>
+                <td style="font-size: 0.85rem; padding: 0.75rem;">${rep.writer || '-'}</td>
+                <td style="text-align: center; padding: 0.75rem;" class="no-print">
+                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
+                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    };
     const container = document.getElementById('partner-ledger-list-container');
     const printBtn = document.getElementById('btn-print-partner-ledger');
     if (!container) return;
