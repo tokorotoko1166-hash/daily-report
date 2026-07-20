@@ -1,3 +1,4 @@
+if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 
 // =========================================================================
 // =========================================================================
@@ -1200,6 +1201,17 @@ function renderSiteListTable(container) {
 
     updateTable();
 
+    // 「さらに表示」ボタンのクリック紐付け
+    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const deptKey = btn.getAttribute('data-dept');
+            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
+            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
+            refreshPartnerLedgerTable(filter);
+        });
+    });
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
@@ -1928,6 +1940,17 @@ function renderLedgerList(container) {
 
     updateTable();
 
+    // 「さらに表示」ボタンのクリック紐付け
+    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const deptKey = btn.getAttribute('data-dept');
+            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
+            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
+            refreshPartnerLedgerTable(filter);
+        });
+    });
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
@@ -2474,6 +2497,17 @@ function refreshLedgerTable(filter = {}) {
             if (window.openReportPreviewModal) {
                 window.openReportPreviewModal(repId);
             }
+        });
+    });
+
+    // 「さらに表示」ボタンのクリック紐付け
+    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const deptKey = btn.getAttribute('data-dept');
+            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
+            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
+            refreshPartnerLedgerTable(filter);
         });
     });
 
@@ -4309,6 +4343,17 @@ document.addEventListener('DOMContentLoaded', () => {
     router();
 
     // 7. アイコンの描画
+    // 「さらに表示」ボタンのクリック紐付け
+    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const deptKey = btn.getAttribute('data-dept');
+            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
+            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
+            refreshPartnerLedgerTable(filter);
+        });
+    });
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
@@ -5059,6 +5104,17 @@ function openCloudSettingsModal() {
         }
     });
 
+    // 「さらに表示」ボタンのクリック紐付け
+    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const deptKey = btn.getAttribute('data-dept');
+            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
+            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
+            refreshPartnerLedgerTable(filter);
+        });
+    });
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
@@ -5696,6 +5752,7 @@ function renderPartnerLedger(container) {
     }
 
     const updateTable = () => {
+        window.currentPartnerDeptLimits = {}; // 件数制限リセット
         refreshPartnerLedgerTable({
             search: searchInput.value,
             department: departmentFilter ? departmentFilter.value : 'all',
@@ -5841,17 +5898,23 @@ function refreshPartnerLedgerTable(filter = {}) {
 
     // 業者ごとにデータを分解してフラットなリストを作成する
     let partnerEntries = [];
-    allReports.forEach(r => {
-        if (!r.partnerCompanions || r.partnerCompanions.trim() === '') return;
-        const partners = r.partnerCompanions.split(/[、,、\s\+]+/).map(p => p.trim()).filter(p => p);
-        partners.forEach(p => {
-            // コピーを作成して業者名を付与
-            partnerEntries.push({
-                ...r,
-                _targetPartner: p
-            });
-        });
-    });
+    for (let i = 0; i < allReports.length; i++) {
+        const r = allReports[i];
+        const pc = r.partnerCompanions;
+        if (!pc) continue;
+        const trimmed = pc.trim();
+        if (!trimmed) continue;
+
+        const partners = trimmed.split(/[、,、\s\+]+/);
+        for (let j = 0; j < partners.length; j++) {
+            const p = partners[j].trim();
+            if (p) {
+                const entry = Object.create(r);
+                entry._targetPartner = p;
+                partnerEntries.push(entry);
+            }
+        }
+    }
 
     // 事業部フィルターの適用 (データ自体を事前に絞り込む)
     if (filter.department && filter.department !== 'all') {
@@ -6072,9 +6135,13 @@ function refreshPartnerLedgerTable(filter = {}) {
             const cManpower = (deptTotalMin / 480).toFixed(2);
             const cTimeText = `${cM > 0 ? `${cH}時間${cM}分` : `${cH}時間`} (${cManpower}人工)`;
 
+            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
+            const limit = window.currentPartnerDeptLimits[key] || 100;
+            const displayedList = list.slice(0, limit);
+
             const tableRows = list.length === 0
                 ? `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当するデータがありません。</td></tr>`
-                : list.map(rep => generatePartnerRow(rep)).join('');
+                : displayedList.map(rep => generatePartnerRow(rep)).join('');
             
             html += `
                 <div class="dept-accordion" style="border: 1px solid var(--border-light); border-radius: 12px; overflow: hidden; background: var(--bg-card); box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1rem;">
@@ -6111,6 +6178,20 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 </tbody>
                             </table>
                         </div>
+            `;
+
+            if (list.length > limit) {
+                const remain = list.length - limit;
+                html += `
+                        <div style="text-align: center; padding: 0.75rem; border-top: 1px solid var(--border-light);">
+                            <button class="btn btn-secondary btn-partner-load-more" data-dept="${key}" style="padding: 0.35rem 1.25rem; font-size: 0.8rem; border-radius: 8px;">
+                                さらに ${Math.min(remain, 100)} 件を表示する (残り ${remain} 件 / 全 ${list.length} 件)
+                            </button>
+                        </div>
+                `;
+            }
+
+            html += `
                     </div>
                 </div>
             `;
@@ -6184,6 +6265,17 @@ function refreshPartnerLedgerTable(filter = {}) {
             location.reload();
         });
     }
+
+    // 「さらに表示」ボタンのクリック紐付け
+    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const deptKey = btn.getAttribute('data-dept');
+            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
+            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
+            refreshPartnerLedgerTable(filter);
+        });
+    });
 
     if (window.lucide) {
         window.lucide.createIcons();
