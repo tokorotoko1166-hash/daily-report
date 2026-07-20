@@ -2379,7 +2379,7 @@ function refreshLedgerTable(filter = {}) {
             if (displayed.length === 0) {
                 tableRows = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当する日報がありません。</td></tr>`;
             } else {
-                tableRows = displayed.map(rep => generateTableRow(rep)).join('');
+                tableRows = displayed.map(rep => generateLedgerRow(rep)).join('');
             }
 
             let loadMoreBtnHtml = '';
@@ -5930,7 +5930,7 @@ function refreshPartnerLedgerTable(filter = {}) {
         return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
     };
 
-    const generateTableRow = (rep) => {
+    const generatePartnerRow = (rep) => {
         const site = siteMap.get(rep.siteId);
         const siteCode = rep.siteCode || (site ? site.code : '-');
         const siteName = rep.siteName || (site ? site.name : '不明な現場');
@@ -6113,7 +6113,7 @@ function refreshPartnerLedgerTable(filter = {}) {
 
             const tableRows = list.length === 0
                 ? `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当するデータがありません。</td></tr>`
-                : list.map(rep => generateTableRow(rep)).join('');
+                : list.map(rep => generatePartnerRow(rep)).join('');
             
             html += `
                 <div class="dept-accordion" style="border: 1px solid var(--border-light); border-radius: 12px; overflow: hidden; background: var(--bg-card); box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1rem;">
