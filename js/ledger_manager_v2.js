@@ -797,7 +797,47 @@ function refreshPurchaseListTable(filter) {
         deptGroups[key].push(p);
     });
 
-    let html = '';
+    let cheapestBannerHtml = '';
+    if (filter.search && filter.search.trim().length > 0 && purchases.length > 0) {
+        // 納入単価が0より大きい有効な仕入れデータから最安値を探す
+        const validPurchases = purchases.filter(p => p.unitPrice && p.unitPrice > 0);
+        if (validPurchases.length > 0) {
+            let minPur = validPurchases[0];
+            validPurchases.forEach(p => {
+                if (p.unitPrice < minPur.unitPrice) {
+                    minPur = p;
+                }
+            });
+
+            const minSupplier = minPur.supplier || '不明な仕入先';
+            const minPriceStr = Math.round(minPur.unitPrice).toLocaleString();
+            const minDateStr = minPur.date ? minPur.date.replace(/-/g, '/') : '-';
+            const rateStr = (minPur.listPrice && minPur.listPrice > 0)
+                ? ` (定価 ¥${Math.round(minPur.listPrice).toLocaleString()} / 掛率 ${((minPur.unitPrice / minPur.listPrice) * 100).toFixed(1)}%)`
+                : '';
+
+            cheapestBannerHtml = `
+                <div class="cyber-cheapest-banner no-print" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(0, 240, 255, 0.35); border-radius: 12px; padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; box-shadow: 0 4px 15px rgba(0, 240, 255, 0.1); animation: fadeIn 0.3s ease;">
+                    <div style="display: flex; align-items: center; gap: 0.85rem;">
+                        <div style="width: 2.4rem; height: 2.4rem; border-radius: 50%; background: rgba(0, 240, 255, 0.15); color: #00f0ff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i data-lucide="trending-down" style="width: 1.3rem; height: 1.3rem;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.03em;">💡 検索結果における過去最安値情報 (参考)</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-top: 0.2rem; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                <span>最安仕入先: <strong style="color: #00f0ff; font-size: 1.05rem;">${minSupplier}</strong></span>
+                                <span style="color: var(--text-muted);">|</span>
+                                <span>最安単価: <strong style="color: #00ffcc; font-size: 1.1rem; font-family: 'Inter', sans-serif;">¥${minPriceStr}</strong>${rateStr}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${minDateStr} 購入 / ${minPur.itemName})</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    let html = cheapestBannerHtml;
     
     Object.keys(DEPT_INFO).forEach(key => {
         const list = deptGroups[key];
