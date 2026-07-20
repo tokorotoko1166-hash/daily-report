@@ -2458,7 +2458,10 @@ function refreshLedgerTable(filter = {}) {
             `;
             window.print();
             document.body.innerHTML = originalContent;
-            location.reload(); // イベントリスナーを再構築するためリロード
+            // 画面リロードを削除しメモリデータ(15万件テスト等)と表示状態を完全保持
+            if (typeof router === 'function') {
+                router();
+            } // イベントリスナーを再構築するためリロード
         });
     }
 
@@ -2497,17 +2500,6 @@ function refreshLedgerTable(filter = {}) {
             if (window.openReportPreviewModal) {
                 window.openReportPreviewModal(repId);
             }
-        });
-    });
-
-    // 「さらに表示」ボタンのクリック紐付け
-    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const deptKey = btn.getAttribute('data-dept');
-            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
-            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
-            refreshPartnerLedgerTable(filter);
         });
     });
 
@@ -5120,17 +5112,6 @@ function openCloudSettingsModal() {
             const deptKey = btn.getAttribute('data-dept');
             if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
             window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
-            refreshPartnerLedgerTable(filter);
-        });
-    });
-
-    // 「さらに表示」ボタンのクリック紐付け
-    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const deptKey = btn.getAttribute('data-dept');
-            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
-            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
             const monthFilter = document.getElementById('partner-month-filter');
             const searchInput = document.getElementById('partner-search');
             const departmentFilter = document.getElementById('partner-department-filter');
@@ -6323,20 +6304,12 @@ function refreshPartnerLedgerTable(filter = {}) {
             `;
             window.print();
             document.body.innerHTML = originalContent;
-            location.reload();
+            // 画面リロードを削除しメモリデータ(15万件テスト等)と表示状態を完全保持
+            if (typeof router === 'function') {
+                router();
+            }
         });
     }
-
-    // 「さらに表示」ボタンのクリック紐付け
-    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const deptKey = btn.getAttribute('data-dept');
-            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
-            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
-            refreshPartnerLedgerTable(filter);
-        });
-    });
 
     // 「さらに表示」ボタンのクリック紐付け
     container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
