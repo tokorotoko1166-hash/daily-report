@@ -4285,27 +4285,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const headerMassiveBtn = document.getElementById('btn-header-massive-test');
-    if (headerMassiveBtn) {
-        headerMassiveBtn.addEventListener('click', () => {
-            if (confirm('【15万件負荷テスト】\n現場800件 / 日報5万件 / 仕入れ10万件 / 協力業者5万件相当 のテストデータをメモリ上に生成して接続します。\n(実行しますか？)')) {
-                headerMassiveBtn.disabled = true;
-                headerMassiveBtn.textContent = '生成中...';
-                setTimeout(() => {
-                    window.generateMassiveDatasetOnMemory((sCount, rCount, pCount) => {
-                        if (window.app && window.app.showToast) window.app.showToast(`🚀 テストデータ接続完了！ (現場 ${sCount}件 / 日報 ${rCount}件 / 仕入れ ${pCount}件)`, 'success');
-                        headerMassiveBtn.disabled = false;
-                        headerMassiveBtn.innerHTML = '<i data-lucide="zap" style="width: 0.9rem; height: 0.9rem;"></i> <span>15万件テスト接続中</span>';
-                        if (window.lucide) window.lucide.createIcons();
-                        const hash = window.location.hash || '#site-list';
-                        window.location.hash = '#temp';
-                        setTimeout(() => window.location.hash = hash, 50);
-                    });
-                }, 100);
-            }
-        });
-    }
-
     const cloudConfigBtn = document.getElementById('btn-cloud-config');
     if (cloudConfigBtn) {
         cloudConfigBtn.addEventListener('click', () => {
