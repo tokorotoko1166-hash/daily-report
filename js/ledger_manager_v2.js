@@ -6017,8 +6017,126 @@ function refreshPartnerLedgerTable(filter = {}) {
 
     let html = '';
 
-    if (false) {
-        // デバッグ残存無効化
+    if (isSinglePartnerMode) {
+        // ========== 特定協力業者選択時：1つの一覧表で全データ表示(事業部列付き) ==========
+        partnerEntries.sort((a, b) => b.date.localeCompare(a.date));
+
+        let totalMin = 0;
+        let tableRows = '';
+
+        const getDeptBadge = (code) => {
+            if (!code) return '<span style="background:#6b7280; color:white; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem;">その他</span>';
+            const prefix = code.slice(0, 2).toUpperCase();
+            if (prefix === 'QK') return '<span style="background:var(--color-primary); color:white; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem;">仮設</span>';
+            if (prefix === 'QM') return '<span style="background:var(--color-success); color:white; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem;">施設住宅</span>';
+            if (prefix === 'QT') return '<span style="background:var(--color-warning); color:white; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem;">設備改修</span>';
+            if (prefix === 'QS') return '<span style="background:#06b6d4; color:white; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem;">公共</span>';
+            if (prefix === 'QY') return '<span style="background:#a855f7; color:white; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem;">本部</span>';
+            return '<span style="background:#6b7280; color:white; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem;">その他</span>';
+        };
+
+        if (partnerEntries.length === 0) {
+            tableRows = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当するデータがありません。</td></tr>`;
+        } else {
+            partnerEntries.forEach(r => {
+                const site = siteMap.get(r.siteId);
+                const siteCode = r.siteCode || (site ? site.code : '-');
+                const siteName = r.siteName || (site ? site.name : '不明な現場');
+                const clientName = r.client || (site ? site.client : '-');
+                const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
+                const times = calculateWorkTime(r.startTime, r.endTime);
+                if (!isOfficeWork && times.min) totalMin += times.min;
+
+                const formattedDate = r.date ? r.date.replace(/-/g, '/') : '-';
+                let snippet = r.workContent || '';
+                if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
+                snippet = snippet.replace(/\n/g, ' ');
+
+                const displaySiteName = isOfficeWork ? `<span style="background:var(--color-warning); color:white; padding:0.1rem 0.35rem; border-radius:4px; font-size:0.7rem; margin-right:0.35rem; vertical-align:text-bottom;">事務仕事</span>${cleanDeptCode(siteName)}` : cleanDeptCode(siteName);
+
+                tableRows += `
+                    <tr style="border-bottom: 1px solid var(--border-light);">
+                        <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
+                        <td style="padding: 0.75rem; text-align: center;">${getDeptBadge(siteCode)}</td>
+                        <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem;">
+                            <a href="#ledger/detail/${r.siteId}">${siteCode}</a>
+                        </td>
+                        <td style="padding: 0.75rem;"><strong>${displaySiteName}</strong></td>
+                        <td style="padding: 0.75rem;">${clientName}</td>
+                        <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${r.workContent || ''}">${snippet}</td>
+                        <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
+                        <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
+                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                        <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
+                            ${isOfficeWork ? '-' : times.total}
+                        </td>
+                        <td style="font-size: 0.85rem; padding: 0.75rem;">${r.writer || '-'}</td>
+                        <td style="text-align: center; padding: 0.75rem;" class="no-print">
+                            <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${r.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
+                                <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        const tH = Math.floor(totalMin / 60);
+        const tM = totalMin % 60;
+        const tManpower = (totalMin / 480).toFixed(2);
+        const totalTimeText = `${tM > 0 ? `${tH}時間${tM}分` : `${tH}時間`} (${tManpower}人工)`;
+
+        html += `
+            <div id="partner-flat-view-container" style="background: var(--bg-card); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border-light);">
+                <div style="padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); background: rgba(59, 130, 246, 0.05);">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="users" style="width: 1.25rem; height: 1.25rem;"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.15rem; font-weight: bold; color: var(--color-primary);">協力業者: ${filter.partner}</h2>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">全 ${partnerEntries.length} 件 / 作業時間合計: ${totalTimeText}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 印刷用ヘッダー -->
+                <div class="print-only" style="display: none; text-align: center; margin: 1rem 0;">
+                    <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">協力業者台帳: ${filter.partner}</h2>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">対象月: ${filter.month === 'all' ? 'すべて' : filter.month} / 出力日時: ${new Date().toLocaleString()}</p>
+                </div>
+
+                <div class="table-responsive" style="margin: 0;" id="partner-print-area">
+                    <table class="data-table">
+                        <thead>
+                            <tr style="background: var(--bg-card);">
+                                <th style="width: 90px; text-align: left; padding: 0.75rem;">日付</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">事業部</th>
+                                <th style="width: 100px; text-align: left; padding: 0.75rem;">工事番号</th>
+                                <th style="text-align: left; padding: 0.75rem;">現場名称</th>
+                                <th style="text-align: left; padding: 0.75rem;">受注先 (元請/顧客)</th>
+                                <th style="text-align: left; padding: 0.75rem;">作業内容</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
+                                <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
+                                <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                        <tfoot class="print-only" style="display:none;">
+                            <tr>
+                                <td colspan="9" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
+                                <td colspan="3" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        `;
     } else {
         // ========== 事業部別アコーディオンモード ==========
         const departments = {
