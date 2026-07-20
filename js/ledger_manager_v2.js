@@ -4127,6 +4127,9 @@ function checkAdminPasswordLock() {
     const isAuthenticated = sessionStorage.getItem('is_admin_authenticated') === 'true';
     if (isAuthenticated) return; // 認証済みなら何もしない
 
+    // 重複生成ガード
+    if (document.getElementById('admin-lock-overlay')) return;
+
     const lockDiv = document.createElement('div');
     lockDiv.id = 'admin-lock-overlay';
     lockDiv.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--bg-main, #1a1b26); color:var(--text-main, #a9b1d6); z-index:999999; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;';
@@ -4197,7 +4200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Initialization router error:", e);
     }
     try {
-    checkAdminPasswordLock(); // ロック画面の割り込みチェック実行
 
     // 1. 保存されたテーマ（ダーク/ライト）の適用
     const savedTheme = localStorage.getItem('theme') || 'dark';
