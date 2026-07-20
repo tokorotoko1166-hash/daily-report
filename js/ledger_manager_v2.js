@@ -1,3 +1,11 @@
+// 現場名や各種名称に含まれる (QK), (QM) などの不要な記号を動的に消去するクリーナー
+function cleanDeptCode(str) {
+    if (!str) return '';
+    return String(str).replace(/[\s　]*[\(（][Q|q][K|M|T|S|Y|k|m|t|s|y][\)）]/g, '')
+                      .replace(/[\s　]*[\(（]OTHER[\)）]/gi, '')
+                      .trim();
+}
+
 
 window.app = {
     showToast: (message, type = 'info') => {
@@ -712,7 +720,7 @@ function refreshPurchaseListTable(filter) {
                 <div class="dept-header pur-dept-header" style="padding: 1rem 1.25rem; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                         <span style="display: inline-block; width: 4px; height: 1.35rem; background: ${info.color}; border-radius: 4px;"></span>
-                        <strong style="font-size: 1rem; color: var(--text-main);">${info.name}</strong>
+                        <strong style="font-size: 1rem; color: var(--text-main);">${cleanDeptCode(info.name)}</strong>
                         <span style="background: rgba(255,255,255,0.06); padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-family: 'Inter'; color: var(--text-muted); font-weight: 600;">
                             ${count} 件 / 計 ¥${Math.round(deptTotal).toLocaleString()} 
                             <span style="color:var(--color-success); margin-left:0.5rem;">(照合済 ¥${Math.round(deptMatched).toLocaleString()})</span>
@@ -1239,7 +1247,7 @@ function generatePrintTableHtml() {
             <td style="border: 1px solid #333; padding: 0.4rem;">${site.estimateCode || '-'}</td>
             <td style="border: 1px solid #333; padding: 0.4rem;">${site.client || '-'}</td>
             <td style="border: 1px solid #333; padding: 0.4rem;">${site.clientManager || '-'}</td>
-            <td style="border: 1px solid #333; padding: 0.4rem;"><strong>${site.name}</strong></td>
+            <td style="border: 1px solid #333; padding: 0.4rem;"><strong>${cleanDeptCode(site.name)}</strong></td>
             <td style="border: 1px solid #333; padding: 0.4rem; text-align: center;">${site.status !== 'completed' ? '継続' : '完了'}</td>
             <td style="border: 1px solid #333; padding: 0.4rem;">${site.survey || '-'}</td>
             <td style="border: 1px solid #333; padding: 0.4rem;">${site.manager || '-'}</td>
@@ -1481,7 +1489,7 @@ function refreshSiteTable(filter = {}) {
                         <td style="padding: 0.75rem;">${site.estimateCode || '-'}</td>
                         <td style="padding: 0.75rem;">${site.client || '-'}</td>
                         <td style="padding: 0.75rem;">${site.clientManager || '-'}</td>
-                        <td style="padding: 0.75rem;"><strong>${site.name}</strong></td>
+                        <td style="padding: 0.75rem;"><strong>${cleanDeptCode(site.name)}</strong></td>
                         <td style="padding: 0.75rem; text-align: center;">
                             <input type="checkbox" class="site-continue-checkbox" data-site-id="${site.id}" ${(site.status !== 'completed' || reportSiteCodes.has(site.code)) ? 'checked' : ''} style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
                         </td>
@@ -2131,7 +2139,7 @@ function refreshLedgerTable(filter = {}) {
                     <div class="dept-header" style="padding: 1rem 1.25rem; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <span style="display: inline-block; width: 4px; height: 1.35rem; background: ${info.color}; border-radius: 4px;"></span>
-                            <strong style="font-size: 1rem; color: var(--text-main);">${info.name}</strong>
+                            <strong style="font-size: 1rem; color: var(--text-main);">${cleanDeptCode(info.name)}</strong>
                             <span style="background: rgba(255,255,255,0.06); padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-family: 'Inter'; color: var(--text-muted); font-weight: 600;">${count} 件</span>
                             <span style="font-size: 0.75rem; color: var(--text-muted);">${deptTimeText}</span>
                         </div>
@@ -5818,7 +5826,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                     <div class="dept-header" style="padding: 1rem 1.25rem; background: rgba(255,255,255,0.015); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <span style="display: inline-block; width: 4px; height: 1.35rem; background: ${info.color}; border-radius: 4px;"></span>
-                            <strong style="font-size: 1rem; color: var(--text-main);">${info.name}</strong>
+                            <strong style="font-size: 1rem; color: var(--text-main);">${cleanDeptCode(info.name)}</strong>
                             <span style="background: rgba(255, 255, 255, 0.06); padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-family: 'Inter'; font-weight: 600; color: var(--text-muted);">${list.length} 件</span>
                             <span style="font-size: 0.75rem; color: var(--text-muted);">${cTimeText}</span>
                         </div>
