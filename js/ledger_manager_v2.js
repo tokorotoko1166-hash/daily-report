@@ -5196,26 +5196,6 @@ function openCloudSettingsModal() {
         }
     });
 
-    // 「さらに表示」ボタンのクリック紐付け
-    container.querySelectorAll('.btn-partner-load-more').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const deptKey = btn.getAttribute('data-dept');
-            if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
-            window.currentPartnerDeptLimits[deptKey] = (window.currentPartnerDeptLimits[deptKey] || 100) + 100;
-            const monthFilter = document.getElementById('partner-month-filter');
-            const searchInput = document.getElementById('partner-search');
-            const departmentFilter = document.getElementById('partner-department-filter');
-            const partnerFilter = document.getElementById('partner-select-filter');
-            refreshPartnerLedgerTable({
-                search: searchInput ? searchInput.value : '',
-                department: departmentFilter ? departmentFilter.value : 'all',
-                month: monthFilter ? monthFilter.value : 'all',
-                partner: partnerFilter ? partnerFilter.value : 'all'
-            });
-        });
-    });
-
     if (window.lucide) {
         window.lucide.createIcons();
     }
