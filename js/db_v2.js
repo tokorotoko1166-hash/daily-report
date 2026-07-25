@@ -1,3 +1,4 @@
+try {
 // パスワード検証用の一方向ハッシュ計算 (SHA-256)
 async function calculateSHA256(message) {
     const cleanMsg = message.replace(/[\s　]/g, '').trim();
@@ -110,35 +111,35 @@ const STORAGE_KEYS = {
     PURCHASES: 'report_ledger_purchases'
 };
 
-// デモ用の現場データ初期値（工事番号と受注先を強調）
+// デモ用の現場データ初期値
 const DEMO_SITES = [
     {
         id: 'site_1',
-        code: 'SB101', // 工事番号 (アルファベット2文字+数字3桁)
+        code: 'SB101',
         name: '渋谷駅前複合ビル新築工事',
-        client: '東都都市開発 株式会社', // 受注先
-        clientManager: '高橋 一郎 部長', // 受注先担当者
-        estimateCode: 'EST-26-001', // 見積り番号 [NEW]
-        isBilled: true, // 請求確認 [NEW]
-        isPaid: false, // 入金確認 [NEW]
+        client: '東都都市開発 株式会社',
+        clientManager: '高橋 一郎 部長',
+        estimateCode: 'EST-26-001',
+        isBilled: true,
+        isPaid: false,
         startDate: '2026-04-01',
         endDate: '2026-12-31',
         address: '東京都渋谷区道玄坂2丁目',
         manager: '佐藤 健太',
         budget: 150000000,
-        status: 'active', // active: 進行中, planning: 計画中, completed: 完了
+        status: 'active',
         memo: 'RC造地上12階建ての複合商業ビル新築案件。',
         createdAt: '2026-04-01T08:00:00.000Z'
     },
     {
         id: 'site_2',
-        code: 'SJ202', // 工事番号 (アルファベット2文字+数字3桁)
+        code: 'SJ202',
         name: '新宿オフィスビル改修工事',
-        client: '日本インベストメント興産 株式会社', // 受注先
-        clientManager: '渡辺 課長', // 受注先担当者
-        estimateCode: 'EST-26-002', // 見積り番号 [NEW]
-        isBilled: false, // 請求確認 [NEW]
-        isPaid: false, // 入金確認 [NEW]
+        client: '日本インベストメント興産 株式会社',
+        clientManager: '渡辺 課長',
+        estimateCode: 'EST-26-002',
+        isBilled: false,
+        isPaid: false,
         startDate: '2026-06-01',
         endDate: '2026-07-20',
         address: '東京都新宿区西新宿1丁目',
@@ -150,13 +151,13 @@ const DEMO_SITES = [
     },
     {
         id: 'site_3',
-        code: 'IB303', // 工事番号 (アルファベット2文字+数字3桁)
+        code: 'IB303',
         name: '池袋レジデンス外壁塗装工事',
-        client: '池袋レジデンス管理組合', // 受注先
-        clientManager: '小林 理事長', // 受注先担当者
-        estimateCode: 'EST-26-003', // 見積り番号 [NEW]
-        isBilled: true, // 請求確認 [NEW]
-        isPaid: true, // 入金確認 [NEW]
+        client: '池袋レジデンス管理組合',
+        clientManager: '小林 理事長',
+        estimateCode: 'EST-26-003',
+        isBilled: true,
+        isPaid: true,
         startDate: '2026-08-01',
         endDate: '2026-08-31',
         address: '東京都豊島区東池袋3丁目',
@@ -168,7 +169,7 @@ const DEMO_SITES = [
     }
 ];
 
-// デモ用の業務日報データ初期値（出発・開始・終了・帰社時間、直行・直帰、同行者を追加）
+// デモ用の業務日報データ初期値
 const DEMO_REPORTS = [
     {
         id: 'rep_1',
@@ -177,12 +178,12 @@ const DEMO_REPORTS = [
         weather: '晴れ',
         writer: '佐藤 健太',
         departureTime: '07:30',
-        isDirectGo: false, // 直行なし
+        isDirectGo: false,
         startTime: '08:30',
         endTime: '17:00',
         returnTime: '18:15',
-        isDirectBack: false, // 直帰なし
-        companions: '高橋 義男、渡辺 誠、伊藤 淳', // 同行者
+        isDirectBack: false,
+        companions: '高橋 義男、渡辺 誠、伊藤 淳',
         workContent: '1階床コンクリート打設前の配筋検査対応。\n2階型枠支保工の組み立て。\n生コン打設用機材の搬入および配置確認。',
         memo: '14:00に設計監理者による配筋検査実施。指摘事項なし。明日朝一番より生コンクリート打設開始。',
         createdAt: '2026-06-12T17:30:00.000Z'
@@ -194,12 +195,12 @@ const DEMO_REPORTS = [
         weather: '曇り',
         writer: '鈴木 一郎',
         departureTime: '',
-        isDirectGo: true, // 直行
+        isDirectGo: true,
         startTime: '08:00',
         endTime: '17:30',
         returnTime: '',
-        isDirectBack: true, // 直帰
-        companions: '小林 茂、加藤 博', // 同行者
+        isDirectBack: true,
+        companions: '小林 茂、加藤 博',
         workContent: '6階LGS天井下地および壁下地の組み込み。\n7階配線配管仕込み工事（電気設備業者と合同調整）。',
         memo: '搬出エレベーターの使用時間が13:00〜16:00に制限されているため、作業調整に留意した。',
         createdAt: '2026-06-12T18:00:00.000Z'
@@ -215,7 +216,7 @@ const DEMO_REPORTS = [
         startTime: '08:00',
         endTime: '17:30',
         returnTime: '',
-        isDirectBack: true, // 直帰（現場からそのまま帰宅）
+        isDirectBack: true,
         companions: '山本 太郎、高橋 義男、渡辺 誠',
         workContent: '1階床コンクリート打設（設計値24-18-20、打設数量：85m³）。\nコンクリート打設後の養生および散水準備。\n2階型枠支保工組み立て完了。',
         memo: '気温28度のため、打設後のクラック防止用散水養生を徹底。強度試験ピースを6本採取完了。',
@@ -228,18 +229,18 @@ const DEMO_PURCHASES = [
     {
         id: 'pur_1',
         siteId: 'site_1',
-        date: '2026-06-11', // 入荷月日
-        orderedBy: '佐藤 健太', // 発注者
-        supplier: '東京鋼材 株式会社', // 仕入れ先
-        slipChecked: true, // 伝票チェック
-        maker: '東京製鉄', // メーカー
-        itemName: 'D19 異形鉄筋 5.5m', // 品名・型式
+        date: '2026-06-11',
+        orderedBy: '佐藤 健太',
+        supplier: '東京鋼材 株式会社',
+        slipChecked: true,
+        maker: '東京製鉄',
+        itemName: 'D19 異形鉄筋 5.5m',
         unit: 't',
         quantity: 2.5,
-        unitPrice: 110000, // 仕入れ単価
-        totalPrice: 275000, // 合計仕入れ金額 (2.5 * 110000)
-        listPrice: 150000, // 定価
-        multiplier: 0.73, // 掛け率 (110000 / 150000)
+        unitPrice: 110000,
+        totalPrice: 275000,
+        listPrice: 150000,
+        multiplier: 0.73,
         createdAt: '2026-06-11T09:00:00.000Z'
     },
     {
@@ -247,7 +248,7 @@ const DEMO_PURCHASES = [
         siteId: 'site_1',
         date: '2026-06-12',
         orderedBy: '佐藤 健太',
-        supplier: '三多摩電材 株式会社', // 仕入れ先
+        supplier: '三多摩電材 株式会社',
         slipChecked: true,
         maker: '積水化学',
         itemName: '塩ビ管 VP50 4m',
@@ -264,8 +265,8 @@ const DEMO_PURCHASES = [
         siteId: 'site_2',
         date: '2026-06-12',
         orderedBy: '鈴木 一郎',
-        supplier: '建材センター 新宿店', // 仕入れ先
-        slipChecked: false, // 伝票未チェック
+        supplier: '建材センター 新宿店',
+        slipChecked: false,
         maker: '吉野石膏',
         itemName: 'タイガーボード 9.5mm',
         unit: '枚',
@@ -309,16 +310,11 @@ function initDatabase() {
     const hasNewFields = reports.length > 0 && reports[0] && reports[0].hasOwnProperty('departureTime');
     const missingSupplierField = purchases.length > 0 && (!purchases[0] || !purchases[0].hasOwnProperty('supplier'));
 
-    // 【データ安全保護】
-    // 古いデータ形式チェックによる勝手な全消去・デモデータへの先祖返りを防ぐため、
-    // 本番データ誤消去のリスクがある自動リセット処理を完全に安全に無効化（コメントアウト）します。
-    /*
     if (!safeStorage.getItem(STORAGE_KEYS.PURCHASES) || !hasNewFields || hasOldCodes || missingEstimateField || missingSupplierField || sites.length === 0) {
         safeStorage.removeItem(STORAGE_KEYS.SITES);
         safeStorage.removeItem(STORAGE_KEYS.REPORTS);
         safeStorage.removeItem(STORAGE_KEYS.PURCHASES);
     }
-    */
 
     if (!safeStorage.getItem(STORAGE_KEYS.SITES)) {
         safeStorage.setItem(STORAGE_KEYS.SITES, JSON.stringify(DEMO_SITES));
@@ -332,15 +328,9 @@ function initDatabase() {
 }
 
 // ==========================================================================
-// 現場台帳 (Sites) のデータ操作API
-// ==========================================================================
-
-
-// ==========================================================================
 // 社内LANサーバー接続用の同期通信ヘルパー
 // ==========================================================================
 function isLocalServerEnabled() {
-    // 携帯用の日報画面(daily_report.html)を開いている場合は、ローカルサーバー同期を強制無効にする
     if (typeof window !== 'undefined' && window.location && window.location.pathname && window.location.pathname.includes('daily_report.html')) {
         return false;
     }
@@ -355,9 +345,8 @@ function fetchFromServerSync(type) {
     try {
         const ip = getLocalServerIP();
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', `http://${ip}:3000/api/data?type=${type}`, false); // 同期通信
+        xhr.open('GET', `http://${ip}:3000/api/data?type=${type}`, false);
         
-        // セキュリティ認証用のヘッダーを付与
         const token = safeStorage.getItem('admin_password') || safeStorage.getItem('custom_encryption_key') || '';
         if (token) {
             xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -367,7 +356,6 @@ function fetchFromServerSync(type) {
         if (xhr.status === 200) {
             return JSON.parse(xhr.responseText);
         }
-        console.error(`Failed to GET ${type} from server:`, xhr.status);
     } catch (e) {
         console.error(`Network error getting ${type}:`, e);
     }
@@ -378,10 +366,9 @@ function saveToServerSync(type, data) {
     try {
         const ip = getLocalServerIP();
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', `http://${ip}:3000/api/data`, false); // 同期通信
+        xhr.open('POST', `http://${ip}:3000/api/data`, false);
         xhr.setRequestHeader('Content-Type', 'application/json');
         
-        // セキュリティ認証用のヘッダーを付与
         const token = safeStorage.getItem('admin_password') || safeStorage.getItem('custom_encryption_key') || '';
         if (token) {
             xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -391,7 +378,6 @@ function saveToServerSync(type, data) {
         if (xhr.status === 200) {
             return true;
         }
-        console.error(`Failed to POST ${type} to server:`, xhr.status);
     } catch (e) {
         console.error(`Network error posting ${type}:`, e);
     }
@@ -412,7 +398,6 @@ const SiteDB = {
             sites = [];
         }
 
-        // 不正データ(nullやレコード破損)のクリーニング
         sites = sites.filter(s => s && typeof s === 'object' && s.id);
 
         if (filter.search) {
@@ -431,8 +416,7 @@ const SiteDB = {
             sites = sites.filter(s => s.status === filter.status);
         }
 
-        // 【仕様変更】工事番号の若い順 (自然順昇順: 000から順に並ぶ) でソート
-        return sites.sort((a, b) => (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' }));
+        return sites.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     },
 
     getById(id) {
@@ -480,7 +464,6 @@ const SiteDB = {
         let sites = this.getAll();
         const filtered = sites.filter(s => s.id !== id);
         
-        // 関連する材料仕入れデータも削除 (PurchaseDBオブジェクトが存在する場合のみ実行)
         let purchases = null;
         if (typeof PurchaseDB !== 'undefined') {
             purchases = PurchaseDB.getAll();
@@ -515,11 +498,7 @@ const SiteDB = {
         }
         return true;
     }
-};;
-
-// ==========================================================================
-// 業務日報 (Reports) のデータ操作API
-// ==========================================================================
+};
 
 const ReportDB = {
     getAll(filter = {}) {
@@ -535,7 +514,6 @@ const ReportDB = {
             reports = [];
         }
 
-        // 不正データのクリーニング
         reports = reports.filter(r => r && typeof r === 'object' && r.id);
 
         if (filter.search) {
@@ -618,11 +596,7 @@ const ReportDB = {
         }
         return true;
     }
-};;
-
-// ==========================================================================
-// 材料仕入れ (Purchases) のデータ操作API
-// ==========================================================================
+};
 
 const PurchaseDB = {
     getAll(filter = {}) {
@@ -638,7 +612,6 @@ const PurchaseDB = {
             purchases = [];
         }
 
-        // 不正データのクリーニング
         purchases = purchases.filter(p => p && typeof p === 'object' && p.id);
 
         if (filter.search) {
@@ -742,11 +715,7 @@ const PurchaseDB = {
         }
         return true;
     }
-};;
-
-// ==========================================================================
-// 統計データ (Dashboard Stats) の集計API
-// ==========================================================================
+};
 
 const StatsDB = {
     getSummary() {
@@ -851,7 +820,6 @@ const StatsDB = {
     }
 };
 
-// CORS制限回避のため、 window オブジェクト配下にグローバルエクスポート
 window.safeStorage = safeStorage;
 window.initDatabase = initDatabase;
 window.SiteDB = SiteDB;
@@ -859,16 +827,10 @@ window.ReportDB = ReportDB;
 window.PurchaseDB = PurchaseDB;
 window.StatsDB = StatsDB;
 
-// ==========================================================================
-// 5. 暗号化 ＆ Firebase (クラウド中継) 連携モジュール
-// ==========================================================================
-
 function getEncryptionKey() {
-    // 常に本番固定パスワード「yks1322」を返す
     return 'yks1322';
 }
 
-// AES-256 共通鍵暗号化/復号化ユーティリティ
 window.CryptoUtil = {
     encrypt: function(data) {
         if (!window.CryptoJS) {
@@ -889,12 +851,10 @@ window.CryptoUtil = {
             return null;
         }
         try {
-            // 1. まずは設定されたカスタム暗号キーで復号を試みる
             const key = getEncryptionKey();
             let bytes = CryptoJS.AES.decrypt(encryptedStr, key);
             let decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
             
-            // 2. 失敗した場合、自動的に初期キーでの復号を試みる (厳密モード時はスキップ)
             const defaultKey = 'TokoroDailyReportSecretKeyToken2026';
             if (!isStrict && !decryptedStr && key !== defaultKey) {
                 bytes = CryptoJS.AES.decrypt(encryptedStr, defaultKey);
@@ -908,7 +868,6 @@ window.CryptoUtil = {
             console.warn('First decryption attempt failed, trying fallback key...');
         }
         
-        // 3. 例外発生時の最終フォールバック復号 (厳密モード時はスキップ)
         if (!isStrict) {
             try {
                 const bytes = CryptoJS.AES.decrypt(encryptedStr, 'TokoroDailyReportSecretKeyToken2026');
@@ -924,7 +883,6 @@ window.CryptoUtil = {
     }
 };
 
-// Cloudflare Workers (クラウド中継) 接続 ＆ 同期コントロール
 window.CloudSync = {
     config: null,
     isMock: false,
@@ -933,11 +891,8 @@ window.CloudSync = {
         if (saved) {
             try {
                 return JSON.parse(saved);
-            } catch (e) {
-                // fall through
-            }
+            } catch (e) {}
         }
-        // スマホ側で設定が空の場合でも、自動的に作成されたCloudflareへ接続するように初期値を定義
         return {
             url: 'https://daily-report-sync.tokoro-toko1166.workers.dev',
             token: 'TokoroEdgeOneAuthToken2026'
@@ -960,7 +915,7 @@ window.CloudSync = {
     },
     isEnabled: function() {
         this.init();
-        return true; // 常にモックまたは本番が動くため有効
+        return true;
     },
     collection: function(name) {
         this.init();
@@ -968,13 +923,11 @@ window.CloudSync = {
         const config = this.config;
 
         if (!this.isMock && config && config.url) {
-            // Tencent EdgeOne Makers 本番API接続
             return {
                 get: async function() {
                     const headers = { 'Authorization': `Bearer ${config.token}` };
 
                     if (name === 'sites') {
-                        // 現場リストの取得 (一括)
                         const res = await fetch(`${config.url}/api/sites`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
@@ -985,7 +938,6 @@ window.CloudSync = {
                         
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
                         if (encryptedText && encryptedText !== '[]' && !decryptedList) {
-                            // クラウドにデータがあるのに復号に失敗した ＝ パスワード不一致！
                             throw new Error('DECRYPTION_FAILED');
                         }
                         if (Array.isArray(decryptedList)) {
@@ -996,7 +948,6 @@ window.CloudSync = {
                         }
                         return [];
                     } else if (name === 'purchases') {
-                        // 仕入れリストの取得 (一括)
                         const res = await fetch(`${config.url}/api/purchases`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
@@ -1017,7 +968,6 @@ window.CloudSync = {
                         }
                         return [];
                     } else {
-                        // 未処理日報リストの取得
                         const res = await fetch(`${config.url}/api/reports`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
@@ -1031,7 +981,6 @@ window.CloudSync = {
                     }
                 },
                 add: async function(data) {
-                    // 日報の送信 (POST)
                     const res = await fetch(`${config.url}/api/reports`, {
                         method: 'POST',
                         headers: {
@@ -1050,9 +999,7 @@ window.CloudSync = {
                     return {
                         set: async function(data) {
                             if (name === 'sites') {
-                                // 現場リストのアップロード (一括POST)
                                 const allSites = window.SiteDB.getAll();
-                                // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
                                 const res = await fetch(`${config.url}/api/sites`, {
@@ -1069,7 +1016,6 @@ window.CloudSync = {
                                 }
                                 return true;
                             } else if (name === 'purchases') {
-                                // 仕入れリストのアップロード (一括POST)
                                 const allPurchases = window.PurchaseDB.getAll();
                                 const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
@@ -1091,9 +1037,7 @@ window.CloudSync = {
                         },
                         delete: async function() {
                             if (name === 'sites') {
-                                // 現場削除時のアップロード (一括POST)
                                 const allSites = window.SiteDB.getAll();
-                                // クラウド上に常に暗号化テキストを存在させ、スマホ側でのパスワード誤り判定を100%確実に動作させるためのダミー付与
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
                                 const res = await fetch(`${config.url}/api/sites`, {
@@ -1110,7 +1054,6 @@ window.CloudSync = {
                                 }
                                 return true;
                             } else if (name === 'purchases') {
-                                // 仕入れリストのアップロード (削除時一括同期)
                                 const allPurchases = window.PurchaseDB.getAll();
                                 const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
@@ -1128,7 +1071,6 @@ window.CloudSync = {
                                 }
                                 return true;
                             } else {
-                                // 同期完了した日報を消去 (DELETE)
                                 const res = await fetch(`${config.url}/api/reports`, {
                                     method: 'DELETE',
                                     headers: {
@@ -1148,7 +1090,6 @@ window.CloudSync = {
                 }
             };
         } else {
-            // 疑似クラウド（同一ブラウザ内 LocalStorage 中継）
             const storageKey = `cloud_mock_${name}`;
             return {
                 get: async function() {
@@ -1194,3 +1135,6 @@ window.CloudSync = {
         }
     }
 };
+} catch (err) {
+    alert('🚨 db_v2.js 内で致命的なエラーが発生しました！\n\n【エラー型】: ' + err.name + '\n【メッセージ】: ' + err.message + '\n\n【スタックトレース】:\n' + err.stack);
+}

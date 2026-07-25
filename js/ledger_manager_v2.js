@@ -1,3 +1,4 @@
+try {
 if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 
 // =========================================================================
@@ -1010,12 +1011,12 @@ function refreshPurchaseListTable(filter) {
     });
 
     container.querySelectorAll('.purchase-match-check').forEach(chk => {
-        chk.addEventListener('change', async (e) => {
+        chk.addEventListener('change', (e) => {
             const purId = chk.getAttribute('data-id');
             const isChecked = chk.checked;
             window.PurchaseDB.update(purId, { matched: isChecked });
             if (window.CloudSync && window.CloudSync.isEnabled()) {
-                await syncPurchasesToCloud();
+                syncPurchasesToCloud();
             }
             refreshPurchaseListTable(filter);
         });
@@ -1028,11 +1029,11 @@ function refreshPurchaseListTable(filter) {
     });
 
     container.querySelectorAll('.btn-delete-purchase').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', (e) => {
             if (confirm('この仕入れデータを削除してもよろしいですか？')) {
                 window.PurchaseDB.delete(btn.getAttribute('data-id'));
                 if (window.CloudSync && window.CloudSync.isEnabled()) {
-                    await syncPurchasesToCloud();
+                    syncPurchasesToCloud();
                 }
                 refreshPurchaseListTable(filter);
             }
@@ -2909,7 +2910,7 @@ function renderPurchasesTab(container, purchases, siteId) {
                 pur.slipChecked = chk.checked;
                 window.PurchaseDB.update(id, pur);
                 if (window.CloudSync && window.CloudSync.isEnabled()) {
-                    await syncPurchasesToCloud();
+                    syncPurchasesToCloud();
                 }
                 window.app.showToast('伝票チェックを更新しました', 'success');
             }
@@ -2943,7 +2944,7 @@ function renderPurchasesTab(container, purchases, siteId) {
             if (confirm('この仕入れデータを削除しますか？')) {
                 window.PurchaseDB.delete(id);
                 if (window.CloudSync && window.CloudSync.isEnabled()) {
-                    await syncPurchasesToCloud();
+                    syncPurchasesToCloud();
                 }
                 window.app.showToast('仕入れデータを削除しました', 'success');
                 const updatedPurchases = window.PurchaseDB.getBySiteId(siteId);
@@ -6428,4 +6429,8 @@ function refreshPartnerLedgerTable(filter = {}) {
     if (window.lucide) {
         window.lucide.createIcons();
     }
+}
+
+} catch (err) {
+    alert('🚨 ledger_manager_v2.js 内で致命的なエラーが発生しました！\n\n【エラー型】: ' + err.name + '\n【メッセージ】: ' + err.message + '\n\n【スタックトレース】:\n' + err.stack);
 }
