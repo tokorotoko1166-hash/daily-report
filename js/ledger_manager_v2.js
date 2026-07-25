@@ -1010,10 +1010,13 @@ function refreshPurchaseListTable(filter) {
     });
 
     container.querySelectorAll('.purchase-match-check').forEach(chk => {
-        chk.addEventListener('change', (e) => {
+        chk.addEventListener('change', async (e) => {
             const purId = chk.getAttribute('data-id');
             const isChecked = chk.checked;
             window.PurchaseDB.update(purId, { matched: isChecked });
+            if (window.CloudSync && window.CloudSync.isEnabled()) {
+                await syncPurchasesToCloud();
+            }
             refreshPurchaseListTable(filter);
         });
     });
@@ -1025,9 +1028,12 @@ function refreshPurchaseListTable(filter) {
     });
 
     container.querySelectorAll('.btn-delete-purchase').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             if (confirm('この仕入れデータを削除してもよろしいですか？')) {
                 window.PurchaseDB.delete(btn.getAttribute('data-id'));
+                if (window.CloudSync && window.CloudSync.isEnabled()) {
+                    await syncPurchasesToCloud();
+                }
                 refreshPurchaseListTable(filter);
             }
         });
@@ -2902,6 +2908,9 @@ function renderPurchasesTab(container, purchases, siteId) {
             if (pur) {
                 pur.slipChecked = chk.checked;
                 window.PurchaseDB.update(id, pur);
+                if (window.CloudSync && window.CloudSync.isEnabled()) {
+                    await syncPurchasesToCloud();
+                }
                 window.app.showToast('伝票チェックを更新しました', 'success');
             }
         });
@@ -2933,6 +2942,9 @@ function renderPurchasesTab(container, purchases, siteId) {
             const id = btn.getAttribute('data-id');
             if (confirm('この仕入れデータを削除しますか？')) {
                 window.PurchaseDB.delete(id);
+                if (window.CloudSync && window.CloudSync.isEnabled()) {
+                    await syncPurchasesToCloud();
+                }
                 window.app.showToast('仕入れデータを削除しました', 'success');
                 const updatedPurchases = window.PurchaseDB.getBySiteId(siteId);
                 renderPurchasesTab(container, updatedPurchases, siteId);
@@ -3638,6 +3650,9 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
         } else {
             window.PurchaseDB.add(purchaseData);
             window.app.showToast('仕入れデータを登録しました', 'success');
+        }
+        if (window.CloudSync && window.CloudSync.isEnabled()) {
+            syncPurchasesToCloud();
         }
         return true;
     };
@@ -4485,6 +4500,20 @@ async function syncSitesToCloud() {
     } catch (e) {
         console.error('Failed to sync sites to cloud:', e);
         alert(`【現場データのクラウド送信エラー】\n現場データをクラウドに送信できませんでした。\n(原因: ${e.message})`);
+    }
+}
+
+// 仕入れリストを暗号化してクラウドに一括送信 (新設)
+async function syncPurchasesToCloud() {
+    if (!window.CloudSync || !window.CloudSync.init()) return;
+
+    try {
+        const collection = window.CloudSync.collection('purchases');
+        await collection.doc('all_purchases').set({});
+        console.log('Purchases synced to cloud successfully (bulk).');
+    } catch (e) {
+        console.error('Failed to sync purchases to cloud:', e);
+        alert(`【仕入れデータのクラウド送信エラー】\n仕入れデータをクラウドに送信できませんでした。\n(原因: ${e.message})`);
     }
 }
 
