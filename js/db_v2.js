@@ -995,6 +995,27 @@ window.CloudSync = {
                             }));
                         }
                         return [];
+                    } else if (name === 'purchases') {
+                        // 仕入れリストの取得 (一括)
+                        const res = await fetch(`${config.url}/api/purchases`, { headers });
+                        if (!res.ok) {
+                            const errText = await res.text().catch(() => '');
+                            throw new Error(`GET purchases failed with status ${res.status}: ${errText}`);
+                        }
+                        let encryptedText = await res.text();
+                        if (!encryptedText || encryptedText === '[]') return [];
+                        
+                        const decryptedList = window.CryptoUtil.decrypt(encryptedText);
+                        if (encryptedText && encryptedText !== '[]' && !decryptedList) {
+                            throw new Error('DECRYPTION_FAILED');
+                        }
+                        if (Array.isArray(decryptedList)) {
+                            return decryptedList.map(p => ({
+                                id: p.id,
+                                data: () => ({ encrypted: window.CryptoUtil.encrypt(p) })
+                            }));
+                        }
+                        return [];
                     } else {
                         // 未処理日報リストの取得
                         const res = await fetch(`${config.url}/api/reports`, { headers });
@@ -1047,6 +1068,24 @@ window.CloudSync = {
                                     throw new Error(`POST sites failed with status ${res.status}: ${errText}`);
                                 }
                                 return true;
+                            } else if (name === 'purchases') {
+                                // 仕入れリストのアップロード (一括POST)
+                                const allPurchases = window.PurchaseDB.getAll();
+                                const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
+                                const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
+                                const res = await fetch(`${config.url}/api/purchases`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
+                                });
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`POST purchases failed with status ${res.status}: ${errText}`);
+                                }
+                                return true;
                             }
                             return false;
                         },
@@ -1068,6 +1107,24 @@ window.CloudSync = {
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
                                     throw new Error(`POST sites delete failed with status ${res.status}: ${errText}`);
+                                }
+                                return true;
+                            } else if (name === 'purchases') {
+                                // 仕入れリストのアップロード (削除時一括同期)
+                                const allPurchases = window.PurchaseDB.getAll();
+                                const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
+                                const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
+                                const res = await fetch(`${config.url}/api/purchases`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
+                                });
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`POST purchases delete failed with status ${res.status}: ${errText}`);
                                 }
                                 return true;
                             } else {
