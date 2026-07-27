@@ -2191,17 +2191,16 @@ function refreshLedgerTable(filter = {}) {
             if (showHolidayWork) {
                 holidayTd = `<td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>`;
             }
-            const targetDateText = `<div style="font-size: 0.72rem; color: var(--color-warning); margin-top: 0.2rem; font-weight: bold;">(元出勤日: ${rep.substituteTargetDate ? rep.substituteTargetDate.replace(/-/g, '/') : '未指定'})</div>`;
+            const formattedSubDate = rep.substituteTargetDate ? rep.substituteTargetDate.replace(/-/g, '/') : '未設定';
             return `
                 <tr style="border-bottom: 1px solid var(--border-light); background: rgba(245,158,11,0.02);">
                     <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
                     <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem; color: var(--text-muted);">-</td>
                     <td style="padding: 0.75rem;">
                         <span style="background:var(--color-warning); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.75rem; font-weight:bold;">代休 (休み取得)</span>
-                        ${targetDateText}
                     </td>
                     <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
-                    <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">代休消化による休日 (元出勤: ${rep.substituteTargetDate || '未設定'})</td>
+                    <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">代休消化による休日 (元出勤: ${formattedSubDate})</td>
                     <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">${rep.writer}</td>
                     <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
                     <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
