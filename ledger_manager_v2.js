@@ -2624,6 +2624,7 @@ function refreshLedgerTable(filter = {}) {
                             -webkit-print-color-adjust: exact !important; 
                             print-color-adjust: exact !important;
                             overflow: visible !important;
+                            zoom: 75% !important; /* 🚨 印刷設定が100%でも自動で75%サイズに縮小 */
                         }
                         /* 印刷時に枠が縮こまらないよう、アコーディオンとコンテンツ全体の最大幅制限を強制解除 */
                         .dept-accordion, .dept-content, .table-responsive { 
@@ -6547,6 +6548,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                             -webkit-print-color-adjust: exact !important; 
                             print-color-adjust: exact !important;
                             overflow: visible !important;
+                            zoom: 75% !important; /* 🚨 印刷設定が100%でも自動で75%サイズに縮小 */
                         }
                         /* 印刷時に枠が縮こまらないよう、アコーディオンとコンテンツ全体の最大幅制限を強制解除 */
                         .dept-accordion, .dept-content, .table-responsive { 
