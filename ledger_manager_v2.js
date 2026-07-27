@@ -2605,16 +2605,17 @@ function refreshLedgerTable(filter = {}) {
             const printContent = document.getElementById('worker-print-area').innerHTML;
             const originalContent = document.body.innerHTML;
             
-            // 印刷用の一時的なDOM構築
+            // 印刷用の一時的なDOM構築 (余白を最小化して紙面を最大活用)
             document.body.innerHTML = `
-                <div style="padding: 1cm; background: white; color: black; font-family: sans-serif;">
+                <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
                     <style>
-                        table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                        th, td { border: 1px solid #666; padding: 4px 6px; text-align: left; }
-                        th { background-color: #eee; font-weight: bold; }
+                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
+                        table { width: 100% !important; max-width: 100% !important; border-collapse: collapse; font-size: 12px; table-layout: auto !important; }
+                        th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
+                        th { background-color: #f3f4f6; font-weight: bold; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
-                        @page { size: A4 landscape; margin: 1cm; }
+                        @page { size: A4 landscape; margin: 5mm !important; }
                         body { margin: 0; }
                     </style>
                     <div style="text-align: center; margin-bottom: 20px;">
@@ -3924,7 +3925,16 @@ function openReportPreviewModal(reportId) {
         const originalContent = document.body.innerHTML;
 
         document.body.innerHTML = `
-            <div style="padding: 2cm; background: white; color: black; font-family: sans-serif;">
+            <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
+                <style>
+                    html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
+                    .report-preview-sheet { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                    @page { size: A4 portrait; margin: 5mm !important; }
+                    body { margin: 0; }
+                    .detail-table { width: 100% !important; }
+                    .detail-table th, .detail-table td { border: 1px solid #444 !important; padding: 8px 12px !important; }
+                    .card { border: 1px solid #444 !important; padding: 12px !important; margin-top: 15px !important; }
+                </style>
                 ${printContent}
             </div>
         `;
@@ -6478,14 +6488,15 @@ function refreshPartnerLedgerTable(filter = {}) {
             const originalContent = document.body.innerHTML;
             
             document.body.innerHTML = `
-                <div style="padding: 1cm; background: white; color: black; font-family: sans-serif;">
+                <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
                     <style>
-                        table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                        th, td { border: 1px solid #666; padding: 4px 6px; text-align: left; }
-                        th { background-color: #eee; font-weight: bold; }
+                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
+                        table { width: 100% !important; max-width: 100% !important; border-collapse: collapse; font-size: 11px; table-layout: auto !important; }
+                        th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
+                        th { background-color: #f3f4f6; font-weight: bold; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
-                        @page { size: A4 landscape; margin: 1cm; }
+                        @page { size: A4 landscape; margin: 5mm !important; }
                         body { margin: 0; }
                     </style>
                     <div style="text-align: center; margin-bottom: 20px;">
