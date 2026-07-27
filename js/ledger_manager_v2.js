@@ -2220,7 +2220,6 @@ function refreshLedgerTable(filter = {}) {
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
         const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
-        const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
@@ -2274,7 +2273,6 @@ function refreshLedgerTable(filter = {}) {
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
         const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
-        const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
@@ -6048,7 +6046,6 @@ function refreshPartnerLedgerTable(filter = {}) {
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
         const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
-        const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
