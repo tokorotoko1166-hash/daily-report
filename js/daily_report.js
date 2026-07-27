@@ -329,9 +329,28 @@ function renderBatchInputForm(container) {
     container.innerHTML = `
         ${sentReportsHtml}
         <div class="card" style="padding: 1.25rem 1rem; margin-bottom: 1rem;">
-            <div class="form-group" style="margin-bottom: 0;">
+            <div class="form-group" style="margin-bottom: 0.75rem;">
                 <label for="batch-date" style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary);">作業日を選択 <span style="color: var(--color-danger);">*</span></label>
                 <input type="date" id="batch-date" value="${today}" required style="padding: 0.8rem; font-size: 1.05rem; border-radius: 10px; border-color: var(--color-primary);">
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-light); padding-top: 0.75rem; margin-top: 0.5rem;">
+                <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--text-main); font-weight:600; font-size:0.9rem;">
+                    <input type="checkbox" id="chk-batch-holiday-work" style="width:1.2rem; height:1.2rem; cursor:pointer;">
+                    <span>休日出勤の場合チェック</span>
+                </label>
+            </div>
+            
+            <!-- 休日出勤区分選択 (初期は非表示) -->
+            <div id="batch-holiday-work-type-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); align-items:center; gap:1rem; flex-wrap: wrap;">
+                <span style="font-size:0.8rem; font-weight:600; color:var(--color-warning);">区分を選択：</span>
+                <label style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.85rem; cursor:pointer; color:var(--text-main);">
+                    <input type="radio" name="batch-holiday-type" value="substitute" checked style="width:1rem; height:1rem; cursor:pointer;">
+                    <span>代休にする</span>
+                </label>
+                <label style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.85rem; cursor:pointer; color:var(--text-main);">
+                    <input type="radio" name="batch-holiday-type" value="allowance" style="width:1rem; height:1rem; cursor:pointer;">
+                    <span>休出 (手当をもらう)</span>
+                </label>
             </div>
         </div>
         
@@ -364,6 +383,19 @@ function renderBatchInputForm(container) {
     const addRowBtn = document.getElementById('btn-add-row');
     const submitBtn = document.getElementById('btn-batch-submit');
     
+    // 日付カードでの休日出勤区分表示制御
+    const chkBatchHoliday = document.getElementById('chk-batch-holiday-work');
+    const batchHolidayArea = document.getElementById('batch-holiday-work-type-area');
+    if (chkBatchHoliday && batchHolidayArea) {
+        chkBatchHoliday.addEventListener('change', () => {
+            if (chkBatchHoliday.checked) {
+                batchHolidayArea.style.display = 'flex';
+            } else {
+                batchHolidayArea.style.display = 'none';
+            }
+        });
+    }
+    
     // 行（現場カード）を追加する処理
     const addNewRow = () => {
         const rowId = nextRowId++;
@@ -389,23 +421,6 @@ function renderBatchInputForm(container) {
                 <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; color:var(--text-main); font-weight:normal;">
                     <input type="checkbox" class="chk-row-office" style="width:1.1rem; height:1.1rem;">
                     <span style="font-size: 0.85rem;">事務仕事</span>
-                </label>
-                <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; color:var(--text-main); font-weight:normal; margin-left:1rem;">
-                    <input type="checkbox" class="chk-row-holiday-work" style="width:1.1rem; height:1.1rem;">
-                    <span style="font-size: 0.85rem;">休日出勤</span>
-                </label>
-            </div>
-            
-            <!-- 休日出勤区分選択 (初期は非表示) -->
-            <div class="holiday-work-type-area" style="display:none; margin-top:0.5rem; background:rgba(245,158,11,0.04); padding:0.5rem 0.75rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); align-items:center; gap:1rem;">
-                <span style="font-size:0.8rem; font-weight:600; color:var(--color-warning);">区分を選択：</span>
-                <label style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.8rem; cursor:pointer; color:var(--text-main);">
-                    <input type="radio" name="holiday-type-${rowId}" value="substitute" checked style="width:0.95rem; height:0.95rem; cursor:pointer;">
-                    <span>代休にする</span>
-                </label>
-                <label style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.8rem; cursor:pointer; color:var(--text-main);">
-                    <input type="radio" name="holiday-type-${rowId}" value="allowance" style="width:0.95rem; height:0.95rem; cursor:pointer;">
-                    <span>休出 (手当をもらう)</span>
                 </label>
             </div>
             
@@ -645,17 +660,6 @@ function renderBatchInputForm(container) {
             }
         });
 
-        // 休日出勤切り替え表示の制御
-        const chkHoliday = card.querySelector('.chk-row-holiday-work');
-        const holidayArea = card.querySelector('.holiday-work-type-area');
-        chkHoliday.addEventListener('change', () => {
-            if (chkHoliday.checked) {
-                holidayArea.style.display = 'flex';
-            } else {
-                holidayArea.style.display = 'none';
-            }
-        });
-        
         updateRowNumbers();
         if (window.lucide) {
             window.lucide.createIcons();
@@ -707,8 +711,9 @@ function renderBatchInputForm(container) {
             const companions = card.querySelector('.txt-row-companions').value.trim();
             const partnerCompanions = card.querySelector('.txt-row-partner-companions').value.trim();
             const isOfficeWork = card.querySelector('.chk-row-office').checked;
-            const isHolidayWork = card.querySelector('.chk-row-holiday-work').checked;
-            const holidayRadio = card.querySelector(`input[name="holiday-type-${rowId}"]:checked`);
+            // 共通の日付カードの値を参照
+            const isHolidayWork = document.getElementById('chk-batch-holiday-work').checked;
+            const holidayRadio = document.querySelector('input[name="batch-holiday-type"]:checked');
             const holidayWorkType = isHolidayWork ? (holidayRadio ? holidayRadio.value : 'substitute') : '';
             
             const isDirectGo = card.querySelector('.chk-row-go').checked;
