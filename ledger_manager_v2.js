@@ -2625,7 +2625,20 @@ function refreshLedgerTable(filter = {}) {
                             print-color-adjust: exact !important;
                             overflow: visible !important;
                         }
-                        .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+                        /* 印刷時に枠が縮こまらないよう、アコーディオンとコンテンツ全体の最大幅制限を強制解除 */
+                        .dept-accordion, .dept-content, .table-responsive { 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            margin: 0 0 10px 0 !important; 
+                            padding: 0 !important; 
+                            overflow: visible !important; 
+                            box-shadow: none !important;
+                        }
+                        .dept-header {
+                            width: 100% !important;
+                            max-width: 100% !important;
+                            padding: 8px 12px !important;
+                        }
                         table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 11px !important; table-layout: fixed !important; background: transparent !important; }
                         th, td { border: 1px solid var(--border-light) !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
                         th { background-color: rgba(255,255,255,0.03) !important; font-weight: bold !important; color: var(--text-main) !important; }
@@ -6535,7 +6548,20 @@ function refreshPartnerLedgerTable(filter = {}) {
                             print-color-adjust: exact !important;
                             overflow: visible !important;
                         }
-                        .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+                        /* 印刷時に枠が縮こまらないよう、アコーディオンとコンテンツ全体の最大幅制限を強制解除 */
+                        .dept-accordion, .dept-content, .table-responsive { 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            margin: 0 0 10px 0 !important; 
+                            padding: 0 !important; 
+                            overflow: visible !important; 
+                            box-shadow: none !important;
+                        }
+                        .dept-header {
+                            width: 100% !important;
+                            max-width: 100% !important;
+                            padding: 8px 12px !important;
+                        }
                         table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 10px !important; table-layout: fixed !important; background: transparent !important; }
                         th, td { border: 1px solid var(--border-light) !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
                         th { background-color: rgba(255,255,255,0.03) !important; font-weight: bold !important; color: var(--text-main) !important; }
