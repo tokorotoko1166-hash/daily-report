@@ -333,11 +333,24 @@ function renderBatchInputForm(container) {
                 <label for="batch-date" style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary);">作業日を選択 <span style="color: var(--color-danger);">*</span></label>
                 <input type="date" id="batch-date" value="${today}" required style="padding: 0.8rem; font-size: 1.05rem; border-radius: 10px; border-color: var(--color-primary);">
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-light); padding-top: 0.75rem; margin-top: 0.5rem;">
-                <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--text-main); font-weight:600; font-size:0.9rem;">
-                    <input type="checkbox" id="chk-batch-holiday-work" style="width:1.2rem; height:1.2rem; cursor:pointer;">
-                    <span>休日出勤の場合チェック</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-light); padding-top: 0.75rem; margin-top: 0.5rem; flex-wrap: wrap; gap: 1rem;">
+                <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--text-main); font-weight:600; font-size:0.85rem;">
+                    <input type="checkbox" id="chk-batch-holiday-work" style="width:1.1rem; height:1.1rem; cursor:pointer;">
+                    <span>休日出勤</span>
                 </label>
+                <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--color-warning); font-weight:600; font-size:0.85rem;">
+                    <input type="checkbox" id="chk-batch-substitute-off" style="width:1.1rem; height:1.1rem; cursor:pointer;">
+                    <span>代休で休み (取得)</span>
+                </label>
+            </div>
+            
+            <!-- 代休元日付入力エリア (初期は非表示) -->
+            <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); flex-direction:column; gap:0.5rem;">
+                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休取得の設定：</div>
+                <div class="form-group" style="margin-bottom:0; width: 100%;">
+                    <label for="batch-substitute-target-date" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
+                    <input type="date" id="batch-substitute-target-date" style="padding: 0.5rem; font-size: 0.9rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
+                </div>
             </div>
             
             <!-- 休日出勤区分選択 (初期は非表示) -->
@@ -383,15 +396,40 @@ function renderBatchInputForm(container) {
     const addRowBtn = document.getElementById('btn-add-row');
     const submitBtn = document.getElementById('btn-batch-submit');
     
-    // 日付カードでの休日出勤区分表示制御
+    // 日付カードでの休日出勤・代休取得の切り替え＆排他制御
     const chkBatchHoliday = document.getElementById('chk-batch-holiday-work');
+    const chkBatchSubOff = document.getElementById('chk-batch-substitute-off');
     const batchHolidayArea = document.getElementById('batch-holiday-work-type-area');
-    if (chkBatchHoliday && batchHolidayArea) {
+    
+    if (chkBatchHoliday && chkBatchSubOff && batchHolidayArea) {
         chkBatchHoliday.addEventListener('change', () => {
             if (chkBatchHoliday.checked) {
+                chkBatchSubOff.checked = false;
                 batchHolidayArea.style.display = 'flex';
+                // 現場カードエリアを再表示
+                cardsContainer.style.display = 'flex';
+                addRowBtn.style.display = 'block';
+                submitBtn.querySelector('span').textContent = '本日分の日報を一括提出する';
             } else {
                 batchHolidayArea.style.display = 'none';
+            }
+        });
+        
+        chkBatchSubOff.addEventListener('change', () => {
+            const subOffArea = document.getElementById('batch-substitute-off-area');
+            if (chkBatchSubOff.checked) {
+                chkBatchHoliday.checked = false;
+                batchHolidayArea.style.display = 'none';
+                if (subOffArea) subOffArea.style.display = 'flex';
+                // 現場カード入力エリアを非表示にする (代休で休む日は現場入力不要)
+                cardsContainer.style.display = 'none';
+                addRowBtn.style.display = 'none';
+                submitBtn.querySelector('span').textContent = '代休取得（休み）を送信する';
+            } else {
+                if (subOffArea) subOffArea.style.display = 'none';
+                cardsContainer.style.display = 'flex';
+                addRowBtn.style.display = 'block';
+                submitBtn.querySelector('span').textContent = '本日分の日報を一括提出する';
             }
         });
     }
@@ -699,8 +737,43 @@ function renderBatchInputForm(container) {
         const reportsToSubmit = [];
         const sites = window.SiteDB.getAll();
         
-        // 全カードのバリデーションとデータ化
-        for (let i = 0; i < cards.length; i++) {
+        const isSubstituteOff = document.getElementById('chk-batch-substitute-off').checked;
+        
+        if (isSubstituteOff) {
+            const subTargetDateInput = document.getElementById('batch-substitute-target-date');
+            const substituteTargetDate = subTargetDateInput ? subTargetDateInput.value : '';
+            if (!substituteTargetDate) {
+                window.app.showToast('元になった休日出勤日の日付を入力してください', 'error');
+                if (subTargetDateInput) subTargetDateInput.focus();
+                return;
+            }
+            // 代休取得の場合：現場情報のバリデーションを完全にスルーして、ダミー日報を1件作成
+            reportsToSubmit.push({
+                siteId: 'site_substitute_off',
+                date,
+                weather: '晴れ',
+                writer: workerName,
+                departureTime: '',
+                isDirectGo: false,
+                startTime: '',
+                endTime: '',
+                returnTime: '',
+                isDirectBack: false,
+                workContent: '代休取得による休日',
+                companions: '',
+                partnerCompanions: '',
+                isOfficeWork: false,
+                isHolidayWork: false,
+                holidayWorkType: '',
+                isSubstituteOff: true,
+                substituteTargetDate: substituteTargetDate, // 🚨 元になった休日出勤日を保存
+                client: '-',
+                siteName: '代休 (休み取得)',
+                siteCode: 'SUBSTITUTE_OFF'
+            });
+        } else {
+            // 通常時：全カードのバリデーションとデータ化
+            for (let i = 0; i < cards.length; i++) {
             const card = cards[i];
             const code = card.querySelector('.txt-row-code').value.trim();
             const name = card.querySelector('.txt-row-name').value.trim();
@@ -803,6 +876,7 @@ function renderBatchInputForm(container) {
                 siteCode: code || '' // スマホ側で手入力された工事番号を保存
             });
         }
+        }
         
         // 保存処理
         const submitPromises = reportsToSubmit.map(async (rep) => {
@@ -851,6 +925,10 @@ function renderBatchInputForm(container) {
             renderDatalists();
             // 送信完了後はフォームをクリア（白紙リセット）
             renderBatchInputForm(container);
+            
+            // 入力エリアを非表示にリセット
+            const subOffArea = document.getElementById('batch-substitute-off-area');
+            if (subOffArea) subOffArea.style.display = 'none';
         });
     });
 

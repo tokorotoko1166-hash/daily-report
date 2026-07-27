@@ -2100,6 +2100,7 @@ function refreshLedgerTable(filter = {}) {
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
+    siteMap.set('site_substitute_off', { id: 'site_substitute_off', code: 'SUBSTITUTE_OFF', name: '代休 (休み取得)', client: '-' });
 
     // 検索フィルタの適用
     if (filter.search) {
@@ -2182,6 +2183,39 @@ function refreshLedgerTable(filter = {}) {
         const siteCode = rep.siteCode || (site ? site.code : '-');
         const siteName = rep.siteName || (site ? site.name : '不明な現場');
         const clientName = rep.client || (site ? site.client : '-');
+        const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
+
+        // 代休取得（現場なし）データの場合の特殊レンダリング
+        if (rep.isSubstituteOff || siteCode === 'SUBSTITUTE_OFF') {
+            let holidayTd = '';
+            if (showHolidayWork) {
+                holidayTd = `<td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>`;
+            }
+            const targetDateText = rep.substituteTargetDate ? `<div style="font-size: 0.72rem; color: var(--color-warning); margin-top: 0.2rem; font-weight: bold;">(元出勤日: ${rep.substituteTargetDate.replace(/-/g, '/')})</div>` : '';
+            return `
+                <tr style="border-bottom: 1px solid var(--border-light); background: rgba(245,158,11,0.02);">
+                    <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
+                    <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem; color: var(--text-muted);">-</td>
+                    <td style="padding: 0.75rem;">
+                        <span style="background:var(--color-warning); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.75rem; font-weight:bold;">代休 (休み取得)</span>
+                        ${targetDateText}
+                    </td>
+                    <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
+                    <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">代休消化による休日 (元出勤: ${rep.substituteTargetDate || '未設定'})</td>
+                    <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">${rep.writer}</td>
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                    ${holidayTd}
+                    <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
+                    <td style="text-align: center; padding: 0.75rem;" class="no-print">
+                        <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
+                            <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
         const times = calculateWorkTime(rep.startTime, rep.endTime);
@@ -2293,18 +2327,85 @@ function refreshLedgerTable(filter = {}) {
         let workerTotalMin = 0;
         let tableRows = '';
 
-        if (reports.length === 0) {
-            tableRows = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当する日報がありません。</td></tr>`;
+        // 表示期間（締め月）のすべての日付リストを作成
+        let targetDates = [];
+        if (filter.month && filter.month !== 'all') {
+            const [y, m] = filter.month.split('-').map(Number);
+            const startDate = new Date(y, m - 2, 11); // 前月11日
+            const endDate = new Date(y, m - 1, 10);  // 当月10日
+            
+            let cur = new Date(startDate);
+            while (cur <= endDate) {
+                const curStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+                targetDates.push(curStr);
+                cur.setDate(cur.getDate() + 1);
+            }
         } else {
-            reports.forEach(r => {
-                const site = siteMap.get(r.siteId);
-                const siteCode = r.siteCode || (site ? site.code : '');
-                const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-                if (!isOfficeWork) {
-                    const times = calculateWorkTime(r.startTime, r.endTime);
-                    if (times.min) workerTotalMin += times.min;
+            // 月指定がない場合は、日報データが存在する日付のみ
+            const dates = [...new Set(reports.map(r => r.date))];
+            targetDates = dates.sort();
+        }
+        // 日付降順にソート
+        targetDates.sort((a, b) => b.localeCompare(a));
+
+        if (targetDates.length === 0) {
+            tableRows = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当するデータがありません。</td></tr>`;
+        } else {
+            // 各日の曜日を計算するヘルパー
+            const getDayOfWeek = (dateStr) => {
+                const days = ['日', '月', '火', '水', '木', '金', '土'];
+                const d = new Date(dateStr);
+                return days[d.getDay()];
+            };
+
+            targetDates.forEach(d => {
+                const repsForDate = reports.filter(r => r.date === d);
+                const formattedD = d.replace(/-/g, '/');
+                const dayStr = getDayOfWeek(d);
+                const isSunday = dayStr === '日';
+                const isSaturday = dayStr === '土';
+                
+                // 土日の日付の文字色を調整 (サイバーチックに見やすく)
+                let dateColorStyle = '';
+                if (isSunday) dateColorStyle = 'color: #ef4444; font-weight: bold;';
+                else if (isSaturday) dateColorStyle = 'color: #3b82f6; font-weight: bold;';
+
+                if (repsForDate.length === 0) {
+                    // 日報入力がない日は「休日」行として描画
+                    tableRows += `
+                        <tr style="border-bottom: 1px solid var(--border-light); background: rgba(255,255,255,0.005); opacity: 0.7;">
+                            <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem; ${dateColorStyle}">${formattedD} (${dayStr})</td>
+                            <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="padding: 0.75rem; color: var(--text-muted); font-style: italic;">[ 休日 ]</td>
+                            <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">休日</td>
+                            <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">${filter.writer}</td>
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
+                            <td style="text-align: center; padding: 0.75rem;" class="no-print">-</td>
+                        </tr>
+                    `;
+                } else {
+                    repsForDate.forEach(r => {
+                        const site = siteMap.get(r.siteId);
+                        const siteCode = r.siteCode || (site ? site.code : '');
+                        const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
+                        const isSubOff = r.isSubstituteOff || siteCode === 'SUBSTITUTE_OFF';
+                        
+                        if (!isOfficeWork && !isSubOff) {
+                            const times = calculateWorkTime(r.startTime, r.endTime);
+                            if (times.min) workerTotalMin += times.min;
+                        }
+                        
+                        // 曜日付き日付に置き換えて行を生成
+                        let rowHtml = generateLedgerRow(r, true);
+                        rowHtml = rowHtml.replace(`>${formattedD}</td>`, ` style="${dateColorStyle}">${formattedD} (${dayStr})</td>`);
+                        tableRows += rowHtml;
+                    });
                 }
-                tableRows += generateLedgerRow(r, true);
             });
         }
         grandTotalMin = workerTotalMin;
