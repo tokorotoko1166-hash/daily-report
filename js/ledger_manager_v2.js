@@ -2177,7 +2177,7 @@ function refreshLedgerTable(filter = {}) {
     };
 
     // 現場台帳一覧用の行HTMLジェネレーター (11列)
-    const generateLedgerRow = (rep) => {
+    const generateLedgerRow = (rep, showHolidayWork = false) => {
         const site = siteMap.get(rep.siteId);
         const siteCode = rep.siteCode || (site ? site.code : '-');
         const siteName = rep.siteName || (site ? site.name : '不明な現場');
@@ -2212,6 +2212,11 @@ function refreshLedgerTable(filter = {}) {
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
                 <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                ${showHolidayWork ? `
+                    <td style="text-align: center; padding: 0.75rem;">
+                        ${rep.isHolidayWork ? (rep.holidayWorkType === 'substitute' ? '<span style="background:var(--color-primary); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">代休</span>' : '<span style="background:#e11d48; color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">休出</span>') : '-'}
+                    </td>
+                ` : ''}
                 <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
                     ${totalTimeText}
                 </td>
@@ -2226,7 +2231,7 @@ function refreshLedgerTable(filter = {}) {
 
 
 
-    const generateOldRow = (rep) => {
+    const generateOldRow = (rep, showHolidayWork = false) => {
         const site = siteMap.get(rep.siteId);
         const siteCode = rep.siteCode || (site ? site.code : '-');
         const siteName = rep.siteName || (site ? site.name : '不明な現場');
@@ -2261,6 +2266,11 @@ function refreshLedgerTable(filter = {}) {
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
                 <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                ${showHolidayWork ? `
+                    <td style="text-align: center; padding: 0.75rem;">
+                        ${rep.isHolidayWork ? (rep.holidayWorkType === 'substitute' ? '<span style="background:var(--color-primary); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">代休</span>' : '<span style="background:#e11d48; color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">休出</span>') : '-'}
+                    </td>
+                ` : ''}
                 <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
                     ${totalTimeText}
                 </td>
@@ -2294,7 +2304,7 @@ function refreshLedgerTable(filter = {}) {
                     const times = calculateWorkTime(r.startTime, r.endTime);
                     if (times.min) workerTotalMin += times.min;
                 }
-                tableRows += generateLedgerRow(r);
+                tableRows += generateLedgerRow(r, true);
             });
         }
         grandTotalMin = workerTotalMin;
@@ -2342,6 +2352,7 @@ function refreshLedgerTable(filter = {}) {
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
                                 <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休日出勤</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 70px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
                             </tr>
@@ -2421,7 +2432,7 @@ function refreshLedgerTable(filter = {}) {
             if (displayed.length === 0) {
                 tableRows = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">該当する日報がありません。</td></tr>`;
             } else {
-                tableRows = displayed.map(rep => generateLedgerRow(rep)).join('');
+                tableRows = displayed.map(rep => generateLedgerRow(rep, false)).join('');
             }
 
             let loadMoreBtnHtml = '';
@@ -3763,6 +3774,15 @@ function openReportPreviewModal(reportId) {
                     <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">同行者</th>
                     <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light);">${report.companions || 'なし'}</td>
                 </tr>
+                ${report.isHolidayWork ? `
+                <tr>
+                    <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">休日出勤</th>
+                    <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light);">
+                        <span style="background:var(--color-primary); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.75rem; font-weight:bold; margin-right:0.5rem;">ON</span>
+                        <span>区分：<strong>${report.holidayWorkType === 'substitute' ? '代休にする' : '休出 (手当をもらう)'}</strong></span>
+                    </td>
+                </tr>
+                ` : ''}
                 <tr>
                     <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">協力会社同行者</th>
                     <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light);">${report.partnerCompanions || 'なし'}</td>
@@ -5948,6 +5968,11 @@ function refreshPartnerLedgerTable(filter = {}) {
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
                 <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                ${showHolidayWork ? `
+                    <td style="text-align: center; padding: 0.75rem;">
+                        ${rep.isHolidayWork ? (rep.holidayWorkType === 'substitute' ? '<span style="background:var(--color-primary); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">代休</span>' : '<span style="background:#e11d48; color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">休出</span>') : '-'}
+                    </td>
+                ` : ''}
                 <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
                     ${totalTimeText}
                 </td>
@@ -6171,6 +6196,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
                                 <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休日出勤</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                 <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>

@@ -390,6 +390,23 @@ function renderBatchInputForm(container) {
                     <input type="checkbox" class="chk-row-office" style="width:1.1rem; height:1.1rem;">
                     <span style="font-size: 0.85rem;">事務仕事</span>
                 </label>
+                <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; color:var(--text-main); font-weight:normal; margin-left:1rem;">
+                    <input type="checkbox" class="chk-row-holiday-work" style="width:1.1rem; height:1.1rem;">
+                    <span style="font-size: 0.85rem;">休日出勤</span>
+                </label>
+            </div>
+            
+            <!-- 休日出勤区分選択 (初期は非表示) -->
+            <div class="holiday-work-type-area" style="display:none; margin-top:0.5rem; background:rgba(245,158,11,0.04); padding:0.5rem 0.75rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); align-items:center; gap:1rem;">
+                <span style="font-size:0.8rem; font-weight:600; color:var(--color-warning);">区分を選択：</span>
+                <label style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.8rem; cursor:pointer; color:var(--text-main);">
+                    <input type="radio" name="holiday-type-${rowId}" value="substitute" checked style="width:0.95rem; height:0.95rem; cursor:pointer;">
+                    <span>代休にする</span>
+                </label>
+                <label style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.8rem; cursor:pointer; color:var(--text-main);">
+                    <input type="radio" name="holiday-type-${rowId}" value="allowance" style="width:0.95rem; height:0.95rem; cursor:pointer;">
+                    <span>休出 (手当をもらう)</span>
+                </label>
             </div>
             
             <!-- 工事番号 ＆ 受注先 (1行目: スマホ2列レイアウト) -->
@@ -627,6 +644,17 @@ function renderBatchInputForm(container) {
                 timeRet.disabled = false;
             }
         });
+
+        // 休日出勤切り替え表示の制御
+        const chkHoliday = card.querySelector('.chk-row-holiday-work');
+        const holidayArea = card.querySelector('.holiday-work-type-area');
+        chkHoliday.addEventListener('change', () => {
+            if (chkHoliday.checked) {
+                holidayArea.style.display = 'flex';
+            } else {
+                holidayArea.style.display = 'none';
+            }
+        });
         
         updateRowNumbers();
         if (window.lucide) {
@@ -679,6 +707,9 @@ function renderBatchInputForm(container) {
             const companions = card.querySelector('.txt-row-companions').value.trim();
             const partnerCompanions = card.querySelector('.txt-row-partner-companions').value.trim();
             const isOfficeWork = card.querySelector('.chk-row-office').checked;
+            const isHolidayWork = card.querySelector('.chk-row-holiday-work').checked;
+            const holidayRadio = card.querySelector(`input[name="holiday-type-${rowId}"]:checked`);
+            const holidayWorkType = isHolidayWork ? (holidayRadio ? holidayRadio.value : 'substitute') : '';
             
             const isDirectGo = card.querySelector('.chk-row-go').checked;
             const departureTime = card.querySelector('.time-row-dep').value;
@@ -760,6 +791,8 @@ function renderBatchInputForm(container) {
                 companions,
                 partnerCompanions,
                 isOfficeWork, // 事務仕事フラグを保存
+                isHolidayWork, // 休日出勤フラグを保存
+                holidayWorkType, // 休日出勤区分（substitute / allowance）を保存
                 client, // 個別に入力された受注先も保存
                 siteName: name, // スマホ側で手入力された現場名称を保存
                 siteCode: code || '' // スマホ側で手入力された工事番号を保存
