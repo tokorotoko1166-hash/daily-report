@@ -63,22 +63,66 @@ async function syncSitesFromCloud() {
             }
         });
         
-        if (cloudSites.length > 0) {
-            const localSites = window.SiteDB.getAll();
-            cloudSites.forEach(cs => {
-                const exist = localSites.find(ls => ls.id === cs.id || ls.code === cs.code);
-                if (exist) {
-                    window.SiteDB.update(exist.id, cs);
-                } else {
-                    window.SiteDB.add(cs);
+        // クラウド側が空（現場がゼロ）の場合もマージと削除を正常に処理する
+        const localSites = window.SiteDB.getAll();
+        const cloudIds = cloudSites.map(cs => cs.id);
+        
+        // 1. クラウド側とローカル側の現場データをメモリ上でマージ
+        let mergedSites = [...localSites];
+        let hasChanges = false;
+        
+        cloudSites.forEach(cs => {
+            const existIndex = mergedSites.findIndex(ls => ls.id === cs.id || (cs.code && ls.code === cs.code));
+            if (existIndex !== -1) {
+                const isDiff = JSON.stringify(mergedSites[existIndex]) !== JSON.stringify({ ...mergedSites[existIndex], ...cs });
+                if (isDiff) {
+                    mergedSites[existIndex] = { ...mergedSites[existIndex], ...cs };
+                    hasChanges = true;
                 }
-            });
+            } else {
+                mergedSites.push(cs);
+                hasChanges = true;
+            }
+        });
+        
+        // 2. クラウドに存在しない（PC側で削除または空にされた）現場を完全に除外
+        const finalSites = mergedSites.filter(ls => cloudIds.includes(ls.id));
+        if (finalSites.length !== localSites.length || hasChanges) {
+            window.SiteDB.saveAll(finalSites);
             renderDatalists();
         }
     } catch (e) {
         console.error('Failed to sync sites from cloud:', e);
-        window.app.showToast(`現場同期エラー: ${e.message}`, 'error');
+        alert(`【現場データのダウンロードに失敗しました】\n理由: ${e.message}`);
     }
+}
+
+// 送信済み日報の本日一時保存ヘルパー (日付が変わったら自動消去)
+function getTodaySentReports() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let sentList = [];
+    try {
+        sentList = JSON.parse(window.safeStorage.getItem('sent_reports_today') || '[]');
+    } catch (e) {
+        sentList = [];
+    }
+    // 今日の日付のものだけ残す（日付が変わっていたら自動的に消える）
+    const filtered = sentList.filter(item => item.date === todayStr);
+    if (filtered.length !== sentList.length) {
+        window.safeStorage.setItem('sent_reports_today', JSON.stringify(filtered));
+    }
+    return filtered;
+}
+
+function addSentReport(siteName) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sentList = getTodaySentReports();
+    sentList.push({
+        siteName: siteName,
+        date: todayStr,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+    window.safeStorage.setItem('sent_reports_today', JSON.stringify(sentList));
 }
 
 function initDailyReportApp() {
@@ -96,7 +140,7 @@ function initDailyReportApp() {
     renderDatalists();
     
     // 氏名が記憶されているかチェック
-    const workerName = localStorage.getItem('current_worker_name');
+    const workerName = window.safeStorage.getItem('current_worker_name');
     if (!workerName) {
         renderNameRegistrationForm(container);
         return;
@@ -127,7 +171,7 @@ function initDailyReportApp() {
     // 氏名変更処理
     changeNameBtn.addEventListener('click', () => {
         if (confirm('登録されている氏名を変更しますか？')) {
-            localStorage.removeItem('current_worker_name');
+            window.safeStorage.removeItem('current_worker_name');
             initDailyReportApp();
         }
     });
@@ -189,16 +233,23 @@ function renderNameRegistrationForm(container) {
             <div style="width: 3.5rem; height: 3.5rem; border-radius: 50%; background: rgba(16, 185, 129, 0.1); color: var(--color-success); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;">
                 <i data-lucide="user-plus" style="width: 1.75rem; height: 1.75rem;"></i>
             </div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">作業員氏名の登録</h2>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">作業員氏名・パスワードの登録</h2>
+            <div style="font-size: 0.7rem; color: var(--color-danger); font-weight: bold; margin-bottom: 0.75rem;">[バージョン: 20260708_2013]</div>
             <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.5rem;">
-                日報の提出者名として使用します。<br>
-                一度登録すると、次回から氏名の入力が不要になります。
+                日報の提出者名と、データを保護する暗号化パスワードを設定します。
             </p>
             
             <form id="worker-name-form" style="text-align: left;">
-                <div class="form-group" style="margin-bottom: 1.5rem;">
+                <div class="form-group" style="margin-bottom: 1rem;">
                     <label for="reg-worker-name" style="font-size: 0.9rem; font-weight: 600;">氏名 <span style="color: var(--color-danger);">*</span></label>
                     <input type="text" id="reg-worker-name" required placeholder="例: 佐藤 健太" style="padding: 0.85rem; font-size: 1rem; border-radius: 10px; width: 100%;">
+                </div>
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label for="reg-password" style="font-size: 0.9rem; font-weight: 600;">🔑 独自暗号化キー (クラウド/スマホ同期用) <span style="color: var(--color-danger);">*</span></label>
+                    <input type="password" id="reg-password" required placeholder="PCと同じ独自暗号化キーを入力" style="padding: 0.85rem; font-size: 1rem; border-radius: 10px; width: 100%;">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.4rem; line-height: 1.4;">
+                        ※PCの設定画面にある「独自暗号化キー」と同じ文字を入力してください。
+                    </span>
                 </div>
                 <button type="submit" class="btn btn-success" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 600; border-radius: 10px;">
                     登録して日報入力を始める
@@ -215,11 +266,28 @@ function renderNameRegistrationForm(container) {
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const name = document.getElementById('reg-worker-name').value.trim();
-        if (name) {
-            localStorage.setItem('current_worker_name', name);
-            window.app.showToast(`作業員「${name}」を登録しました`, 'success');
-            initDailyReportApp();
+        const password = document.getElementById('reg-password').value.trim();
+        
+        if (!name || !password) {
+            alert('氏名とパスワードを入力してください。');
+            return;
         }
+
+        // 全角スペースや改行を除去
+        const cleanInput = password.replace(/[\s　]/g, '').trim();
+        const CORRECT_KEY = 'yks1322';
+        
+        if (cleanInput !== CORRECT_KEY) {
+            alert('【認証エラー】パスワードが違います。\n正しいパスワードを入力してください。');
+            return;
+        }
+
+        // 一致していれば、名前と固定キー(yks1322)を保存して画面に進む
+        // 一致していれば、名前と固定キー(yks1322)を保存して画面に進む
+        window.safeStorage.setItem('current_worker_name', name);
+        window.safeStorage.setItem('custom_encryption_key', CORRECT_KEY);
+        window.app.showToast(`作業員「${name}」を登録しました`, 'success');
+        initDailyReportApp();
     });
 }
 
@@ -228,13 +296,70 @@ function renderNameRegistrationForm(container) {
  */
 function renderBatchInputForm(container) {
     nextRowId = 1;
-    const today = '2026-06-27'; // システム基準日付
+    
+    // スマホのシステム日付を自動で今日にセット (本日の日付を動的取得)
+    const todayObj = new Date();
+    const today = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+    
+    const sentReports = getTodaySentReports();
+    let sentReportsHtml = '';
+    if (sentReports.length > 0) {
+        sentReportsHtml = `
+            <div class="card no-print" style="padding: 1rem; margin-bottom: 1rem; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 12px;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-success); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <i data-lucide="check-circle" style="width: 1rem; height: 1rem; color: var(--color-success);"></i>
+                    <span>本日送信済みの日報 (${sentReports.length} 件)</span>
+                </div>
+                <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.6; color: var(--text-main); list-style-type: decimal;">
+                    ${sentReports.map(r => `
+                        <li style="margin-bottom: 0.25rem;">
+                            <strong>${r.siteName}</strong>
+                            <span style="color: var(--text-muted); font-size: 0.75rem; margin-left: 0.35rem;">(${r.time} 送信完了)</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
     
     container.innerHTML = `
+        ${sentReportsHtml}
         <div class="card" style="padding: 1.25rem 1rem; margin-bottom: 1rem;">
-            <div class="form-group" style="margin-bottom: 0;">
+            <div class="form-group" style="margin-bottom: 0.75rem;">
                 <label for="batch-date" style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary);">作業日を選択 <span style="color: var(--color-danger);">*</span></label>
                 <input type="date" id="batch-date" value="${today}" required style="padding: 0.8rem; font-size: 1.05rem; border-radius: 10px; border-color: var(--color-primary);">
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-light); padding-top: 0.75rem; margin-top: 0.5rem; flex-wrap: wrap; gap: 1rem;">
+                <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--text-main); font-weight:600; font-size:0.85rem;">
+                    <input type="checkbox" id="chk-batch-holiday-work" style="width:1.1rem; height:1.1rem; cursor:pointer;">
+                    <span>休日出勤</span>
+                </label>
+                <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--color-warning); font-weight:600; font-size:0.85rem;">
+                    <input type="checkbox" id="chk-batch-substitute-off" style="width:1.1rem; height:1.1rem; cursor:pointer;">
+                    <span>代休で休み (取得)</span>
+                </label>
+            </div>
+            
+            <!-- 代休元日付入力エリア (初期は非表示) -->
+            <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); flex-direction:column; gap:0.5rem;">
+                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休取得の設定：</div>
+                <div class="form-group" style="margin-bottom:0; width: 100%;">
+                    <label for="batch-substitute-target-date" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
+                    <input type="date" id="batch-substitute-target-date" style="padding: 0.5rem; font-size: 0.9rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
+                </div>
+            </div>
+            
+            <!-- 休日出勤区分選択 (初期は非表示) -->
+            <div id="batch-holiday-work-type-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); align-items:center; gap:1rem; flex-wrap: wrap;">
+                <span style="font-size:0.8rem; font-weight:600; color:var(--color-warning);">区分を選択：</span>
+                <label style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.85rem; cursor:pointer; color:var(--text-main);">
+                    <input type="radio" name="batch-holiday-type" value="substitute" checked style="width:1rem; height:1rem; cursor:pointer;">
+                    <span>代休にする</span>
+                </label>
+                <label style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.85rem; cursor:pointer; color:var(--text-main);">
+                    <input type="radio" name="batch-holiday-type" value="allowance" style="width:1rem; height:1rem; cursor:pointer;">
+                    <span>休出 (手当をもらう)</span>
+                </label>
             </div>
         </div>
         
@@ -248,10 +373,17 @@ function renderBatchInputForm(container) {
         </button>
         
         <!-- 一括送信ボタン -->
-        <div style="margin-top: 2rem; margin-bottom: 3rem;">
+        <div style="margin-top: 2rem; margin-bottom: 1rem;">
             <button type="button" class="btn btn-success" id="btn-batch-submit" style="width: 100%; padding: 1.1rem; font-size: 1.15rem; font-weight: 700; border-radius: 16px; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);">
                 <i data-lucide="send"></i>
                 <span>本日分の日報を一括提出する</span>
+            </button>
+        </div>
+        
+        <!-- 設定リセット（名前・パスワードの再登録） -->
+        <div style="text-align: center; margin-top: 1rem; margin-bottom: 3rem;">
+            <button type="button" id="btn-reset-worker" style="background: none; border: none; color: #94a3b8; font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 0.5rem 1rem;">
+                👤 登録したお名前・パスワードを変更する
             </button>
         </div>
     `;
@@ -259,6 +391,44 @@ function renderBatchInputForm(container) {
     const cardsContainer = document.getElementById('batch-cards-container');
     const addRowBtn = document.getElementById('btn-add-row');
     const submitBtn = document.getElementById('btn-batch-submit');
+    
+    // 日付カードでの休日出勤・代休取得の切り替え＆排他制御
+    const chkBatchHoliday = document.getElementById('chk-batch-holiday-work');
+    const chkBatchSubOff = document.getElementById('chk-batch-substitute-off');
+    const batchHolidayArea = document.getElementById('batch-holiday-work-type-area');
+    
+    if (chkBatchHoliday && chkBatchSubOff && batchHolidayArea) {
+        chkBatchHoliday.addEventListener('change', () => {
+            if (chkBatchHoliday.checked) {
+                chkBatchSubOff.checked = false;
+                batchHolidayArea.style.display = 'flex';
+                // 現場カードエリアを再表示
+                cardsContainer.style.display = 'flex';
+                addRowBtn.style.display = 'block';
+                submitBtn.querySelector('span').textContent = '本日分の日報を一括提出する';
+            } else {
+                batchHolidayArea.style.display = 'none';
+            }
+        });
+        
+        chkBatchSubOff.addEventListener('change', () => {
+            const subOffArea = document.getElementById('batch-substitute-off-area');
+            if (chkBatchSubOff.checked) {
+                chkBatchHoliday.checked = false;
+                batchHolidayArea.style.display = 'none';
+                if (subOffArea) subOffArea.style.display = 'flex';
+                // 現場カード入力エリアを非表示にする (代休で休む日は現場入力不要)
+                cardsContainer.style.display = 'none';
+                addRowBtn.style.display = 'none';
+                submitBtn.querySelector('span').textContent = '代休取得（休み）を送信する';
+            } else {
+                if (subOffArea) subOffArea.style.display = 'none';
+                cardsContainer.style.display = 'flex';
+                addRowBtn.style.display = 'block';
+                submitBtn.querySelector('span').textContent = '本日分の日報を一括提出する';
+            }
+        });
+    }
     
     // 行（現場カード）を追加する処理
     const addNewRow = () => {
@@ -269,6 +439,7 @@ function renderBatchInputForm(container) {
         card.style.padding = '1.25rem 1rem';
         card.style.position = 'relative';
         card.style.borderLeft = '4px solid var(--color-success)';
+        card.style.overflow = 'visible'; // 候補プルダウンがカード枠外にはみ出して表示されるようにする
         
         card.innerHTML = `
             <!-- 行削除ボタン -->
@@ -276,9 +447,15 @@ function renderBatchInputForm(container) {
                 <i data-lucide="trash-2" style="width: 1.1rem; height: 1.1rem;"></i>
             </button>
             
-            <div style="font-size: 0.85rem; font-weight: bold; color: var(--color-success); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.25rem;">
-                <i data-lucide="building"></i>
-                <span>訪問した現場 <span class="row-index-num"></span></span>
+            <div style="font-size: 0.85rem; font-weight: bold; color: var(--color-success); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <i data-lucide="building"></i>
+                    <span>訪問した現場 <span class="row-index-num"></span></span>
+                </div>
+                <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; color:var(--text-main); font-weight:normal;">
+                    <input type="checkbox" class="chk-row-office" style="width:1.1rem; height:1.1rem;">
+                    <span style="font-size: 0.85rem;">事務仕事</span>
+                </label>
             </div>
             
             <!-- 工事番号 ＆ 受注先 (1行目: スマホ2列レイアウト) -->
@@ -293,9 +470,10 @@ function renderBatchInputForm(container) {
                 </div>
             </div>
             
-            <div class="form-group" style="margin-bottom: 1rem;">
+            <div class="form-group" style="margin-bottom: 1rem; position: relative;">
                 <label style="font-size: 0.85rem; font-weight: 600;">現場名称 <span style="color: var(--color-danger);">*</span></label>
-                <input type="text" class="txt-row-name" list="suggest-site-names" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;">
+                <input type="text" class="txt-row-name" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;" autocomplete="off">
+                <div class="suggest-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; max-height: 135px; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 2px;"></div>
             </div>
             
             <!-- 出発時間 (直行) / 開始時間 -->
@@ -340,10 +518,21 @@ function renderBatchInputForm(container) {
                 <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
             </div>
             
-            <!-- 同行者 -->
-            <div class="form-group" style="margin-bottom: 0;">
-                <label style="font-size: 0.85rem; font-weight: 600;">同行者</label>
-                <input type="text" class="txt-row-companions" placeholder="例: 山田 太郎、鈴木 一郎" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px;">
+            <div style="background: rgba(59,130,246,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0;">
+                <div style="font-size: 0.75rem; color: var(--color-danger); font-weight: bold; margin-bottom: 0.5rem; line-height: 1.4;">
+                    ※ 同行者と協力会社同行者が重複しないようご注意ください。<br>
+                    ※ 誰が「協力会社」として入力されるべきか事前にご確認ください。
+                </div>
+                <!-- 同行者 -->
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.85rem; font-weight: 600;">同行者 (一般)</label>
+                    <input type="text" class="txt-row-companions" placeholder="例: 山田 太郎、鈴木 一郎" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px;">
+                </div>
+                <!-- 協力会社同行者 -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.85rem; font-weight: 600;">協力会社同行者</label>
+                    <input type="text" class="txt-row-partner-companions" placeholder="例: 〇〇設備、△△工業" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px;">
+                </div>
             </div>
         `;
         
@@ -352,12 +541,11 @@ function renderBatchInputForm(container) {
         const codeInput = card.querySelector('.txt-row-code');
         const nameInput = card.querySelector('.txt-row-name');
         const clientInput = card.querySelector('.txt-row-client');
+        const nameSuggestDiv = card.querySelector('.suggest-dropdown');
         
         // 3項目相互サジェスト自動補完処理 (全角半角の表記揺れ吸収)
         const checkAutoCompletion = (sourceField) => {
             const codeVal = codeInput.value.trim();
-            const nameVal = nameInput.value.trim();
-            const clientVal = clientInput.value.trim();
             const sites = window.SiteDB.getAll();
             
             let match = null;
@@ -366,12 +554,6 @@ function renderBatchInputForm(container) {
             if (sourceField === 'code' && codeVal) {
                 const normVal = norm(codeVal);
                 match = sites.find(s => norm(s.code) === normVal);
-            } else if (sourceField === 'name' && nameVal) {
-                const normVal = norm(nameVal);
-                match = sites.find(s => norm(s.name) === normVal);
-            } else if (sourceField === 'client' && clientVal) {
-                const normVal = norm(clientVal);
-                match = sites.find(s => norm(s.client) === normVal);
             }
             
             if (match) {
@@ -381,18 +563,104 @@ function renderBatchInputForm(container) {
                 if (norm(clientInput.value) !== norm(match.client || '')) clientInput.value = match.client || '';
             }
         };
+
+        // 現場名称のあいまい検索カスタムプルダウンの動作 (携帯・スマホ環境での動作を保証)
+        const showSuggestions = () => {
+            const rawVal = nameInput.value || '';
+            const query = normalizeText(rawVal);
+            
+            // 【バグ修正】空白文字のみ、または完全に空の場合は絶対に表示せず瞬時に閉じる
+            if (!query || query.trim() === '' || rawVal.trim() === '') {
+                nameSuggestDiv.style.display = 'none';
+                nameSuggestDiv.innerHTML = '';
+                return;
+            }
+
+            const sites = window.SiteDB.getAll() || [];
+            // 表記揺れを考慮した部分一致検索
+            const matchedSites = sites.filter(s => 
+                normalizeText(s.name).includes(query) ||
+                normalizeText(s.code).includes(query) ||
+                (s.client && normalizeText(s.client).includes(query))
+            );
+
+            // 【バグ修正】該当する現場が1件もない場合も確実に非表示にしてクリア
+            if (matchedSites.length === 0) {
+                nameSuggestDiv.style.display = 'none';
+                nameSuggestDiv.innerHTML = '';
+                return;
+            }
+
+            // 候補リストを生成（クリックしやすいように十分なタップ領域を確保）
+            nameSuggestDiv.innerHTML = matchedSites.slice(0, 8).map(s => `
+                <div class="suggest-item" data-code="${s.code}" data-name="${s.name}" data-client="${s.client || ''}" style="padding: 0.9rem 1rem; border-bottom: 1px solid var(--border-light); cursor: pointer; text-align: left; background: var(--bg-card);">
+                    <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-main);">${s.name}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 0.6rem; margin-top: 0.2rem;">
+                        <span>工事番号: ${s.code}</span>
+                        ${s.client ? `<span>元請: ${s.client}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            nameSuggestDiv.style.display = 'block';
+
+            // 各候補アイテムのクリック/タップ時の自動決定処理 (スマホのタップ遅延や競合を回避するため touchstart/mousedown を使用)
+            const items = nameSuggestDiv.querySelectorAll('.suggest-item');
+            items.forEach(item => {
+                const selectItem = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const code = item.getAttribute('data-code');
+                    const name = item.getAttribute('data-name');
+                    const client = item.getAttribute('data-client');
+
+                    nameInput.value = name;
+                    codeInput.value = code;
+                    clientInput.value = client;
+
+                    nameSuggestDiv.style.display = 'none';
+                    nameSuggestDiv.innerHTML = '';
+                };
+                
+                // タップ(クリック)した時のみ決定するように click イベントを紐付けます
+                item.addEventListener('click', selectItem);
+            });
+        };
+
+        // 携帯でのフリック入力中や日本語確定イベントに追従
+        nameInput.addEventListener('input', showSuggestions);
+        nameInput.addEventListener('keyup', showSuggestions);
+        nameInput.addEventListener('compositionend', showSuggestions);
+
+        // リストスクロール時にキーボードを自動で閉じて画面を広くする
+        nameSuggestDiv.addEventListener('touchmove', () => {
+            nameInput.blur(); // キーボードを引っ込めて隠れた候補を見せる (※リストは閉じない)
+        }, { passive: true });
+
+        nameSuggestDiv.addEventListener('scroll', () => {
+            nameInput.blur();
+        }, { passive: true });
+
+        // 【バグ修正】blurによる非表示化はスマホのタップ遅延やスクロールと競合して閉じてしまうため廃止
+        // 代わりに、画面全体のクリック/タッチを監視し、サジェスト外が触られた時のみ閉じるポインター判定方式に変更
+        const closeSuggestionsHandler = (e) => {
+            if (!nameInput.contains(e.target) && !nameSuggestDiv.contains(e.target)) {
+                nameSuggestDiv.style.display = 'none';
+            }
+        };
+        document.addEventListener('click', closeSuggestionsHandler);
+        document.addEventListener('touchstart', closeSuggestionsHandler, { passive: true });
         
         codeInput.addEventListener('input', () => checkAutoCompletion('code'));
-        nameInput.addEventListener('input', () => checkAutoCompletion('name'));
-        clientInput.addEventListener('input', () => checkAutoCompletion('client'));
-        
         codeInput.addEventListener('change', () => checkAutoCompletion('code'));
-        nameInput.addEventListener('change', () => checkAutoCompletion('name'));
-        clientInput.addEventListener('change', () => checkAutoCompletion('client'));
         
         // 削除ボタンと連動イベントハンドラ
         const delBtn = card.querySelector('.btn-delete-row');
         delBtn.addEventListener('click', () => {
+            // イベントリスナーの解除 (メモリリーク防止)
+            document.removeEventListener('click', closeSuggestionsHandler);
+            document.removeEventListener('touchstart', closeSuggestionsHandler);
+            
             const allRows = cardsContainer.querySelectorAll('.batch-row-card');
             if (allRows.length <= 1) {
                 window.app.showToast('最低1件の現場入力が必要です', 'error');
@@ -425,7 +693,7 @@ function renderBatchInputForm(container) {
                 timeRet.disabled = false;
             }
         });
-        
+
         updateRowNumbers();
         if (window.lucide) {
             window.lucide.createIcons();
@@ -460,13 +728,48 @@ function renderBatchInputForm(container) {
             return;
         }
         
-        const workerName = localStorage.getItem('current_worker_name');
+        const workerName = window.safeStorage.getItem('current_worker_name');
         const cards = cardsContainer.querySelectorAll('.batch-row-card');
         const reportsToSubmit = [];
         const sites = window.SiteDB.getAll();
         
-        // 全カードのバリデーションとデータ化
-        for (let i = 0; i < cards.length; i++) {
+        const isSubstituteOff = document.getElementById('chk-batch-substitute-off').checked;
+        
+        if (isSubstituteOff) {
+            const subTargetDateInput = document.getElementById('batch-substitute-target-date');
+            const substituteTargetDate = subTargetDateInput ? subTargetDateInput.value : '';
+            if (!substituteTargetDate) {
+                window.app.showToast('元になった休日出勤日の日付を入力してください', 'error');
+                if (subTargetDateInput) subTargetDateInput.focus();
+                return;
+            }
+            // 代休取得の場合：現場情報のバリデーションを完全にスルーして、ダミー日報を1件作成
+            reportsToSubmit.push({
+                siteId: 'site_substitute_off',
+                date,
+                weather: '晴れ',
+                writer: workerName,
+                departureTime: '',
+                isDirectGo: false,
+                startTime: '',
+                endTime: '',
+                returnTime: '',
+                isDirectBack: false,
+                workContent: '代休取得による休日',
+                companions: '',
+                partnerCompanions: '',
+                isOfficeWork: false,
+                isHolidayWork: false,
+                holidayWorkType: '',
+                isSubstituteOff: true,
+                substituteTargetDate: substituteTargetDate, // 🚨 元になった休日出勤日を保存
+                client: '-',
+                siteName: '代休 (休み取得)',
+                siteCode: 'SUBSTITUTE_OFF'
+            });
+        } else {
+            // 通常時：全カードのバリデーションとデータ化
+            for (let i = 0; i < cards.length; i++) {
             const card = cards[i];
             const code = card.querySelector('.txt-row-code').value.trim();
             const name = card.querySelector('.txt-row-name').value.trim();
@@ -475,6 +778,12 @@ function renderBatchInputForm(container) {
             const endTime = card.querySelector('.time-row-end').value;
             const workContent = card.querySelector('.txt-row-content').value.trim();
             const companions = card.querySelector('.txt-row-companions').value.trim();
+            const partnerCompanions = card.querySelector('.txt-row-partner-companions').value.trim();
+            const isOfficeWork = card.querySelector('.chk-row-office').checked;
+            // 共通の日付カードの値を参照
+            const isHolidayWork = document.getElementById('chk-batch-holiday-work').checked;
+            const holidayRadio = document.querySelector('input[name="batch-holiday-type"]:checked');
+            const holidayWorkType = isHolidayWork ? (holidayRadio ? holidayRadio.value : 'substitute') : '';
             
             const isDirectGo = card.querySelector('.chk-row-go').checked;
             const departureTime = card.querySelector('.time-row-dep').value;
@@ -496,8 +805,27 @@ function renderBatchInputForm(container) {
                 return;
             }
             
-            // 既存現場との紐付けチェック
-            let site = sites.find(s => (code && s.code === code) || s.name === name);
+            // 既存現場との紐付けチェック (工事番号がない場合は事務所作業/その他としてダミー現場 OFFICE に紐付け)
+            let site = null;
+            if (!code) {
+                const finalName = name || '事務所作業';
+                site = sites.find(s => s.code === 'OFFICE' && s.name === finalName);
+                if (!site) {
+                    site = window.SiteDB.add({
+                        code: 'OFFICE',
+                        name: finalName,
+                        client: client || '社内業務',
+                        clientManager: '',
+                        estimateCode: '',
+                        isBilled: false,
+                        isPaid: false,
+                        status: 'active',
+                        memo: '工事番号なしの自動登録現場です。'
+                    });
+                }
+            } else {
+                site = sites.find(s => (code && s.code === code) || s.name === name);
+            }
             
             // 既存に存在しない新規の現場名が手入力された場合は、裏側で自動的に新規現場登録する
             if (!site) {
@@ -515,8 +843,8 @@ function renderBatchInputForm(container) {
                 });
             } else {
                 // 既存現場がある場合、手入力された受注先(client)が既存と異なっており、かつ空でないなら、
-                // 台帳側の情報も親切にアップデートする
-                if (client && site.client !== client) {
+                // 台帳側の情報も親切にアップデートする（ただし、工事番号なしの OFFICE は共有現場マスタのため上書きしない）
+                if (site.code !== 'OFFICE' && client && site.client !== client) {
                     site.client = client;
                     window.SiteDB.update(site.id, site);
                 }
@@ -534,8 +862,16 @@ function renderBatchInputForm(container) {
                 returnTime: isDirectBack ? '' : returnTime,
                 isDirectBack,
                 workContent,
-                companions
+                companions,
+                partnerCompanions,
+                isOfficeWork, // 事務仕事フラグを保存
+                isHolidayWork, // 休日出勤フラグを保存
+                holidayWorkType, // 休日出勤区分（substitute / allowance）を保存
+                client, // 個別に入力された受注先も保存
+                siteName: name, // スマホ側で手入力された現場名称を保存
+                siteCode: code || '' // スマホ側で手入力された工事番号を保存
             });
+        }
         }
         
         // 保存処理
@@ -553,7 +889,7 @@ function renderBatchInputForm(container) {
                     }
                 } catch (e) {
                     console.error('Cloud submit failed, falling back to local:', e);
-                    window.app.showToast(`クラウド送信エラー: ${e.message}`, 'error');
+                    alert(`【日報のクラウド送信に失敗しました】\n理由: ${e.message}\n\n※この日報データは消えずに、携帯内に一時保存(ローカル保存)されます。`);
                 }
             }
             window.ReportDB.add(rep);
@@ -564,6 +900,13 @@ function renderBatchInputForm(container) {
             const cloudCount = results.filter(r => r).length;
             const localCount = results.filter(r => !r).length;
             
+            // 送信した各日報の現場名を本日送信済みリストに記録
+            reportsToSubmit.forEach(rep => {
+                const site = window.SiteDB.getById(rep.siteId);
+                const sName = site ? site.name : '不明な現場';
+                addSentReport(sName);
+            });
+
             let msg = '';
             if (cloudCount > 0) {
                 msg += `${cloudCount}件の日報をクラウドへ送信しました！(暗号化済) `;
@@ -578,8 +921,24 @@ function renderBatchInputForm(container) {
             renderDatalists();
             // 送信完了後はフォームをクリア（白紙リセット）
             renderBatchInputForm(container);
+            
+            // 入力エリアを非表示にリセット
+            const subOffArea = document.getElementById('batch-substitute-off-area');
+            if (subOffArea) subOffArea.style.display = 'none';
         });
     });
+
+    // 登録名・パスワードの初期化処理
+    const resetBtn = document.getElementById('btn-reset-worker');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (confirm('登録されているお名前とパスワードを消去して、再登録画面に戻りますか？')) {
+                window.safeStorage.removeItem('current_worker_name');
+                window.safeStorage.removeItem('custom_encryption_key');
+                location.reload();
+            }
+        });
+    }
 }
 
 // 他のタブ(PC管理者画面など)での現場追加を検知して、リアルタイムでサジェスト候補を更新する
