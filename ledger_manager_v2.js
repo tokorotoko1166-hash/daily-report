@@ -2605,15 +2605,30 @@ function refreshLedgerTable(filter = {}) {
             const printContent = document.getElementById('worker-print-area').innerHTML;
             const originalContent = document.body.innerHTML;
             
-            // 印刷用の一時的なDOM構築 (余白を最小化して紙面を最大活用)
+            const bodyClass = document.body.className;
+            const bodyStyle = document.body.getAttribute('style') || '';
+            const headStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(el => el.outerHTML).join('\n');
+            
+            // 印刷用の一時的なDOM構築 (ブラウザの表示スタイル・テーマを完全維持)
             document.body.innerHTML = `
-                <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
+                <div class="${bodyClass}" style="${bodyStyle} padding: 1.5rem !important; min-height: 100vh; background: var(--bg-body) !important; color: var(--text-main) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; width: 100%;">
+                    ${headStyles}
                     <style>
-                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; background: white !important; }
+                        html, body { 
+                            margin: 0 !important; 
+                            padding: 0 !important; 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            background: var(--bg-body) !important; 
+                            color: var(--text-main) !important;
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important;
+                            overflow: visible !important;
+                        }
                         .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 11px !important; table-layout: fixed !important; }
-                        th, td { border: 1px solid #444 !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
-                        th { background-color: #f3f4f6 !important; font-weight: bold !important; }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 11px !important; table-layout: fixed !important; background: transparent !important; }
+                        th, td { border: 1px solid var(--border-light) !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
+                        th { background-color: rgba(255,255,255,0.03) !important; font-weight: bold !important; color: var(--text-main) !important; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
                         @page { size: A4 landscape; margin: 4mm !important; }
@@ -2632,9 +2647,9 @@ function refreshLedgerTable(filter = {}) {
                         .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 5% !important; }
                         .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 10% !important; }
                     </style>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h2 style="font-size: 20px; margin: 0 0 10px 0;">作業員: ${filter.writer} 業務日報・現場台帳</h2>
-                        <div style="text-align: right; font-size: 12px;">出力日時: ${new Date().toLocaleString()}</div>
+                    <div style="text-align: center; margin-bottom: 20px; color: var(--text-main) !important;">
+                        <h2 style="font-size: 20px; margin: 0 0 10px 0; color: var(--text-main) !important;">作業員: ${filter.writer} 業務日報・現場台帳</h2>
+                        <div style="text-align: right; font-size: 12px; color: var(--text-muted) !important;">出力日時: ${new Date().toLocaleString()}</div>
                     </div>
                     ${printContent}
                 </div>
@@ -6501,14 +6516,29 @@ function refreshPartnerLedgerTable(filter = {}) {
             const printContent = document.getElementById('partner-print-area').innerHTML;
             const originalContent = document.body.innerHTML;
             
+            const bodyClass = document.body.className;
+            const bodyStyle = document.body.getAttribute('style') || '';
+            const headStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(el => el.outerHTML).join('\n');
+            
             document.body.innerHTML = `
-                <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
+                <div class="${bodyClass}" style="${bodyStyle} padding: 1.5rem !important; min-height: 100vh; background: var(--bg-body) !important; color: var(--text-main) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; width: 100%;">
+                    ${headStyles}
                     <style>
-                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; background: white !important; }
+                        html, body { 
+                            margin: 0 !important; 
+                            padding: 0 !important; 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            background: var(--bg-body) !important; 
+                            color: var(--text-main) !important;
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important;
+                            overflow: visible !important;
+                        }
                         .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 10px !important; table-layout: fixed !important; }
-                        th, td { border: 1px solid #444 !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
-                        th { background-color: #f3f4f6 !important; font-weight: bold !important; }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 10px !important; table-layout: fixed !important; background: transparent !important; }
+                        th, td { border: 1px solid var(--border-light) !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
+                        th { background-color: rgba(255,255,255,0.03) !important; font-weight: bold !important; color: var(--text-main) !important; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
                         @page { size: A4 landscape; margin: 4mm !important; }
@@ -6527,9 +6557,9 @@ function refreshPartnerLedgerTable(filter = {}) {
                         .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 8% !important; }
                         .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 8% !important; }
                     </style>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h2 style="font-size: 20px; margin: 0 0 10px 0;">協力業者台帳: ${filter.partner}</h2>
-                        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                    <div style="text-align: center; margin-bottom: 20px; color: var(--text-main) !important;">
+                        <h2 style="font-size: 20px; margin: 0 0 10px 0; color: var(--text-main) !important;">協力業者台帳: ${filter.partner}</h2>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted) !important; margin-bottom: 10px;">
                             <span>対象月: ${filter.month === 'all' ? 'すべて' : filter.month}</span>
                             <span>出力日時: ${new Date().toLocaleString()}</span>
                         </div>
