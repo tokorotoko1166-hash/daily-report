@@ -2609,8 +2609,9 @@ function refreshLedgerTable(filter = {}) {
             document.body.innerHTML = `
                 <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
                     <style>
-                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
-                        table { width: 100% !important; max-width: 100% !important; border-collapse: collapse; font-size: 12px; table-layout: auto !important; }
+                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; background: white !important; }
+                        .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse; font-size: 12px; table-layout: auto !important; }
                         th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
                         th { background-color: #f3f4f6; font-weight: bold; }
                         .no-print { display: none !important; }
@@ -6490,8 +6491,9 @@ function refreshPartnerLedgerTable(filter = {}) {
             document.body.innerHTML = `
                 <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
                     <style>
-                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
-                        table { width: 100% !important; max-width: 100% !important; border-collapse: collapse; font-size: 11px; table-layout: auto !important; }
+                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; background: white !important; }
+                        .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse; font-size: 11px; table-layout: auto !important; }
                         th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
                         th { background-color: #f3f4f6; font-weight: bold; }
                         .no-print { display: none !important; }
