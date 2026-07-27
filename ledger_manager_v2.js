@@ -2611,13 +2611,26 @@ function refreshLedgerTable(filter = {}) {
                     <style>
                         html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; background: white !important; }
                         .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse; font-size: 12px; table-layout: auto !important; }
-                        th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
-                        th { background-color: #f3f4f6; font-weight: bold; }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 11px !important; table-layout: fixed !important; }
+                        th, td { border: 1px solid #444 !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
+                        th { background-color: #f3f4f6 !important; font-weight: bold !important; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
-                        @page { size: A4 landscape; margin: 5mm !important; }
+                        @page { size: A4 landscape; margin: 4mm !important; }
                         body { margin: 0; }
+                        
+                        /* カラム幅を用紙幅100%に合わせてパーセント比率で強制引き延ばし */
+                        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 10% !important; }
+                        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 8% !important; }
+                        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 18% !important; }
+                        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 14% !important; }
+                        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 22% !important; }
+                        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 8% !important; }
+                        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 5% !important; }
+                        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 5% !important; }
+                        .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 5% !important; }
+                        .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 5% !important; }
+                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 10% !important; }
                     </style>
                     <div style="text-align: center; margin-bottom: 20px;">
                         <h2 style="font-size: 20px; margin: 0 0 10px 0;">作業員: ${filter.writer} 業務日報・現場台帳</h2>
@@ -6493,13 +6506,26 @@ function refreshPartnerLedgerTable(filter = {}) {
                     <style>
                         html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; background: white !important; }
                         .table-responsive { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse; font-size: 11px; table-layout: auto !important; }
-                        th, td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
-                        th { background-color: #f3f4f6; font-weight: bold; }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 10px !important; table-layout: fixed !important; }
+                        th, td { border: 1px solid #444 !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
+                        th { background-color: #f3f4f6 !important; font-weight: bold !important; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
-                        @page { size: A4 landscape; margin: 5mm !important; }
+                        @page { size: A4 landscape; margin: 4mm !important; }
                         body { margin: 0; }
+                        
+                        /* カラム幅を用紙幅100%に合わせてパーセント比率で強制引き延ばし (12列) */
+                        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 9% !important; }
+                        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 10% !important; }
+                        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 8% !important; }
+                        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 16% !important; }
+                        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 12% !important; }
+                        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 20% !important; }
+                        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 5% !important; }
+                        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 5% !important; }
+                        .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 5% !important; }
+                        .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 8% !important; }
+                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 8% !important; }
                     </style>
                     <div style="text-align: center; margin-bottom: 20px;">
                         <h2 style="font-size: 20px; margin: 0 0 10px 0;">協力業者台帳: ${filter.partner}</h2>
