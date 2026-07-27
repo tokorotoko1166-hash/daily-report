@@ -1276,7 +1276,7 @@ function renderSiteListTable(container) {
         window.lucide.createIcons();
     }
 
-    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（現場台帳一覧）
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（作業日報一覧）
     setTimeout(() => {
         const toolbar = container.querySelector('.toolbar');
         const mainContent = document.querySelector('.main-content');
@@ -2015,7 +2015,7 @@ function renderLedgerList(container) {
         window.lucide.createIcons();
     }
 
-    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（現場台帳一覧）
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（作業日報一覧）
     setTimeout(() => {
         const toolbar = container.querySelector('.toolbar');
         const mainContent = document.querySelector('.main-content');
@@ -2177,7 +2177,7 @@ function refreshLedgerTable(filter = {}) {
         return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
     };
 
-    // 現場台帳一覧用の行HTMLジェネレーター (11列)
+    // 作業日報一覧用の行HTMLジェネレーター (11列)
     const generateLedgerRow = (rep, showHolidayWork = false) => {
         const site = siteMap.get(rep.siteId);
         const siteCode = rep.siteCode || (site ? site.code : '-');
@@ -2757,7 +2757,7 @@ function renderLedgerDetail(container, siteId) {
         container.innerHTML = `
             <div class="card" style="text-align: center; padding: 3rem 0;">
                 <p style="color: var(--text-danger); font-weight: 500; margin-bottom: 1rem;">指定された現場情報が見つかりません。</p>
-                <button class="btn btn-secondary" onclick="window.location.hash = '#ledger'">現場台帳一覧に戻る</button>
+                <button class="btn btn-secondary" onclick="window.location.hash = '#ledger'">作業日報一覧に戻る</button>
             </div>
         `;
         return;
@@ -2792,7 +2792,7 @@ function renderLedgerDetail(container, siteId) {
         <div style="margin-bottom: 1.5rem;" class="no-print">
             <button class="btn btn-secondary" id="btn-detail-back">
                 <i data-lucide="arrow-left"></i>
-                <span>現場台帳一覧に戻る</span>
+                <span>作業日報一覧に戻る</span>
             </button>
         </div>
 
