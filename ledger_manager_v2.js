@@ -58,6 +58,7 @@ function getSplitReports(rawReports) {
 }
 
 
+
 if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 
 // =========================================================================
@@ -66,63 +67,7 @@ if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 // =========================================================================
 window.generateMassiveDatasetOnMemory = function(onComplete) {
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
         console.time("MassiveDataGen");
@@ -332,63 +277,7 @@ window.app = {
  */
 function router() {
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
         const hash = window.location.hash || '#ledger';
@@ -3757,63 +3646,7 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             }
 
             try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
                 const arrayBuffer = await file.arrayBuffer();
@@ -4764,63 +4597,7 @@ function checkAdminPasswordLock() {
 // アプリ初期化
 document.addEventListener('DOMContentLoaded', () => {
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
         // パスワードロック画面チェック
@@ -4835,63 +4612,7 @@ function getSplitReports(rawReports) {
         console.error("Initialization router error:", e);
     }
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
 
@@ -5016,63 +4737,7 @@ async function syncSitesToCloud() {
     if (!window.CloudSync || !window.CloudSync.init()) return;
 
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
         const collection = window.CloudSync.collection('sites');
@@ -5091,63 +4756,7 @@ async function syncPurchasesToCloud() {
     if (!window.CloudSync || !window.CloudSync.init()) return;
 
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
         const collection = window.CloudSync.collection('purchases');
@@ -5180,63 +4789,7 @@ async function syncReportsFromCloud(isAutomatic = false) {
     }
 
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
         const collection = window.CloudSync.collection('reports');
@@ -5520,63 +5073,7 @@ function openCloudSettingsModal() {
 
         if (confirm('現在このブラウザ（LocalStorage）に保存されている全てのデータを、ローカル共有サーバー（ファイル）にコピーします。よろしいですか？\n※すでにサーバー上にデータがある場合は上書きされます。')) {
             try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
                 const sites = JSON.parse(localStorage.getItem('SiteDB')) || [];
@@ -5656,63 +5153,7 @@ function getSplitReports(rawReports) {
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
             try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
                 const backup = {
@@ -5751,63 +5192,7 @@ function getSplitReports(rawReports) {
             const reader = new FileReader();
             reader.onload = function(evt) {
                 try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
                     const data = JSON.parse(evt.target.result);
@@ -6024,63 +5409,7 @@ function getSplitReports(rawReports) {
                 return;
             }
             try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
                 const token = adminPass || customEncKey || localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
@@ -6113,63 +5442,7 @@ function getSplitReports(rawReports) {
         }
 
         try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
             const res = await fetch(`${newConfig.url}/api/test`, {
@@ -6204,63 +5477,7 @@ function openExcelImportModal(callback) {
         return false;
     };
     try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
         console.log("openExcelImportModal started");
@@ -6365,63 +5582,7 @@ function getSplitReports(rawReports) {
 
         reader.onload = function(e) {
             try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
                 const data = new Uint8Array(e.target.result);
@@ -6608,63 +5769,7 @@ function getSplitReports(rawReports) {
         submitBtn.textContent = '登録中...';
 
         try {
-// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
-function getSplitReports(rawReports) {
-    if (!rawReports) return [];
-    const splitList = [];
-    rawReports.forEach(rep => {
-        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
-            splitList.push(rep);
-            return;
-        }
 
-        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
-        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
-        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
-
-        if (endVal < startVal) {
-            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
-            
-            // ① 前日分 (開始時間 〜 24:00)
-            const repPart1 = {
-                ...rep,
-                id: `${rep.id}_part1`,
-                endTime: '24:00',
-                workContent: `${rep.workContent} (またぎ分割: 前日分)`
-            };
-            splitList.push(repPart1);
-
-            // ② 翌日分 (00:00 〜 終了時間)
-            let nextDateStr = '';
-            try {
-                const dateParts = rep.date.split('-');
-                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
-                d.setDate(d.getDate() + 1);
-                
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                nextDateStr = `${y}-${m}-${day}`;
-            } catch (e) {
-                nextDateStr = rep.date;
-            }
-
-            const repPart2 = {
-                ...rep,
-                id: `${rep.id}_part2`,
-                date: nextDateStr, // 翌日の日付へ
-                startTime: '00:00',
-                endTime: rep.endTime,
-                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
-            };
-            splitList.push(repPart2);
-        } else {
-            // 通常の日報データ
-            splitList.push(rep);
-        }
-    });
-    return splitList;
-}
 
 
             let addCount = 0;

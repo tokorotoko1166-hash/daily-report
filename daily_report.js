@@ -462,17 +462,17 @@ function renderBatchInputForm(container) {
             <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.75rem;">
                 <div class="form-group" style="flex: 3; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">工事番号</label>
-                    <input type="text" class="txt-row-code" list="suggest-site-codes" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-code" list="suggest-site-codes" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false">
                 </div>
                 <div class="form-group" style="flex: 7; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">受注先 (顧客/元請)</label>
-                    <input type="text" class="txt-row-client" list="suggest-site-clients" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-client" list="suggest-site-clients" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false">
                 </div>
             </div>
             
             <div class="form-group" style="margin-bottom: 1rem; position: relative;">
                 <label style="font-size: 0.85rem; font-weight: 600;">現場名称 <span style="color: var(--color-danger);">*</span></label>
-                <input type="text" class="txt-row-name" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;" autocomplete="off">
+                <input type="text" class="txt-row-name" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false">
                 <div class="suggest-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; max-height: 135px; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 2px;"></div>
             </div>
             
