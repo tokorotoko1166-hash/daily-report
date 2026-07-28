@@ -120,7 +120,7 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
 
         let siteCounter = 1;
         departments.forEach(dept => {
-            for (let i = 1; i <= 160; i++) {
+            for (let i = 1; i <= 320; i++) {
                 const id = `site_mass_${siteCounter}`;
                 const code = `${dept}-${1000 + i}`;
                 const name = `${dept} ${pPrefixes[i % pPrefixes.length]}${siteTypes[i % siteTypes.length]}`;
@@ -158,24 +158,60 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
         const nowMs = Date.now();
         const dayMs = 24 * 60 * 60 * 1000;
 
-        for (let i = 1; i <= 10000; i++) {
+        for (let i = 1; i <= 40000; i++) {
             const offset = (i % 365);
             const d = new Date(nowMs - offset * dayMs);
             const dateStr = d.toISOString().split('T')[0];
             const siteId = siteIds[i % siteIds.length];
             const writer = workers[i % workers.length];
             const partnerStr = (i % 10 < 7) ? `${partners[i % partners.length]}、${partners[(i + 3) % partners.length]}` : "";
-            
+
+            // 早出 (7:00前) の仕込み (約10%)
+            let departureTime = "07:30";
+            let isDirectGo = false;
+            if (i % 10 === 1) {
+                departureTime = (i % 2 === 0) ? "06:30" : "06:50"; // 7:00前の早出
+            } else if (i % 10 === 2) {
+                isDirectGo = true; // 直行
+                departureTime = "";
+            }
+
+            // 深夜またぎ工事の仕込み (約10%)
+            let startTime = "08:00";
+            let endTime = "17:00";
+            let workContentText = workContents[i % workContents.length];
+            if (i % 10 === 3) {
+                startTime = "22:00";
+                endTime = "02:00"; // 跨ぎ時間
+                workContentText = "電気配線深夜工事 (跨ぎ勤務)";
+            }
+
+            // 代休 (休み取得 ＆ 元出勤日) の仕込み (約8%)
+            const isSubstituteOff = (i % 12 === 0);
+            let substituteTargetDate = "";
+            if (isSubstituteOff) {
+                const prevD = new Date(d.getTime() - 7 * dayMs); // 7日前を出勤日とする
+                substituteTargetDate = prevD.toISOString().split('T')[0];
+                workContentText = ""; // 代休のため作業内容は空
+            }
+
             reports.push({
                 id: `rep_mass_${i}`,
-                siteId: siteId,
+                siteId: isSubstituteOff ? "site_substitute_off" : siteId,
+                siteCode: isSubstituteOff ? "SUBSTITUTE_OFF" : "",
                 date: dateStr,
                 writer: writer,
-                startTime: "08:00",
-                endTime: "17:00",
-                workContent: workContents[i % workContents.length],
-                partnerCompanions: partnerStr,
+                isDirectGo: isDirectGo,
+                departureTime: isDirectGo ? "" : departureTime,
+                startTime: isSubstituteOff ? "" : startTime,
+                endTime: isSubstituteOff ? "" : endTime,
+                isDirectBack: (i % 10 === 4),
+                returnTime: (i % 10 === 4) ? "" : "17:30",
+                workContent: workContentText,
+                partnerCompanions: isSubstituteOff ? "" : partnerStr,
                 isOfficeWork: false,
+                isSubstituteOff: isSubstituteOff,
+                substituteTargetDate: substituteTargetDate,
                 createdAt: new Date().toISOString()
             });
         }
@@ -190,7 +226,7 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
             ["単管パイプ 4.0m", "本", "日信金属", 1800]
         ];
 
-        for (let i = 1; i <= 20000; i++) {
+        for (let i = 1; i <= 40000; i++) {
             const offset = (i % 365);
             const d = new Date(nowMs - offset * dayMs);
             const dateStr = d.toISOString().split('T')[0];
@@ -4765,14 +4801,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const headerMassiveBtn = document.getElementById('btn-header-massive-test');
     if (headerMassiveBtn) {
         headerMassiveBtn.addEventListener('click', () => {
-            if (confirm('【15万件負荷テスト】\n現場800件 / 日報5万件 / 仕入れ10万件 / 協力業者5万件相当 のテストデータをメモリ上に生成して接続します。\n(実行しますか？)')) {
+            if (confirm('【30万件負荷テスト】\n現場1600件 / 日報2万件 (早出・跨ぎ・代休含む) / 仕入れ4万件 / 各種マージ等による30万件相当の超負荷テストデータをメモリ上に生成して接続します。\n(実行しますか？)')) {
                 headerMassiveBtn.disabled = true;
                 headerMassiveBtn.textContent = '生成中...';
                 setTimeout(() => {
                     window.generateMassiveDatasetOnMemory((sCount, rCount, pCount) => {
-                        if (window.app && window.app.showToast) window.app.showToast(`🚀 テストデータ接続完了！ (現場 ${sCount}件 / 日報 ${rCount}件 / 仕入れ ${pCount}件)`, 'success');
+                        if (window.app && window.app.showToast) window.app.showToast(`🚀 30万件テストデータ接続完了！ (現場 ${sCount}件 / 日報 ${rCount}件 / 仕入れ ${pCount}件)`, 'success');
                         headerMassiveBtn.disabled = false;
-                        headerMassiveBtn.innerHTML = '<i data-lucide="zap" style="width: 0.9rem; height: 0.9rem;"></i> <span>15万件テスト接続中</span>';
+                        headerMassiveBtn.innerHTML = '<i data-lucide="zap" style="width: 0.9rem; height: 0.9rem;"></i> <span>30万件テスト接続中</span>';
                         if (window.lucide) window.lucide.createIcons();
                         const hash = window.location.hash || '#site-list';
                         window.location.hash = '#temp';
