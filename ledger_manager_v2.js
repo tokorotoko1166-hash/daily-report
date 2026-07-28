@@ -57,6 +57,17 @@ function getSplitReports(rawReports) {
     return splitList;
 }
 
+// 早出 (07:00より前) 判定ヘルパー
+function isEarlyDeparture(timeStr) {
+    if (!timeStr || timeStr === '直行' || timeStr === '-') return false;
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return false;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    return (h * 60 + m) < (7 * 60); // 7:00未満
+}
+
+
 
 
 if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
@@ -3001,9 +3012,13 @@ function renderReportsTab(container, reports) {
                     </thead>
                     <tbody>
                         ${reports.map(rep => {
+                            const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
                             const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+                            const depDisplay = depIsEarly 
+                                ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+                                : depText;
                             const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
-                            const timeRoute = `${depText} 〜 ${retText}`;
+                            const timeRoute = `${depDisplay} 〜 ${retText}`;
 
                             const workTime = `${rep.startTime || '-'} 〜 ${rep.endTime || '-'}`;
                             let snippet = rep.workContent || '';
@@ -3975,7 +3990,15 @@ function openReportPreviewModal(reportId) {
                 <tr>
                     <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">勤務時間</th>
                     <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light); font-family: 'Inter';">
-                        ${report.isDirectGo ? '直行' : (report.departureTime || '-')} 〜 ${report.isDirectBack ? '直帰' : (report.returnTime || '-')}
+                        ${(() => {
+                            const depIsEarly = !report.isDirectGo && report.departureTime && isEarlyDeparture(report.departureTime);
+                            const depText = report.isDirectGo ? '直行' : (report.departureTime || '-');
+                            const depDisplay = depIsEarly 
+                                ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+                                : depText;
+                            const retText = report.isDirectBack ? '直帰' : (report.returnTime || '-');
+                            return `${depDisplay} 〜 ${retText}`;
+                        })()}
                         <span style="color: var(--text-muted); margin-left: 1rem;">(現場作業時間: ${report.startTime || '-'} 〜 ${report.endTime || '-'})</span>
                     </td>
                 </tr>
