@@ -2296,6 +2296,14 @@ function refreshLedgerTable(filter = {}) {
         const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
 
+        // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
+        const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
+        const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+        const depDisplay = depIsEarly 
+            ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+            : depText;
+        const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
+
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
         snippet = snippet.replace(/\n/g, ' ');
@@ -2350,6 +2358,14 @@ function refreshLedgerTable(filter = {}) {
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
         const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
+
+        // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
+        const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
+        const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+        const depDisplay = depIsEarly 
+            ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+            : depText;
+        const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
@@ -6237,6 +6253,14 @@ function refreshPartnerLedgerTable(filter = {}) {
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
         const times = calculateWorkTime(rep.startTime, rep.endTime);
         const totalTimeText = isOfficeWork ? '-' : times.total;
+
+        // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
+        const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
+        const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+        const depDisplay = depIsEarly 
+            ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+            : depText;
+        const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
