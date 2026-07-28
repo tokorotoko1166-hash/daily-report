@@ -990,12 +990,12 @@ function refreshPurchaseListTable(filter) {
                     <td style="padding: 0.75rem; text-align: right; font-weight: bold; font-family: 'Inter', sans-serif; color: var(--color-primary);">¥${Math.round(total).toLocaleString()}</td>
                     <td style="padding: 0.75rem; text-align: right; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-success);">${rateText}</td>
                     <td style="padding: 0.75rem; text-align: center;">
-                        <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                            <button class="btn-icon btn-edit-purchase" data-id="${pur.id}" title="編集" style="color: var(--color-info);">
-                                <i data-lucide="edit-2"></i>
+                        <div style="display: flex; gap: 0.35rem; justify-content: center;">
+                            <button class="btn btn-primary btn-edit-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                編集
                             </button>
-                            <button class="btn-icon btn-delete-purchase" data-id="${pur.id}" title="削除" style="color: var(--color-danger);">
-                                <i data-lucide="trash-2"></i>
+                            <button class="btn btn-danger btn-delete-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--color-danger); color: white;">
+                                削除
                             </button>
                         </div>
                     </td>
@@ -2284,8 +2284,8 @@ function refreshLedgerTable(filter = {}) {
                     ${holidayTd}
                     <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
                     <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                        <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                            <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                        <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                            編集
                         </button>
                     </td>
                 </tr>
@@ -2339,8 +2339,8 @@ function refreshLedgerTable(filter = {}) {
                     ${totalTimeText}
                 </td>
                 <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                    <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                        編集
                     </button>
                 </td>
             </tr>
@@ -2402,8 +2402,8 @@ function refreshLedgerTable(filter = {}) {
                     ${totalTimeText}
                 </td>
                 <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                    <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                        編集
                     </button>
                 </td>
             </tr>
@@ -3144,12 +3144,12 @@ function renderPurchasesTab(container, purchases, siteId) {
                                         ${pur.listPrice ? (pur.multiplier * 100).toFixed(0) + '%' : '-'}
                                     </td>
                                     <td>
-                                        <div class="table-actions" style="justify-content: center;">
-                                            <button class="btn btn-secondary btn-icon-only btn-edit-purchase" data-id="${pur.id}" title="編集" style="width: 1.8rem; height: 1.8rem; padding:0;">
-                                                <i data-lucide="edit-3" style="width: 0.85rem; height: 0.85rem;"></i>
+                                        <div class="table-actions" style="justify-content: center; gap: 0.35rem;">
+                                            <button class="btn btn-primary btn-edit-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                                編集
                                             </button>
-                                            <button class="btn btn-danger btn-icon-only btn-delete-purchase" data-id="${pur.id}" title="削除" style="width: 1.8rem; height: 1.8rem; padding:0;">
-                                                <i data-lucide="trash-2" style="width: 0.85rem; height: 0.85rem;"></i>
+                                            <button class="btn btn-danger btn-delete-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--color-danger); color: white;">
+                                                削除
                                             </button>
                                         </div>
                                     </td>
@@ -6306,8 +6306,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                 </td>
                 <td style="font-size: 0.85rem; padding: 0.75rem;">${rep.writer || '-'}</td>
                 <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                    <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                        編集
                     </button>
                 </td>
             </tr>
