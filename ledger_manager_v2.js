@@ -6282,6 +6282,7 @@ function refreshPartnerLedgerTable(filter = {}) {
         const siteName = rep.siteName || (site ? site.name : '不明な現場');
         const clientName = rep.client || (site ? site.client : '-');
         const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
+        const showHolidayWork = false; // 協力業者台帳では休日出勤列は不要
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
         const times = calculateWorkTime(rep.startTime, rep.endTime);
