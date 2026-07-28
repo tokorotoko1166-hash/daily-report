@@ -4078,6 +4078,19 @@ function openReportPreviewModal(reportId) {
         }
     });
 
+    // 閉じるボタンと背景クリックで確実に閉じるための制御 (二重の安全ガード)
+    const closeBtn = document.getElementById('modal-close-btn');
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            backdrop.classList.remove('open');
+        };
+    }
+    backdrop.onclick = (e) => {
+        if (e.target === backdrop) {
+            backdrop.classList.remove('open');
+        }
+    };
+
     // 編集修正処理
     document.getElementById('modal-btn-edit-report').addEventListener('click', () => {
         openEditReportModal(reportId);
