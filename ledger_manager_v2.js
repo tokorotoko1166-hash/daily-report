@@ -2277,9 +2277,10 @@ function refreshLedgerTable(filter = {}) {
                     <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
                     <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">代休消化による休日 (元出勤: ${formattedSubDate})</td>
                     <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">${rep.writer}</td>
-                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 出発 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 開始 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 完了 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 帰社 -->
                     ${holidayTd}
                     <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
                     <td style="text-align: center; padding: 0.75rem;" class="no-print">
@@ -2316,8 +2317,10 @@ function refreshLedgerTable(filter = {}) {
                 <td style="padding: 0.75rem;">${clientName}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${allWorkers}">${workerSnippet}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${depDisplay}</td> <!-- 出発 -->
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${retText}</td> <!-- 帰社 -->
                 <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
                 ${showHolidayWork ? `
                     <td style="text-align: center; padding: 0.75rem;">
@@ -2369,8 +2372,10 @@ function refreshLedgerTable(filter = {}) {
                 <td style="padding: 0.75rem;">${clientName}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${allWorkers}">${workerSnippet}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${depDisplay}</td> <!-- 出発 -->
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${retText}</td> <!-- 帰社 -->
                 <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
                 ${showHolidayWork ? `
                     <td style="text-align: center; padding: 0.75rem;">
@@ -2452,9 +2457,10 @@ function refreshLedgerTable(filter = {}) {
                             <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
                             <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">休日</td>
                             <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">${filter.writer}</td>
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 出発 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 開始 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 完了 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 帰社 -->
                             <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
                             <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
                             <td style="text-align: center; padding: 0.75rem;" class="no-print">-</td>
@@ -2642,8 +2648,10 @@ function refreshLedgerTable(filter = {}) {
                                         <th style="text-align: left; padding: 0.75rem;">受注先 (元請/顧客)</th>
                                         <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                         <th style="text-align: left; padding: 0.75rem;">作業員</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">出発時間</th> <!-- 新設 -->
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">帰社時間</th> <!-- 新設 -->
                                         <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                         <th style="width: 70px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -2725,18 +2733,20 @@ function refreshLedgerTable(filter = {}) {
                         @page { size: A4 landscape; margin: 4mm !important; }
                         body { margin: 0; }
                         
-                        /* カラム幅を用紙幅100%に合わせてパーセント比率で強制引き延ばし */
-                        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 10% !important; }
-                        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 8% !important; }
-                        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 18% !important; }
-                        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 14% !important; }
-                        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 22% !important; }
-                        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 8% !important; }
-                        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 5% !important; }
-                        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 5% !important; }
-                        .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 5% !important; }
-                        .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 5% !important; }
-                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 10% !important; }
+                        /* カラム幅を用紙幅100%に合わせてパーセント比率で強制引き延ばし (13列に最適化) */
+                        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 8% !important; } /* 日付 */
+                        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 7% !important; } /* 工事番号 */
+                        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 15% !important; } /* 現場名称 */
+                        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 12% !important; } /* 受注先 */
+                        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 18% !important; } /* 作業内容 */
+                        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 7% !important; } /* 作業員 */
+                        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 7% !important; } /* 出発時間 (新設) */
+                        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 6% !important; } /* 作業開始 */
+                        .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 6% !important; } /* 作業完了 */
+                        .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 7% !important; } /* 帰社時間 (新設) */
+                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 4% !important; } /* 昼休憩 */
+                        .data-table th:nth-child(12), .data-table td:nth-child(12) { width: 4% !important; } /* 休日出勤 */
+                        .data-table th:nth-child(13), .data-table td:nth-child(13) { width: 9% !important; } /* 合計時間 */
                     </style>
                     <div style="text-align: center; margin-bottom: 20px; color: var(--text-main) !important;">
                         <h2 style="font-size: 20px; margin: 0 0 10px 0; color: var(--text-main) !important;">作業員: ${filter.writer} 業務日報・現場台帳</h2>
