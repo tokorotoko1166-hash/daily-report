@@ -990,12 +990,9 @@ function refreshPurchaseListTable(filter) {
                     <td style="padding: 0.75rem; text-align: right; font-weight: bold; font-family: 'Inter', sans-serif; color: var(--color-primary);">¥${Math.round(total).toLocaleString()}</td>
                     <td style="padding: 0.75rem; text-align: right; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-success);">${rateText}</td>
                     <td style="padding: 0.75rem; text-align: center;">
-                        <div style="display: flex; gap: 0.35rem; justify-content: center;">
+                        <div style="display: flex; justify-content: center;">
                             <button class="btn btn-primary btn-edit-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
                                 編集
-                            </button>
-                            <button class="btn btn-danger btn-delete-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--color-danger); color: white;">
-                                削除
                             </button>
                         </div>
                     </td>
@@ -3144,12 +3141,9 @@ function renderPurchasesTab(container, purchases, siteId) {
                                         ${pur.listPrice ? (pur.multiplier * 100).toFixed(0) + '%' : '-'}
                                     </td>
                                     <td>
-                                        <div class="table-actions" style="justify-content: center; gap: 0.35rem;">
+                                        <div class="table-actions" style="justify-content: center;">
                                             <button class="btn btn-primary btn-edit-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
                                                 編集
-                                            </button>
-                                            <button class="btn btn-danger btn-delete-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--color-danger); color: white;">
-                                                削除
                                             </button>
                                         </div>
                                     </td>
@@ -3543,8 +3537,15 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                 </div>
             </div>
 
-            <div class="modal-footer" style="display: flex; justify-content: space-between;">
-                <button type="button" class="btn btn-secondary" id="btn-pur-cancel">閉じる</button>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <button type="button" class="btn btn-secondary" id="btn-pur-cancel">閉じる</button>
+                    ${isEdit ? `
+                    <button type="button" class="btn btn-danger" id="btn-pur-delete" style="background: var(--color-danger); color: white; margin-left: 0.5rem;">
+                        この仕入れを削除
+                    </button>
+                    ` : ''}
+                </div>
                 <div style="display: flex; gap: 0.5rem;">
                     ${!isEdit ? '<button type="button" class="btn btn-info" id="btn-pur-save-continue" style="background:var(--color-info); color:white;">連続して登録</button>' : ''}
                     <button type="submit" class="btn btn-primary">${isEdit ? '変更を保存' : '登録して閉じる'}</button>
@@ -3929,6 +3930,22 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             if (callback) callback();
         }
     });
+
+    // モーダル内からの削除処理 (新規追加)
+    const btnDelete = document.getElementById('btn-pur-delete');
+    if (btnDelete && isEdit) {
+        btnDelete.addEventListener('click', () => {
+            if (confirm('この仕入れデータを本当に削除しますか？\n(削除したデータは元に戻せません)')) {
+                window.PurchaseDB.delete(purchaseId);
+                if (window.CloudSync && window.CloudSync.isEnabled()) {
+                    syncPurchasesToCloud();
+                }
+                window.app.showToast('仕入れデータを削除しました', 'success');
+                closeModal();
+                if (callback) callback();
+            }
+        });
+    }
 
     // 連続して登録
     const btnContinue = document.getElementById('btn-pur-save-continue');
