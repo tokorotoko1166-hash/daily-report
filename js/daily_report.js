@@ -477,38 +477,42 @@ function renderBatchInputForm(container) {
             </div>
             
             <!-- 出発時間 (直行) / 開始時間 -->
-            <div class="form-row" style="background: rgba(59,130,246,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0.75rem;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(59,130,246,0.03); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0.75rem;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; width:100%; max-width:130px;">
                         <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0;">出発時間</label>
-                        <label style="display:inline-flex; align-items:center; gap:0.2rem; font-size:0.8rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
-                            <input type="checkbox" class="chk-row-go" style="width:0.95rem; height:0.95rem;">
+                        <label style="display:inline-flex; align-items:center; gap:0.15rem; font-size:0.75rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
+                            <input type="checkbox" class="chk-row-go" style="width:0.9rem; height:0.9rem;">
                             <span>直行</span>
                         </label>
                     </div>
-                    <input type="time" class="time-row-dep" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+                    <input type="time" class="time-row-dep" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">作業開始 <span style="color: var(--color-danger);">*</span></label>
-                    <input type="time" class="time-row-start" required value="08:00" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">作業開始 <span style="color: var(--color-danger);">*</span></label>
+                    </div>
+                    <input type="time" class="time-row-start" required value="08:00" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
             </div>
             
             <!-- 終了時間 / 帰社時間 (直帰) -->
-            <div class="form-row" style="background: rgba(16,185,129,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(16,185,129,0.08); margin-bottom: 1rem;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">作業終了 <span style="color: var(--color-danger);">*</span></label>
-                    <input type="time" class="time-row-end" required value="17:00" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(16,185,129,0.03); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(16,185,129,0.08); margin-bottom: 1rem;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">作業終了 <span style="color: var(--color-danger);">*</span></label>
+                    </div>
+                    <input type="time" class="time-row-end" required value="17:00" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; width:100%; max-width:130px;">
                         <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0;">帰社時間</label>
-                        <label style="display:inline-flex; align-items:center; gap:0.2rem; font-size:0.8rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
-                            <input type="checkbox" class="chk-row-back" style="width:0.95rem; height:0.95rem;">
+                        <label style="display:inline-flex; align-items:center; gap:0.15rem; font-size:0.75rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
+                            <input type="checkbox" class="chk-row-back" style="width:0.9rem; height:0.9rem;">
                             <span>直帰</span>
                         </label>
                     </div>
-                    <input type="time" class="time-row-ret" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+                    <input type="time" class="time-row-ret" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
             </div>
             
@@ -519,19 +523,23 @@ function renderBatchInputForm(container) {
             </div>
             
             <!-- 現場待機時間帯の入力 (時間指定) -->
-            <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
-                <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機開始 1</label>
-                        <input type="time" class="time-row-break-start" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+            <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 1</label>
+                        </div>
+                        <input type="time" class="time-row-break-start" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機終了 1</label>
-                        <input type="time" class="time-row-break-end" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 1</label>
+                        </div>
+                        <input type="time" class="time-row-break-end" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
                 
-                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                     <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
                         <input type="checkbox" class="chk-add-break2" style="width:1rem; height:1rem; cursor:pointer;">
                         <span>待機2を追加</span>
@@ -543,26 +551,34 @@ function renderBatchInputForm(container) {
                 </div>
 
                 <!-- 現場待機2 -->
-                <div class="form-row row-break2" style="gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機開始 2</label>
-                        <input type="time" class="time-row-break-start2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                <div class="form-row row-break2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 2</label>
+                        </div>
+                        <input type="time" class="time-row-break-start2" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機終了 2</label>
-                        <input type="time" class="time-row-break-end2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 2</label>
+                        </div>
+                        <input type="time" class="time-row-break-end2" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
 
                 <!-- 現場待機3 -->
-                <div class="form-row row-break3" style="gap: 0.5rem; display: none;">
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機開始 3</label>
-                        <input type="time" class="time-row-break-start3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                <div class="form-row row-break3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 3</label>
+                        </div>
+                        <input type="time" class="time-row-break-start3" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機終了 3</label>
-                        <input type="time" class="time-row-break-end3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 3</label>
+                        </div>
+                        <input type="time" class="time-row-break-end3" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
             </div>

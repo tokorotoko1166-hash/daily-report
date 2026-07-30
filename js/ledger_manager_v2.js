@@ -120,10 +120,12 @@ const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd
     } else {
         breakHours = '0時間';
     }
+    let lunchBreakText = lunchBreakMin > 0 ? '1時間' : '0時間';
+    let waitingTimeText = otherBreakStr ? otherBreakStr : '-';
     const totalH = Math.floor(totalMin / 60);
     const totalM = totalMin % 60;
     const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-    return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
+    return { start: startStr, end: endStr, breakTime: breakHours, lunchBreakTime: lunchBreakText, waitingTime: waitingTimeText, total: totalText, min: totalMin };
 };
 
 // 外部/グローバルから安全にアクセスできるようにwindowにエクスポート
@@ -6491,7 +6493,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
-                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.lunchBreakTime}</td>
+                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.waitingTime}</td>
                 ${showHolidayWork ? `
                     <td style="text-align: center; padding: 0.75rem;">
                         ${rep.isHolidayWork ? (rep.holidayWorkType === 'substitute' ? '<span style="background:var(--color-primary); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">代休</span>' : '<span style="background:#e11d48; color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">休出</span>') : '-'}
@@ -6643,10 +6646,12 @@ function refreshPartnerLedgerTable(filter = {}) {
         } else {
             breakHours = '0時間';
         }
+        let lunchBreakText = lunchBreakMin > 0 ? '1時間' : '0時間';
+        let waitingTimeText = otherBreakStr ? otherBreakStr : '-';
         const totalH = Math.floor(totalMin / 60);
         const totalM = totalMin % 60;
         const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
+        return { start: startStr, end: endStr, breakTime: breakHours, lunchBreakTime: lunchBreakText, waitingTime: waitingTimeText, total: totalText, min: totalMin };
     };
 
 
@@ -6707,7 +6712,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                         <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${r.workContent || ''}">${snippet}</td>
                         <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                         <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
-                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.lunchBreakTime}</td>
+                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.waitingTime}</td>
                         <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
                             ${isOfficeWork ? '-' : times.total}
                         </td>
@@ -6759,7 +6765,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
-                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 120px; text-align: center; padding: 0.75rem;">現場待機</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                 <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -6770,7 +6777,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                         </tbody>
                         <tfoot class="print-only" style="display:none;">
                             <tr>
-                                <td colspan="9" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
+                                <td colspan="10" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
                                 <td colspan="2" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
                             </tr>
                         </tfoot>
@@ -6874,7 +6881,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                                         <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
-                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                        <th style="width: 120px; text-align: center; padding: 0.75rem;">現場待機</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                         <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
