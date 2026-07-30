@@ -195,8 +195,30 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 workContentText = ""; // 代休のため作業内容は空
             }
 
-            // その他休憩時間をテストデータにランダム仕込み (0分, 15分, 30分)
-            const otherBreakMin = isSubstituteOff ? 0 : ((i % 7 === 0) ? 30 : ((i % 11 === 0) ? 15 : 0));
+            // その他休憩時間帯をテストデータにランダム仕込み
+            let otherBreakStart = "";
+            let otherBreakEnd = "";
+            let otherBreakStart2 = "";
+            let otherBreakEnd2 = "";
+            let otherBreakStart3 = "";
+            let otherBreakEnd3 = "";
+            if (!isSubstituteOff) {
+                if (i % 7 === 0) {
+                    otherBreakStart = "15:00";
+                    otherBreakEnd = "15:30";
+                } else if (i % 11 === 0) {
+                    otherBreakStart = "10:00";
+                    otherBreakEnd = "10:15";
+                }
+
+                // 複数休憩のテスト
+                if (i % 13 === 0) {
+                    otherBreakStart2 = "10:00";
+                    otherBreakEnd2 = "10:15";
+                    otherBreakStart3 = "15:00";
+                    otherBreakEnd3 = "15:15";
+                }
+            }
 
             reports.push({
                 id: `rep_mass_${i}`,
@@ -215,7 +237,12 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 isOfficeWork: false,
                 isSubstituteOff: isSubstituteOff,
                 substituteTargetDate: substituteTargetDate,
-                otherBreakMin: otherBreakMin,
+                otherBreakStart: otherBreakStart,
+                otherBreakEnd: otherBreakEnd,
+                otherBreakStart2: otherBreakStart2,
+                otherBreakEnd2: otherBreakEnd2,
+                otherBreakStart3: otherBreakStart3,
+                otherBreakEnd3: otherBreakEnd3,
                 createdAt: new Date().toISOString()
             });
         }
@@ -2268,7 +2295,7 @@ function refreshLedgerTable(filter = {}) {
     }
 
     // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr, otherBreakMin = 0) => {
+    const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
         if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
         const parseMin = (str) => {
             const [h, m] = str.split(':').map(Number);
@@ -2279,6 +2306,29 @@ function refreshLedgerTable(filter = {}) {
         if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
             return { start: startStr, end: endStr, breakTime: '-', total: '-' };
         }
+        
+        // その他休憩時間(分)の計算
+        let otherBreakMin = 0;
+        const addBreak = (s, e) => {
+            if (s && e) {
+                const obStart = parseMin(s);
+                const obEnd = parseMin(e);
+                if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
+                    otherBreakMin += (obEnd - obStart);
+                    return `${s}〜${e}`;
+                }
+            }
+            return null;
+        };
+
+        const breakRanges = [];
+        const r1 = addBreak(otherBreakStart, otherBreakEnd);
+        if (r1) breakRanges.push(r1);
+        const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
+        if (r2) breakRanges.push(r2);
+        const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
+        if (r3) breakRanges.push(r3);
+
         const breakStart = 12 * 60; // 12:00
         const breakEnd = 13 * 60;   // 13:00
         const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
@@ -2286,12 +2336,14 @@ function refreshLedgerTable(filter = {}) {
         const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
         
         let breakHours = '';
-        if (lunchBreakMin > 0 && otherBreakMin > 0) {
-            breakHours = `1時間+${otherBreakMin}分`;
+        const otherBreakStr = breakRanges.join(', ');
+
+        if (lunchBreakMin > 0 && otherBreakStr) {
+            breakHours = `1時間(${otherBreakStr})`;
         } else if (lunchBreakMin > 0) {
             breakHours = '1時間';
-        } else if (otherBreakMin > 0) {
-            breakHours = `${otherBreakMin}分`;
+        } else if (otherBreakStr) {
+            breakHours = otherBreakStr;
         } else {
             breakHours = '0時間';
         }
@@ -2328,6 +2380,7 @@ function refreshLedgerTable(filter = {}) {
                     <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 開始 -->
                     <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 完了 -->
                     <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 帰社 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 休憩 -->
                     ${holidayTd}
                     <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
                     <td style="text-align: center; padding: 0.75rem;" class="no-print">
@@ -2340,7 +2393,12 @@ function refreshLedgerTable(filter = {}) {
         }
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime, rep.otherBreakMin || 0);
+        const times = calculateWorkTime(
+            rep.startTime, rep.endTime,
+            rep.otherBreakStart || '', rep.otherBreakEnd || '',
+            rep.otherBreakStart2 || '', rep.otherBreakEnd2 || '',
+            rep.otherBreakStart3 || '', rep.otherBreakEnd3 || ''
+        );
         const totalTimeText = isOfficeWork ? '-' : times.total;
 
         // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
@@ -2403,7 +2461,12 @@ function refreshLedgerTable(filter = {}) {
         const clientName = rep.client || (site ? site.client : '-');
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime, rep.otherBreakMin || 0);
+        const times = calculateWorkTime(
+            rep.startTime, rep.endTime,
+            rep.otherBreakStart || '', rep.otherBreakEnd || '',
+            rep.otherBreakStart2 || '', rep.otherBreakEnd2 || '',
+            rep.otherBreakStart3 || '', rep.otherBreakEnd3 || ''
+        );
         const totalTimeText = isOfficeWork ? '-' : times.total;
 
         // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
@@ -2524,7 +2587,8 @@ function refreshLedgerTable(filter = {}) {
                             <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 開始 -->
                             <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 完了 -->
                             <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 帰社 -->
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 休憩 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 休日出勤 -->
                             <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
                             <td style="text-align: center; padding: 0.75rem;" class="no-print">-</td>
                         </tr>
@@ -2537,7 +2601,12 @@ function refreshLedgerTable(filter = {}) {
                         const isSubOff = r.isSubstituteOff || siteCode === 'SUBSTITUTE_OFF';
                         
                         if (!isOfficeWork && !isSubOff) {
-                            const times = calculateWorkTime(r.startTime, r.endTime, r.otherBreakMin || 0);
+                            const times = calculateWorkTime(
+                                r.startTime, r.endTime,
+                                r.otherBreakStart || '', r.otherBreakEnd || '',
+                                r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                                r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                            );
                             if (times.min) workerTotalMin += times.min;
                         }
                         
@@ -2661,7 +2730,12 @@ function refreshLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateWorkTime(r.startTime, r.endTime, r.otherBreakMin || 0);
+                    const times = calculateWorkTime(
+                        r.startTime, r.endTime,
+                        r.otherBreakStart || '', r.otherBreakEnd || '',
+                        r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                        r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                    );
                     if (times.min) deptTotalMin += times.min;
                 }
             });
@@ -4096,7 +4170,12 @@ function openReportPreviewModal(reportId) {
                         })()}
                         <span style="color: var(--text-muted); margin-left: 1rem;">(現場作業時間: ${report.startTime || '-'} 〜 ${report.endTime || '-'})</span>
                         <span style="color: var(--text-muted); margin-left: 1rem;">(休憩: ${(() => {
-                            const times = calculateWorkTime(report.startTime, report.endTime, report.otherBreakMin || 0);
+                            const times = calculateWorkTime(
+                                report.startTime, report.endTime,
+                                report.otherBreakStart || '', report.otherBreakEnd || '',
+                                report.otherBreakStart2 || '', report.otherBreakEnd2 || '',
+                                report.otherBreakStart3 || '', report.otherBreakEnd3 || ''
+                            );
                             return times.breakTime;
                         })()})</span>
                     </td>
@@ -4283,18 +4362,39 @@ function openEditReportModal(reportId) {
                 </div>
             </div>
 
-            <!-- その他休憩時間 (新規追加) -->
-            <div class="form-group" style="margin-bottom: 1rem;">
-                <label for="edit-rep-other-break">その他の休憩時間 (※昼休憩を除く)</label>
-                <select id="edit-rep-other-break" style="width: 100%; padding: 0.5rem; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light); font-size: 0.9rem;">
-                    <option value="0" ${report.otherBreakMin == 0 ? 'selected' : ''}>なし (0分)</option>
-                    <option value="15" ${report.otherBreakMin == 15 ? 'selected' : ''}>15分</option>
-                    <option value="30" ${report.otherBreakMin == 30 ? 'selected' : ''}>30分</option>
-                    <option value="45" ${report.otherBreakMin == 45 ? 'selected' : ''}>45分</option>
-                    <option value="60" ${report.otherBreakMin == 60 ? 'selected' : ''}>60分 (1時間)</option>
-                    <option value="90" ${report.otherBreakMin == 90 ? 'selected' : ''}>90分 (1.5時間)</option>
-                    <option value="120" ${report.otherBreakMin == 120 ? 'selected' : ''}>120分 (2時間)</option>
-                </select>
+            <!-- その他休憩時間帯 (時間指定) -->
+            <div style="margin-bottom: 1rem; background: rgba(245,158,11,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(245,158,11,0.08);">
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">その他休憩時間 (時間帯)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
+                    <div class="form-group">
+                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">休憩① 開始</label>
+                        <input type="time" id="edit-rep-break-start" value="${report.otherBreakStart || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">休憩① 終了</label>
+                        <input type="time" id="edit-rep-break-end" value="${report.otherBreakEnd || ''}">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
+                    <div class="form-group">
+                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">休憩② 開始</label>
+                        <input type="time" id="edit-rep-break-start2" value="${report.otherBreakStart2 || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">休憩② 終了</label>
+                        <input type="time" id="edit-rep-break-end2" value="${report.otherBreakEnd2 || ''}">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">休憩③ 開始</label>
+                        <input type="time" id="edit-rep-break-start3" value="${report.otherBreakStart3 || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">休憩③ 終了</label>
+                        <input type="time" id="edit-rep-break-end3" value="${report.otherBreakEnd3 || ''}">
+                    </div>
+                </div>
             </div>
 
             <div class="form-group" style="margin-bottom: 1rem;">
@@ -4371,7 +4471,12 @@ function openEditReportModal(reportId) {
             isDirectBack: chkBack.checked,
             returnTime: chkBack.checked ? '' : timeRet.value,
             companions: document.getElementById('edit-rep-companions').value.trim(),
-            otherBreakMin: parseInt(document.getElementById('edit-rep-other-break').value, 10) || 0,
+            otherBreakStart: document.getElementById('edit-rep-break-start').value,
+            otherBreakEnd: document.getElementById('edit-rep-break-end').value,
+            otherBreakStart2: document.getElementById('edit-rep-break-start2').value,
+            otherBreakEnd2: document.getElementById('edit-rep-break-end2').value,
+            otherBreakStart3: document.getElementById('edit-rep-break-start3').value,
+            otherBreakEnd3: document.getElementById('edit-rep-break-end3').value,
             partnerCompanions: document.getElementById('edit-rep-partner-companions').value.trim(),
             workContent: document.getElementById('edit-rep-content').value.trim(),
             memo: document.getElementById('edit-rep-memo').value.trim()
@@ -6354,7 +6459,12 @@ function refreshPartnerLedgerTable(filter = {}) {
         const showHolidayWork = false; // 協力業者台帳では休日出勤列は不要
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime, rep.otherBreakMin || 0);
+        const times = calculateWorkTime(
+            rep.startTime, rep.endTime,
+            rep.otherBreakStart || '', rep.otherBreakEnd || '',
+            rep.otherBreakStart2 || '', rep.otherBreakEnd2 || '',
+            rep.otherBreakStart3 || '', rep.otherBreakEnd3 || ''
+        );
         const totalTimeText = isOfficeWork ? '-' : times.total;
 
         // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
@@ -6483,7 +6593,7 @@ function refreshPartnerLedgerTable(filter = {}) {
 
 
     // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr, otherBreakMin = 0) => {
+    const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
         if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
         const parseMin = (str) => {
             const [h, m] = str.split(':').map(Number);
@@ -6494,6 +6604,29 @@ function refreshPartnerLedgerTable(filter = {}) {
         if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
             return { start: startStr, end: endStr, breakTime: '-', total: '-' };
         }
+        
+        // その他休憩時間(分)の計算
+        let otherBreakMin = 0;
+        const addBreak = (s, e) => {
+            if (s && e) {
+                const obStart = parseMin(s);
+                const obEnd = parseMin(e);
+                if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
+                    otherBreakMin += (obEnd - obStart);
+                    return `${s}〜${e}`;
+                }
+            }
+            return null;
+        };
+
+        const breakRanges = [];
+        const r1 = addBreak(otherBreakStart, otherBreakEnd);
+        if (r1) breakRanges.push(r1);
+        const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
+        if (r2) breakRanges.push(r2);
+        const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
+        if (r3) breakRanges.push(r3);
+
         const breakStart = 12 * 60; // 12:00
         const breakEnd = 13 * 60;   // 13:00
         const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
@@ -6501,12 +6634,14 @@ function refreshPartnerLedgerTable(filter = {}) {
         const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
         
         let breakHours = '';
-        if (lunchBreakMin > 0 && otherBreakMin > 0) {
-            breakHours = `1時間+${otherBreakMin}分`;
+        const otherBreakStr = breakRanges.join(', ');
+
+        if (lunchBreakMin > 0 && otherBreakStr) {
+            breakHours = `1時間(${otherBreakStr})`;
         } else if (lunchBreakMin > 0) {
             breakHours = '1時間';
-        } else if (otherBreakMin > 0) {
-            breakHours = `${otherBreakMin}分`;
+        } else if (otherBreakStr) {
+            breakHours = otherBreakStr;
         } else {
             breakHours = '0時間';
         }
@@ -6547,7 +6682,12 @@ function refreshPartnerLedgerTable(filter = {}) {
                 const siteName = r.siteName || (site ? site.name : '不明な現場');
                 const clientName = r.client || (site ? site.client : '-');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-                const times = calculateWorkTime(r.startTime, r.endTime);
+                const times = calculateWorkTime(
+                    r.startTime, r.endTime,
+                    r.otherBreakStart || '', r.otherBreakEnd || '',
+                    r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                    r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                );
                 if (!isOfficeWork && times.min) totalMin += times.min;
 
                 const formattedDate = r.date ? r.date.replace(/-/g, '/') : '-';
@@ -6622,7 +6762,6 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
-                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休日出勤</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                 <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -6634,7 +6773,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                         <tfoot class="print-only" style="display:none;">
                             <tr>
                                 <td colspan="9" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
-                                <td colspan="3" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
+                                <td colspan="2" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -6690,7 +6829,12 @@ function refreshPartnerLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateWorkTime(r.startTime, r.endTime, r.otherBreakMin || 0);
+                    const times = calculateWorkTime(
+                        r.startTime, r.endTime,
+                        r.otherBreakStart || '', r.otherBreakEnd || '',
+                        r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                        r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                    );
                     if (times.min) deptTotalMin += times.min;
                 }
             });
