@@ -518,15 +518,15 @@ function renderBatchInputForm(container) {
                 <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
             </div>
             
-            <!-- その他休憩時間帯の入力 (時間指定) -->
+            <!-- 現場待機時間帯の入力 (時間指定) -->
             <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
                 <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
                     <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 1</label>
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機開始 1</label>
                         <input type="time" class="time-row-break-start" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                     <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 1</label>
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機終了 1</label>
                         <input type="time" class="time-row-break-end" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
@@ -534,34 +534,34 @@ function renderBatchInputForm(container) {
                 <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                     <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
                         <input type="checkbox" class="chk-add-break2" style="width:1rem; height:1rem; cursor:pointer;">
-                        <span>休憩2を追加</span>
+                        <span>待機2を追加</span>
                     </label>
                     <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
                         <input type="checkbox" class="chk-add-break3" style="width:1rem; height:1rem; cursor:pointer;">
-                        <span>休憩3を追加</span>
+                        <span>待機3を追加</span>
                     </label>
                 </div>
 
-                <!-- その他休憩2 -->
+                <!-- 現場待機2 -->
                 <div class="form-row row-break2" style="gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
                     <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 2</label>
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機開始 2</label>
                         <input type="time" class="time-row-break-start2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                     <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 2</label>
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機終了 2</label>
                         <input type="time" class="time-row-break-end2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
 
-                <!-- その他休憩3 -->
+                <!-- 現場待機3 -->
                 <div class="form-row row-break3" style="gap: 0.5rem; display: none;">
                     <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 3</label>
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機開始 3</label>
                         <input type="time" class="time-row-break-start3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                     <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 3</label>
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">現場待機終了 3</label>
                         <input type="time" class="time-row-break-end3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>

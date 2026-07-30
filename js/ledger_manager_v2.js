@@ -67,8 +67,69 @@ function isEarlyDeparture(timeStr) {
     return (h * 60 + m) < (7 * 60); // 7:00未満
 }
 
+// ⏱️ 時間計算用ヘルパー (どこからでも呼び出せるグローバル定義)
+const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
+    if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
+    const parseMin = (str) => {
+        const [h, m] = str.split(':').map(Number);
+        return h * 60 + m;
+    };
+    const startMin = parseMin(startStr);
+    const endMin = parseMin(endStr);
+    if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
+        return { start: startStr, end: endStr, breakTime: '-', total: '-' };
+    }
+    
+    // その他休憩時間(分)の計算
+    let otherBreakMin = 0;
+    const addBreak = (s, e) => {
+        if (s && e) {
+            const obStart = parseMin(s);
+            const obEnd = parseMin(e);
+            if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
+                otherBreakMin += (obEnd - obStart);
+                return `${s}〜${e}`;
+            }
+        }
+        return null;
+    };
 
+    const breakRanges = [];
+    const r1 = addBreak(otherBreakStart, otherBreakEnd);
+    if (r1) breakRanges.push(r1);
+    const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
+    if (r2) breakRanges.push(r2);
+    const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
+    if (r3) breakRanges.push(r3);
 
+    const breakStart = 12 * 60; // 12:00
+    const breakEnd = 13 * 60;   // 13:00
+    const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
+    const lunchBreakMin = hasBreak ? 60 : 0;
+    const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
+    
+    let breakHours = '';
+    const otherBreakStr = breakRanges.join(', ');
+
+    if (lunchBreakMin > 0 && otherBreakStr) {
+        breakHours = `1時間 (現場待機: ${otherBreakStr})`;
+    } else if (lunchBreakMin > 0) {
+        breakHours = '1時間';
+    } else if (otherBreakStr) {
+        breakHours = `現場待機: ${otherBreakStr}`;
+    } else {
+        breakHours = '0時間';
+    }
+    const totalH = Math.floor(totalMin / 60);
+    const totalM = totalMin % 60;
+    const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
+    return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
+};
+
+// 外部/グローバルから安全にアクセスできるようにwindowにエクスポート
+window.getSplitReports = getSplitReports;
+window.isEarlyDeparture = isEarlyDeparture;
+window.calculateWorkTime = calculateWorkTime;
 
 if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 
@@ -2294,64 +2355,7 @@ function refreshLedgerTable(filter = {}) {
         reports = reports.filter(r => r.date && getClosingMonth(r.date) === filter.month);
     }
 
-    // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
-        if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
-        const parseMin = (str) => {
-            const [h, m] = str.split(':').map(Number);
-            return h * 60 + m;
-        };
-        const startMin = parseMin(startStr);
-        const endMin = parseMin(endStr);
-        if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
-            return { start: startStr, end: endStr, breakTime: '-', total: '-' };
-        }
-        
-        // その他休憩時間(分)の計算
-        let otherBreakMin = 0;
-        const addBreak = (s, e) => {
-            if (s && e) {
-                const obStart = parseMin(s);
-                const obEnd = parseMin(e);
-                if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
-                    otherBreakMin += (obEnd - obStart);
-                    return `${s}〜${e}`;
-                }
-            }
-            return null;
-        };
 
-        const breakRanges = [];
-        const r1 = addBreak(otherBreakStart, otherBreakEnd);
-        if (r1) breakRanges.push(r1);
-        const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
-        if (r2) breakRanges.push(r2);
-        const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
-        if (r3) breakRanges.push(r3);
-
-        const breakStart = 12 * 60; // 12:00
-        const breakEnd = 13 * 60;   // 13:00
-        const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-        const lunchBreakMin = hasBreak ? 60 : 0;
-        const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
-        
-        let breakHours = '';
-        const otherBreakStr = breakRanges.join(', ');
-
-        if (lunchBreakMin > 0 && otherBreakStr) {
-            breakHours = `1時間(${otherBreakStr})`;
-        } else if (lunchBreakMin > 0) {
-            breakHours = '1時間';
-        } else if (otherBreakStr) {
-            breakHours = otherBreakStr;
-        } else {
-            breakHours = '0時間';
-        }
-        const totalH = Math.floor(totalMin / 60);
-        const totalM = totalMin % 60;
-        const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
-    };
 
     // 作業日報一覧用の行HTMLジェネレーター (11列)
     const generateLedgerRow = (rep, showHolidayWork = false) => {
@@ -4160,7 +4164,7 @@ function openReportPreviewModal(reportId) {
                     <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">勤務時間</th>
                     <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light); font-family: 'Inter';">
                         ${(() => {
-                            const depIsEarly = !report.isDirectGo && report.departureTime && isEarlyDeparture(report.departureTime);
+                            const depIsEarly = !report.isDirectGo && report.departureTime && window.isEarlyDeparture(report.departureTime);
                             const depText = report.isDirectGo ? '直行' : (report.departureTime || '-');
                             const depDisplay = depIsEarly 
                                 ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
@@ -4170,7 +4174,7 @@ function openReportPreviewModal(reportId) {
                         })()}
                         <span style="color: var(--text-muted); margin-left: 1rem;">(現場作業時間: ${report.startTime || '-'} 〜 ${report.endTime || '-'})</span>
                         <span style="color: var(--text-muted); margin-left: 1rem;">(休憩: ${(() => {
-                            const times = calculateWorkTime(
+                            const times = window.calculateWorkTime(
                                 report.startTime, report.endTime,
                                 report.otherBreakStart || '', report.otherBreakEnd || '',
                                 report.otherBreakStart2 || '', report.otherBreakEnd2 || '',
@@ -4229,12 +4233,6 @@ function openReportPreviewModal(reportId) {
     });
 
     // 閉じるボタンと背景クリックで確実に閉じるための制御 (二重の安全ガード)
-    const closeBtn = document.getElementById('modal-close-btn');
-    if (closeBtn) {
-        closeBtn.onclick = () => {
-            backdrop.classList.remove('open');
-        };
-    }
     backdrop.onclick = (e) => {
         if (e.target === backdrop) {
             backdrop.classList.remove('open');
@@ -4362,36 +4360,36 @@ function openEditReportModal(reportId) {
                 </div>
             </div>
 
-            <!-- その他休憩時間帯 (時間指定) -->
+            <!-- 現場待機時間帯 (時間指定) -->
             <div style="margin-bottom: 1rem; background: rgba(245,158,11,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(245,158,11,0.08);">
-                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">その他休憩時間 (時間帯)</div>
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">現場待機時間 (時間帯)</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">休憩① 開始</label>
+                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">待機① 開始</label>
                         <input type="time" id="edit-rep-break-start" value="${report.otherBreakStart || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">休憩① 終了</label>
+                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">待機① 終了</label>
                         <input type="time" id="edit-rep-break-end" value="${report.otherBreakEnd || ''}">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">休憩② 開始</label>
+                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">待機② 開始</label>
                         <input type="time" id="edit-rep-break-start2" value="${report.otherBreakStart2 || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">休憩② 終了</label>
+                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">待機② 終了</label>
                         <input type="time" id="edit-rep-break-end2" value="${report.otherBreakEnd2 || ''}">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">休憩③ 開始</label>
+                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">待機③ 開始</label>
                         <input type="time" id="edit-rep-break-start3" value="${report.otherBreakStart3 || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">休憩③ 終了</label>
+                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">待機③ 終了</label>
                         <input type="time" id="edit-rep-break-end3" value="${report.otherBreakEnd3 || ''}">
                     </div>
                 </div>
@@ -6637,11 +6635,11 @@ function refreshPartnerLedgerTable(filter = {}) {
         const otherBreakStr = breakRanges.join(', ');
 
         if (lunchBreakMin > 0 && otherBreakStr) {
-            breakHours = `1時間(${otherBreakStr})`;
+            breakHours = `1時間 (現場待機: ${otherBreakStr})`;
         } else if (lunchBreakMin > 0) {
             breakHours = '1時間';
         } else if (otherBreakStr) {
-            breakHours = otherBreakStr;
+            breakHours = `現場待機: ${otherBreakStr}`;
         } else {
             breakHours = '0時間';
         }
@@ -6715,8 +6713,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                         </td>
                         <td style="font-size: 0.85rem; padding: 0.75rem;">${r.writer || '-'}</td>
                         <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                            <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${r.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                                <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                            <button class="btn btn-primary btn-view-report-detail" data-repid="${r.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                編集
                             </button>
                         </td>
                     </tr>
