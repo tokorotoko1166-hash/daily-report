@@ -336,13 +336,13 @@ function renderBatchInputForm(container) {
                 </label>
                 <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--color-warning); font-weight:600; font-size:0.85rem;">
                     <input type="checkbox" id="chk-batch-substitute-off" style="width:1.1rem; height:1.1rem; cursor:pointer;">
-                    <span>代休で休み (取得)</span>
+                    <span>代休消化</span>
                 </label>
             </div>
             
             <!-- 代休元日付入力エリア (初期は非表示) -->
             <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); flex-direction:column; gap:0.5rem;">
-                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休取得の設定：</div>
+                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休消化の設定：</div>
                 <div class="form-group" style="margin-bottom:0; width: 100%;">
                     <label for="batch-substitute-target-date" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
                     <input type="date" id="batch-substitute-target-date" style="padding: 0.5rem; font-size: 0.9rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
@@ -420,7 +420,7 @@ function renderBatchInputForm(container) {
                 // 現場カード入力エリアを非表示にする (代休で休む日は現場入力不要)
                 cardsContainer.style.display = 'none';
                 addRowBtn.style.display = 'none';
-                submitBtn.querySelector('span').textContent = '代休取得（休み）を送信する';
+                submitBtn.querySelector('span').textContent = '本日分の日報を一括提出する';
             } else {
                 if (subOffArea) subOffArea.style.display = 'none';
                 cardsContainer.style.display = 'flex';
@@ -846,7 +846,7 @@ function renderBatchInputForm(container) {
                 endTime: '',
                 returnTime: '',
                 isDirectBack: false,
-                workContent: '代休取得による休日',
+                workContent: '代休消化による休日',
                 companions: '',
                 partnerCompanions: '',
                 isOfficeWork: false,
@@ -855,7 +855,7 @@ function renderBatchInputForm(container) {
                 isSubstituteOff: true,
                 substituteTargetDate: substituteTargetDate, // 🚨 元になった休日出勤日を保存
                 client: '-',
-                siteName: '代休 (休み取得)',
+                siteName: '代休消化',
                 siteCode: 'SUBSTITUTE_OFF'
             });
         } else {

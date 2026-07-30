@@ -2304,7 +2304,7 @@ function refreshLedgerTable(filter = {}) {
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
-    siteMap.set('site_substitute_off', { id: 'site_substitute_off', code: 'SUBSTITUTE_OFF', name: '代休 (休み取得)', client: '-' });
+    siteMap.set('site_substitute_off', { id: 'site_substitute_off', code: 'SUBSTITUTE_OFF', name: '代休消化', client: '-' });
 
     // 検索フィルタの適用
     if (filter.search) {
