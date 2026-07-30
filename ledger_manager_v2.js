@@ -195,6 +195,9 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 workContentText = ""; // 代休のため作業内容は空
             }
 
+            // その他休憩時間をテストデータにランダム仕込み (0分, 15分, 30分)
+            const otherBreakMin = isSubstituteOff ? 0 : ((i % 7 === 0) ? 30 : ((i % 11 === 0) ? 15 : 0));
+
             reports.push({
                 id: `rep_mass_${i}`,
                 siteId: isSubstituteOff ? "site_substitute_off" : siteId,
@@ -212,6 +215,7 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 isOfficeWork: false,
                 isSubstituteOff: isSubstituteOff,
                 substituteTargetDate: substituteTargetDate,
+                otherBreakMin: otherBreakMin,
                 createdAt: new Date().toISOString()
             });
         }
@@ -2264,7 +2268,7 @@ function refreshLedgerTable(filter = {}) {
     }
 
     // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr) => {
+    const calculateWorkTime = (startStr, endStr, otherBreakMin = 0) => {
         if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
         const parseMin = (str) => {
             const [h, m] = str.split(':').map(Number);
@@ -2278,9 +2282,19 @@ function refreshLedgerTable(filter = {}) {
         const breakStart = 12 * 60; // 12:00
         const breakEnd = 13 * 60;   // 13:00
         const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-        const breakMin = hasBreak ? 60 : 0;
-        const totalMin = (endMin - startMin) - breakMin;
-        const breakHours = hasBreak ? '1時間' : '0時間';
+        const lunchBreakMin = hasBreak ? 60 : 0;
+        const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
+        
+        let breakHours = '';
+        if (lunchBreakMin > 0 && otherBreakMin > 0) {
+            breakHours = `1時間+${otherBreakMin}分`;
+        } else if (lunchBreakMin > 0) {
+            breakHours = '1時間';
+        } else if (otherBreakMin > 0) {
+            breakHours = `${otherBreakMin}分`;
+        } else {
+            breakHours = '0時間';
+        }
         const totalH = Math.floor(totalMin / 60);
         const totalM = totalMin % 60;
         const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
@@ -2326,7 +2340,7 @@ function refreshLedgerTable(filter = {}) {
         }
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(rep.startTime, rep.endTime, rep.otherBreakMin || 0);
         const totalTimeText = isOfficeWork ? '-' : times.total;
 
         // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
@@ -2389,7 +2403,7 @@ function refreshLedgerTable(filter = {}) {
         const clientName = rep.client || (site ? site.client : '-');
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(rep.startTime, rep.endTime, rep.otherBreakMin || 0);
         const totalTimeText = isOfficeWork ? '-' : times.total;
 
         // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
@@ -2523,7 +2537,7 @@ function refreshLedgerTable(filter = {}) {
                         const isSubOff = r.isSubstituteOff || siteCode === 'SUBSTITUTE_OFF';
                         
                         if (!isOfficeWork && !isSubOff) {
-                            const times = calculateWorkTime(r.startTime, r.endTime);
+                            const times = calculateWorkTime(r.startTime, r.endTime, r.otherBreakMin || 0);
                             if (times.min) workerTotalMin += times.min;
                         }
                         
@@ -2581,7 +2595,7 @@ function refreshLedgerTable(filter = {}) {
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">帰社時間</th> <!-- 新設 -->
-                                <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">休日出勤</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 70px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -2647,7 +2661,7 @@ function refreshLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(r.startTime, r.endTime, r.otherBreakMin || 0);
                     if (times.min) deptTotalMin += times.min;
                 }
             });
@@ -2703,7 +2717,7 @@ function refreshLedgerTable(filter = {}) {
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">帰社時間</th> <!-- 新設 -->
-                                        <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                         <th style="width: 70px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
                                     </tr>
@@ -2795,7 +2809,7 @@ function refreshLedgerTable(filter = {}) {
                         .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 6% !important; } /* 作業開始 */
                         .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 6% !important; } /* 作業完了 */
                         .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 7% !important; } /* 帰社時間 (新設) */
-                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 4% !important; } /* 昼休憩 */
+                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 4% !important; } /* 休憩 */
                         .data-table th:nth-child(12), .data-table td:nth-child(12) { width: 4% !important; } /* 休日出勤 */
                         .data-table th:nth-child(13), .data-table td:nth-child(13) { width: 9% !important; } /* 合計時間 */
                     </style>
@@ -4081,6 +4095,10 @@ function openReportPreviewModal(reportId) {
                             return `${depDisplay} 〜 ${retText}`;
                         })()}
                         <span style="color: var(--text-muted); margin-left: 1rem;">(現場作業時間: ${report.startTime || '-'} 〜 ${report.endTime || '-'})</span>
+                        <span style="color: var(--text-muted); margin-left: 1rem;">(休憩: ${(() => {
+                            const times = calculateWorkTime(report.startTime, report.endTime, report.otherBreakMin || 0);
+                            return times.breakTime;
+                        })()})</span>
                     </td>
                 </tr>
                 <tr>
@@ -4265,6 +4283,20 @@ function openEditReportModal(reportId) {
                 </div>
             </div>
 
+            <!-- その他休憩時間 (新規追加) -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="edit-rep-other-break">その他の休憩時間 (※昼休憩を除く)</label>
+                <select id="edit-rep-other-break" style="width: 100%; padding: 0.5rem; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light); font-size: 0.9rem;">
+                    <option value="0" ${report.otherBreakMin == 0 ? 'selected' : ''}>なし (0分)</option>
+                    <option value="15" ${report.otherBreakMin == 15 ? 'selected' : ''}>15分</option>
+                    <option value="30" ${report.otherBreakMin == 30 ? 'selected' : ''}>30分</option>
+                    <option value="45" ${report.otherBreakMin == 45 ? 'selected' : ''}>45分</option>
+                    <option value="60" ${report.otherBreakMin == 60 ? 'selected' : ''}>60分 (1時間)</option>
+                    <option value="90" ${report.otherBreakMin == 90 ? 'selected' : ''}>90分 (1.5時間)</option>
+                    <option value="120" ${report.otherBreakMin == 120 ? 'selected' : ''}>120分 (2時間)</option>
+                </select>
+            </div>
+
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label for="edit-rep-companions">同行者 (一般)</label>
                 <input type="text" id="edit-rep-companions" value="${report.companions || ''}" placeholder="例: 山田 太郎, 鈴木 次郎">
@@ -4339,6 +4371,7 @@ function openEditReportModal(reportId) {
             isDirectBack: chkBack.checked,
             returnTime: chkBack.checked ? '' : timeRet.value,
             companions: document.getElementById('edit-rep-companions').value.trim(),
+            otherBreakMin: parseInt(document.getElementById('edit-rep-other-break').value, 10) || 0,
             partnerCompanions: document.getElementById('edit-rep-partner-companions').value.trim(),
             workContent: document.getElementById('edit-rep-content').value.trim(),
             memo: document.getElementById('edit-rep-memo').value.trim()
@@ -6321,7 +6354,7 @@ function refreshPartnerLedgerTable(filter = {}) {
         const showHolidayWork = false; // 協力業者台帳では休日出勤列は不要
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(rep.startTime, rep.endTime, rep.otherBreakMin || 0);
         const totalTimeText = isOfficeWork ? '-' : times.total;
 
         // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
@@ -6450,7 +6483,7 @@ function refreshPartnerLedgerTable(filter = {}) {
 
 
     // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr) => {
+    const calculateWorkTime = (startStr, endStr, otherBreakMin = 0) => {
         if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
         const parseMin = (str) => {
             const [h, m] = str.split(':').map(Number);
@@ -6464,9 +6497,19 @@ function refreshPartnerLedgerTable(filter = {}) {
         const breakStart = 12 * 60; // 12:00
         const breakEnd = 13 * 60;   // 13:00
         const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-        const breakMin = hasBreak ? 60 : 0;
-        const totalMin = (endMin - startMin) - breakMin;
-        const breakHours = hasBreak ? '1時間' : '0時間';
+        const lunchBreakMin = hasBreak ? 60 : 0;
+        const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
+        
+        let breakHours = '';
+        if (lunchBreakMin > 0 && otherBreakMin > 0) {
+            breakHours = `1時間+${otherBreakMin}分`;
+        } else if (lunchBreakMin > 0) {
+            breakHours = '1時間';
+        } else if (otherBreakMin > 0) {
+            breakHours = `${otherBreakMin}分`;
+        } else {
+            breakHours = '0時間';
+        }
         const totalH = Math.floor(totalMin / 60);
         const totalM = totalMin % 60;
         const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
@@ -6578,7 +6621,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
-                                <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">休日出勤</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
@@ -6647,7 +6690,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(r.startTime, r.endTime, r.otherBreakMin || 0);
                     if (times.min) deptTotalMin += times.min;
                 }
             });
@@ -6689,7 +6732,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                         <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
-                                        <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                         <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>

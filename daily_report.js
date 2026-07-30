@@ -518,6 +518,20 @@ function renderBatchInputForm(container) {
                 <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
             </div>
             
+            <!-- その他休憩時間 (新規追加) -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label style="font-size: 0.85rem; font-weight: 600;">その他の休憩時間 (※昼休憩を除く)</label>
+                <select class="sel-row-other-break" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <option value="0">なし (0分)</option>
+                    <option value="15">15分</option>
+                    <option value="30">30分</option>
+                    <option value="45">45分</option>
+                    <option value="60">60分 (1時間)</option>
+                    <option value="90">90分 (1.5時間)</option>
+                    <option value="120">120分 (2時間)</option>
+                </select>
+            </div>
+            
             <div style="background: rgba(59,130,246,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0;">
                 <div style="font-size: 0.75rem; color: var(--color-danger); font-weight: bold; margin-bottom: 0.5rem; line-height: 1.4;">
                     ※ 同行者と協力会社同行者が重複しないようご注意ください。<br>
@@ -789,6 +803,7 @@ function renderBatchInputForm(container) {
             const departureTime = card.querySelector('.time-row-dep').value;
             const isDirectBack = card.querySelector('.chk-row-back').checked;
             const returnTime = card.querySelector('.time-row-ret').value;
+            const otherBreakMin = parseInt(card.querySelector('.sel-row-other-break').value, 10) || 0;
             
             if (!name) {
                 window.app.showToast(`${i + 1}件目の現場名称を入力してください`, 'error');
@@ -865,6 +880,7 @@ function renderBatchInputForm(container) {
                 companions,
                 partnerCompanions,
                 isOfficeWork, // 事務仕事フラグを保存
+                otherBreakMin, // その他休憩時間(分)を保存
                 isHolidayWork, // 休日出勤フラグを保存
                 holidayWorkType, // 休日出勤区分（substitute / allowance）を保存
                 client, // 個別に入力された受注先も保存
