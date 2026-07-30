@@ -63,36 +63,32 @@ async function syncSitesFromCloud() {
             }
         });
         
-        if (cloudSites.length > 0) {
-            const localSites = window.SiteDB.getAll();
-            const cloudIds = cloudSites.map(cs => cs.id);
-            
-            // 1. クラウド側とローカル側の現場データをメモリ上で一括マージ（超高速化 / フリーズ防止）
-            let mergedSites = [...localSites];
-            let hasChanges = false;
-            
-            cloudSites.forEach(cs => {
-                const existIndex = mergedSites.findIndex(ls => ls.id === cs.id || (cs.code && ls.code === cs.code));
-                if (existIndex !== -1) {
+        // クラウド側が空（現場がゼロ）の場合もマージと削除を正常に処理する
+        const localSites = window.SiteDB.getAll();
+        const cloudIds = cloudSites.map(cs => cs.id);
+        
+        // 1. クラウド側とローカル側の現場データをメモリ上でマージ
+        let mergedSites = [...localSites];
+        let hasChanges = false;
+        
+        cloudSites.forEach(cs => {
+            const existIndex = mergedSites.findIndex(ls => ls.id === cs.id || (cs.code && ls.code === cs.code));
+            if (existIndex !== -1) {
+                const isDiff = JSON.stringify(mergedSites[existIndex]) !== JSON.stringify({ ...mergedSites[existIndex], ...cs });
+                if (isDiff) {
                     mergedSites[existIndex] = { ...mergedSites[existIndex], ...cs };
                     hasChanges = true;
-                } else {
-                    mergedSites.push(cs);
-                    hasChanges = true;
                 }
-            });
-            
-            // 2. クラウドに存在しない（PC側で削除された）現場を一括除外
-            const finalSites = mergedSites.filter(ls => cloudIds.includes(ls.id));
-            if (finalSites.length !== mergedSites.length) {
+            } else {
+                mergedSites.push(cs);
                 hasChanges = true;
             }
-            
-            // 変更があった場合のみ、最後に1回だけデータベースへ保存
-            if (hasChanges) {
-                window.SiteDB.saveAll(finalSites);
-            }
-            
+        });
+        
+        // 2. クラウドに存在しない（PC側で削除または空にされた）現場を完全に除外
+        const finalSites = mergedSites.filter(ls => cloudIds.includes(ls.id));
+        if (finalSites.length !== localSites.length || hasChanges) {
+            window.SiteDB.saveAll(finalSites);
             renderDatalists();
         }
     } catch (e) {
@@ -466,17 +462,17 @@ function renderBatchInputForm(container) {
             <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.75rem;">
                 <div class="form-group" style="flex: 3; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">工事番号</label>
-                    <input type="text" class="txt-row-code" list="suggest-site-codes" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-code" list="suggest-site-codes" placeholder="例: AB123" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false">
                 </div>
                 <div class="form-group" style="flex: 7; margin-bottom:0;">
                     <label style="font-size: 0.8rem; font-weight: 600;">受注先 (顧客/元請)</label>
-                    <input type="text" class="txt-row-client" list="suggest-site-clients" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;">
+                    <input type="text" class="txt-row-client" list="suggest-site-clients" placeholder="例: ○○建設、個人宅" style="padding: 0.7rem; font-size: 0.9rem; border-radius: 8px;" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false">
                 </div>
             </div>
             
             <div class="form-group" style="margin-bottom: 1rem; position: relative;">
                 <label style="font-size: 0.85rem; font-weight: 600;">現場名称 <span style="color: var(--color-danger);">*</span></label>
-                <input type="text" class="txt-row-name" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;" autocomplete="off">
+                <input type="text" class="txt-row-name" required placeholder="例: 渋谷ビル新築" style="padding: 0.75rem; font-size: 0.95rem; border-radius: 10px;" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false">
                 <div class="suggest-dropdown" style="display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; max-height: 135px; overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 2px;"></div>
             </div>
             
@@ -520,6 +516,55 @@ function renderBatchInputForm(container) {
             <div class="form-group">
                 <label style="font-size: 0.85rem; font-weight: 600;">作業内容 <span style="color: var(--color-danger);">*</span></label>
                 <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
+            </div>
+            
+            <!-- その他休憩時間帯の入力 (時間指定) -->
+            <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
+                <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 1</label>
+                        <input type="time" class="time-row-break-start" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 1</label>
+                        <input type="time" class="time-row-break-end" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                    <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
+                        <input type="checkbox" class="chk-add-break2" style="width:1rem; height:1rem; cursor:pointer;">
+                        <span>休憩2を追加</span>
+                    </label>
+                    <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
+                        <input type="checkbox" class="chk-add-break3" style="width:1rem; height:1rem; cursor:pointer;">
+                        <span>休憩3を追加</span>
+                    </label>
+                </div>
+
+                <!-- その他休憩2 -->
+                <div class="form-row row-break2" style="gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 2</label>
+                        <input type="time" class="time-row-break-start2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 2</label>
+                        <input type="time" class="time-row-break-end2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    </div>
+                </div>
+
+                <!-- その他休憩3 -->
+                <div class="form-row row-break3" style="gap: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 3</label>
+                        <input type="time" class="time-row-break-start3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 3</label>
+                        <input type="time" class="time-row-break-end3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    </div>
+                </div>
             </div>
             
             <div style="background: rgba(59,130,246,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0;">
@@ -698,6 +743,32 @@ function renderBatchInputForm(container) {
             }
         });
 
+        // 休憩2・3の追加チェックボックスのイベント連動
+        const chkBreak2 = card.querySelector('.chk-add-break2');
+        const rowBreak2 = card.querySelector('.row-break2');
+        const chkBreak3 = card.querySelector('.chk-add-break3');
+        const rowBreak3 = card.querySelector('.row-break3');
+
+        chkBreak2.addEventListener('change', () => {
+            if (chkBreak2.checked) {
+                rowBreak2.style.display = 'flex';
+            } else {
+                rowBreak2.style.display = 'none';
+                card.querySelector('.time-row-break-start2').value = '';
+                card.querySelector('.time-row-break-end2').value = '';
+            }
+        });
+
+        chkBreak3.addEventListener('change', () => {
+            if (chkBreak3.checked) {
+                rowBreak3.style.display = 'flex';
+            } else {
+                rowBreak3.style.display = 'none';
+                card.querySelector('.time-row-break-start3').value = '';
+                card.querySelector('.time-row-break-end3').value = '';
+            }
+        });
+
         updateRowNumbers();
         if (window.lucide) {
             window.lucide.createIcons();
@@ -793,6 +864,12 @@ function renderBatchInputForm(container) {
             const departureTime = card.querySelector('.time-row-dep').value;
             const isDirectBack = card.querySelector('.chk-row-back').checked;
             const returnTime = card.querySelector('.time-row-ret').value;
+            const otherBreakStart = card.querySelector('.time-row-break-start').value;
+            const otherBreakEnd = card.querySelector('.time-row-break-end').value;
+            const otherBreakStart2 = card.querySelector('.time-row-break-start2').value;
+            const otherBreakEnd2 = card.querySelector('.time-row-break-end2').value;
+            const otherBreakStart3 = card.querySelector('.time-row-break-start3').value;
+            const otherBreakEnd3 = card.querySelector('.time-row-break-end3').value;
             
             if (!name) {
                 window.app.showToast(`${i + 1}件目の現場名称を入力してください`, 'error');
@@ -869,6 +946,12 @@ function renderBatchInputForm(container) {
                 companions,
                 partnerCompanions,
                 isOfficeWork, // 事務仕事フラグを保存
+                otherBreakStart, // その他休憩開始時間を保存
+                otherBreakEnd, // その他休憩終了時間を保存
+                otherBreakStart2, // その他休憩開始時間2を保存
+                otherBreakEnd2, // その他休憩終了時間2を保存
+                otherBreakStart3, // その他休憩開始時間3を保存
+                otherBreakEnd3, // その他休憩終了時間3を保存
                 isHolidayWork, // 休日出勤フラグを保存
                 holidayWorkType, // 休日出勤区分（substitute / allowance）を保存
                 client, // 個別に入力された受注先も保存

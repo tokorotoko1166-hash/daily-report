@@ -1,4 +1,75 @@
 try {
+// 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
+function getSplitReports(rawReports) {
+    if (!rawReports) return [];
+    const splitList = [];
+    rawReports.forEach(rep => {
+        if (rep.isSubstituteOff || !rep.startTime || !rep.endTime) {
+            splitList.push(rep);
+            return;
+        }
+
+        // 開始・終了時間を数値化して日付またぎ判定 (例: 22:00 -> 2200, 02:00 -> 200)
+        const startVal = parseInt(rep.startTime.replace(':', ''), 10);
+        const endVal = parseInt(rep.endTime.replace(':', ''), 10);
+
+        if (endVal < startVal) {
+            // 24:00を跨ぐ深夜勤務！自動的に前日分と翌日分に2分割する
+            
+            // ① 前日分 (開始時間 〜 24:00)
+            const repPart1 = {
+                ...rep,
+                id: `${rep.id}_part1`,
+                endTime: '24:00',
+                workContent: `${rep.workContent} (またぎ分割: 前日分)`
+            };
+            splitList.push(repPart1);
+
+            // ② 翌日分 (00:00 〜 終了時間)
+            let nextDateStr = '';
+            try {
+                const dateParts = rep.date.split('-');
+                const d = new Date(parseInt(dateParts[0], 10), parseInt(dateParts[1], 10) - 1, parseInt(dateParts[2], 10));
+                d.setDate(d.getDate() + 1);
+                
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                nextDateStr = `${y}-${m}-${day}`;
+            } catch (e) {
+                nextDateStr = rep.date;
+            }
+
+            const repPart2 = {
+                ...rep,
+                id: `${rep.id}_part2`,
+                date: nextDateStr, // 翌日の日付へ
+                startTime: '00:00',
+                endTime: rep.endTime,
+                workContent: `${rep.workContent} (またぎ分割: 翌日分)`
+            };
+            splitList.push(repPart2);
+        } else {
+            // 通常の日報データ
+            splitList.push(rep);
+        }
+    });
+    return splitList;
+}
+
+// 早出 (07:00より前) 判定ヘルパー
+function isEarlyDeparture(timeStr) {
+    if (!timeStr || timeStr === '直行' || timeStr === '-') return false;
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return false;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    return (h * 60 + m) < (7 * 60); // 7:00未満
+}
+
+
+
+
 if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 
 // =========================================================================
@@ -7,6 +78,9 @@ if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 // =========================================================================
 window.generateMassiveDatasetOnMemory = function(onComplete) {
     try {
+
+
+
         console.time("MassiveDataGen");
         
         // 作業員 36名
@@ -46,7 +120,7 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
 
         let siteCounter = 1;
         departments.forEach(dept => {
-            for (let i = 1; i <= 160; i++) {
+            for (let i = 1; i <= 320; i++) {
                 const id = `site_mass_${siteCounter}`;
                 const code = `${dept}-${1000 + i}`;
                 const name = `${dept} ${pPrefixes[i % pPrefixes.length]}${siteTypes[i % siteTypes.length]}`;
@@ -84,24 +158,91 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
         const nowMs = Date.now();
         const dayMs = 24 * 60 * 60 * 1000;
 
-        for (let i = 1; i <= 10000; i++) {
+        for (let i = 1; i <= 40000; i++) {
             const offset = (i % 365);
             const d = new Date(nowMs - offset * dayMs);
             const dateStr = d.toISOString().split('T')[0];
             const siteId = siteIds[i % siteIds.length];
             const writer = workers[i % workers.length];
             const partnerStr = (i % 10 < 7) ? `${partners[i % partners.length]}、${partners[(i + 3) % partners.length]}` : "";
-            
+
+            // 早出 (7:00前) の仕込み (約10%)
+            let departureTime = "07:30";
+            let isDirectGo = false;
+            if (i % 10 === 1) {
+                departureTime = (i % 2 === 0) ? "06:30" : "06:50"; // 7:00前の早出
+            } else if (i % 10 === 2) {
+                isDirectGo = true; // 直行
+                departureTime = "";
+            }
+
+            // 深夜またぎ工事の仕込み (約10%)
+            let startTime = "08:00";
+            let endTime = "17:00";
+            let workContentText = workContents[i % workContents.length];
+            if (i % 10 === 3) {
+                startTime = "22:00";
+                endTime = "02:00"; // 跨ぎ時間
+                workContentText = "電気配線深夜工事 (跨ぎ勤務)";
+            }
+
+            // 代休 (休み取得 ＆ 元出勤日) の仕込み (約8%)
+            const isSubstituteOff = (i % 12 === 0);
+            let substituteTargetDate = "";
+            if (isSubstituteOff) {
+                const prevD = new Date(d.getTime() - 7 * dayMs); // 7日前を出勤日とする
+                substituteTargetDate = prevD.toISOString().split('T')[0];
+                workContentText = ""; // 代休のため作業内容は空
+            }
+
+            // その他休憩時間帯をテストデータにランダム仕込み
+            let otherBreakStart = "";
+            let otherBreakEnd = "";
+            let otherBreakStart2 = "";
+            let otherBreakEnd2 = "";
+            let otherBreakStart3 = "";
+            let otherBreakEnd3 = "";
+            if (!isSubstituteOff) {
+                if (i % 7 === 0) {
+                    otherBreakStart = "15:00";
+                    otherBreakEnd = "15:30";
+                } else if (i % 11 === 0) {
+                    otherBreakStart = "10:00";
+                    otherBreakEnd = "10:15";
+                }
+
+                // 複数休憩のテスト
+                if (i % 13 === 0) {
+                    otherBreakStart2 = "10:00";
+                    otherBreakEnd2 = "10:15";
+                    otherBreakStart3 = "15:00";
+                    otherBreakEnd3 = "15:15";
+                }
+            }
+
             reports.push({
                 id: `rep_mass_${i}`,
-                siteId: siteId,
+                siteId: isSubstituteOff ? "site_substitute_off" : siteId,
+                siteCode: isSubstituteOff ? "SUBSTITUTE_OFF" : "",
                 date: dateStr,
                 writer: writer,
-                startTime: "08:00",
-                endTime: "17:00",
-                workContent: workContents[i % workContents.length],
-                partnerCompanions: partnerStr,
+                isDirectGo: isDirectGo,
+                departureTime: isDirectGo ? "" : departureTime,
+                startTime: isSubstituteOff ? "" : startTime,
+                endTime: isSubstituteOff ? "" : endTime,
+                isDirectBack: (i % 10 === 4),
+                returnTime: (i % 10 === 4) ? "" : "17:30",
+                workContent: workContentText,
+                partnerCompanions: isSubstituteOff ? "" : partnerStr,
                 isOfficeWork: false,
+                isSubstituteOff: isSubstituteOff,
+                substituteTargetDate: substituteTargetDate,
+                otherBreakStart: otherBreakStart,
+                otherBreakEnd: otherBreakEnd,
+                otherBreakStart2: otherBreakStart2,
+                otherBreakEnd2: otherBreakEnd2,
+                otherBreakStart3: otherBreakStart3,
+                otherBreakEnd3: otherBreakEnd3,
                 createdAt: new Date().toISOString()
             });
         }
@@ -116,7 +257,7 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
             ["単管パイプ 4.0m", "本", "日信金属", 1800]
         ];
 
-        for (let i = 1; i <= 20000; i++) {
+        for (let i = 1; i <= 40000; i++) {
             const offset = (i % 365);
             const d = new Date(nowMs - offset * dayMs);
             const dateStr = d.toISOString().split('T')[0];
@@ -214,6 +355,9 @@ window.app = {
  */
 function router() {
     try {
+
+
+
         const hash = window.location.hash || '#ledger';
         const container = document.getElementById('view-container');
         const pageTitle = document.getElementById('page-title');
@@ -913,12 +1057,9 @@ function refreshPurchaseListTable(filter) {
                     <td style="padding: 0.75rem; text-align: right; font-weight: bold; font-family: 'Inter', sans-serif; color: var(--color-primary);">¥${Math.round(total).toLocaleString()}</td>
                     <td style="padding: 0.75rem; text-align: right; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-success);">${rateText}</td>
                     <td style="padding: 0.75rem; text-align: center;">
-                        <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                            <button class="btn-icon btn-edit-purchase" data-id="${pur.id}" title="編集" style="color: var(--color-info);">
-                                <i data-lucide="edit-2"></i>
-                            </button>
-                            <button class="btn-icon btn-delete-purchase" data-id="${pur.id}" title="削除" style="color: var(--color-danger);">
-                                <i data-lucide="trash-2"></i>
+                        <div style="display: flex; justify-content: center;">
+                            <button class="btn btn-primary btn-edit-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                編集
                             </button>
                         </div>
                     </td>
@@ -1276,7 +1417,7 @@ function renderSiteListTable(container) {
         window.lucide.createIcons();
     }
 
-    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（現場台帳一覧）
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（作業日報一覧）
     setTimeout(() => {
         const toolbar = container.querySelector('.toolbar');
         const mainContent = document.querySelector('.main-content');
@@ -1523,7 +1664,7 @@ function refreshSiteTable(filter = {}) {
     };
 
     let sites = window.SiteDB.getAll() || [];
-    const reports = window.ReportDB.getAll() || [];
+    const reports = getSplitReports(window.ReportDB.getAll() || []);
     const reportSiteCodes = new Set(reports.map(r => r.siteCode).filter(Boolean));
 
     // 自動ステータス更新処理を廃止（localStorageへの過剰な書き込みを防止するため、表示時オンメモリ判定に統合）
@@ -1966,7 +2107,7 @@ function renderLedgerList(container) {
         }
     }
 
-    const allReports = window.ReportDB.getAll() || [];
+    const allReports = getSplitReports(window.ReportDB.getAll() || []);
     const uniqueWriters = [...new Set(allReports.map(r => r.writer).filter(Boolean))].sort();
     const uniqueMonths = [...new Set(allReports.map(r => getClosingMonth(r.date)).filter(Boolean))].sort().reverse();
 
@@ -2015,7 +2156,7 @@ function renderLedgerList(container) {
         window.lucide.createIcons();
     }
 
-    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（現場台帳一覧）
+    // 【仕様追加】JSスクロールによるツールバー強制固定化制御（作業日報一覧）
     setTimeout(() => {
         const toolbar = container.querySelector('.toolbar');
         const mainContent = document.querySelector('.main-content');
@@ -2095,7 +2236,7 @@ function refreshLedgerTable(filter = {}) {
     const container = document.getElementById('ledger-list-container');
     if (!container) return;
 
-    let reports = window.ReportDB.getAll() || [];
+    let reports = getSplitReports(window.ReportDB.getAll() || []);
     const sites = window.SiteDB.getAll() || [];
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
@@ -2154,7 +2295,7 @@ function refreshLedgerTable(filter = {}) {
     }
 
     // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr) => {
+    const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
         if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
         const parseMin = (str) => {
             const [h, m] = str.split(':').map(Number);
@@ -2165,19 +2306,54 @@ function refreshLedgerTable(filter = {}) {
         if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
             return { start: startStr, end: endStr, breakTime: '-', total: '-' };
         }
+        
+        // その他休憩時間(分)の計算
+        let otherBreakMin = 0;
+        const addBreak = (s, e) => {
+            if (s && e) {
+                const obStart = parseMin(s);
+                const obEnd = parseMin(e);
+                if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
+                    otherBreakMin += (obEnd - obStart);
+                    return `${s}〜${e}`;
+                }
+            }
+            return null;
+        };
+
+        const breakRanges = [];
+        const r1 = addBreak(otherBreakStart, otherBreakEnd);
+        if (r1) breakRanges.push(r1);
+        const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
+        if (r2) breakRanges.push(r2);
+        const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
+        if (r3) breakRanges.push(r3);
+
         const breakStart = 12 * 60; // 12:00
         const breakEnd = 13 * 60;   // 13:00
         const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-        const breakMin = hasBreak ? 60 : 0;
-        const totalMin = (endMin - startMin) - breakMin;
-        const breakHours = hasBreak ? '1時間' : '0時間';
+        const lunchBreakMin = hasBreak ? 60 : 0;
+        const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
+        
+        let breakHours = '';
+        const otherBreakStr = breakRanges.join(', ');
+
+        if (lunchBreakMin > 0 && otherBreakStr) {
+            breakHours = `1時間(${otherBreakStr})`;
+        } else if (lunchBreakMin > 0) {
+            breakHours = '1時間';
+        } else if (otherBreakStr) {
+            breakHours = otherBreakStr;
+        } else {
+            breakHours = '0時間';
+        }
         const totalH = Math.floor(totalMin / 60);
         const totalM = totalMin % 60;
         const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
         return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
     };
 
-    // 現場台帳一覧用の行HTMLジェネレーター (11列)
+    // 作業日報一覧用の行HTMLジェネレーター (11列)
     const generateLedgerRow = (rep, showHolidayWork = false) => {
         const site = siteMap.get(rep.siteId);
         const siteCode = rep.siteCode || (site ? site.code : '-');
@@ -2191,26 +2367,25 @@ function refreshLedgerTable(filter = {}) {
             if (showHolidayWork) {
                 holidayTd = `<td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>`;
             }
-            const targetDateText = rep.substituteTargetDate ? `<div style="font-size: 0.72rem; color: var(--color-warning); margin-top: 0.2rem; font-weight: bold;">(元出勤日: ${rep.substituteTargetDate.replace(/-/g, '/')})</div>` : '';
+            const formattedSubDate = rep.substituteTargetDate ? rep.substituteTargetDate.replace(/-/g, '/') : '未設定';
             return `
                 <tr style="border-bottom: 1px solid var(--border-light); background: rgba(245,158,11,0.02);">
                     <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem;">${formattedDate}</td>
                     <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem; color: var(--text-muted);">-</td>
-                    <td style="padding: 0.75rem;">
-                        <span style="background:var(--color-warning); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.75rem; font-weight:bold;">代休 (休み取得)</span>
-                        ${targetDateText}
-                    </td>
                     <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
-                    <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">代休消化による休日 (元出勤: ${rep.substituteTargetDate || '未設定'})</td>
+                    <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
+                    <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">代休消化による休日 (元出勤: ${formattedSubDate})</td>
                     <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">${rep.writer}</td>
-                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 出発 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 開始 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 完了 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 帰社 -->
+                    <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 休憩 -->
                     ${holidayTd}
                     <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
                     <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                        <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                            <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                        <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                            編集
                         </button>
                     </td>
                 </tr>
@@ -2218,8 +2393,21 @@ function refreshLedgerTable(filter = {}) {
         }
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(
+            rep.startTime, rep.endTime,
+            rep.otherBreakStart || '', rep.otherBreakEnd || '',
+            rep.otherBreakStart2 || '', rep.otherBreakEnd2 || '',
+            rep.otherBreakStart3 || '', rep.otherBreakEnd3 || ''
+        );
         const totalTimeText = isOfficeWork ? '-' : times.total;
+
+        // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
+        const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
+        const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+        const depDisplay = depIsEarly 
+            ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+            : depText;
+        const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
@@ -2242,8 +2430,10 @@ function refreshLedgerTable(filter = {}) {
                 <td style="padding: 0.75rem;">${clientName}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${allWorkers}">${workerSnippet}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${depDisplay}</td> <!-- 出発 -->
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${retText}</td> <!-- 帰社 -->
                 <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
                 ${showHolidayWork ? `
                     <td style="text-align: center; padding: 0.75rem;">
@@ -2254,8 +2444,8 @@ function refreshLedgerTable(filter = {}) {
                     ${totalTimeText}
                 </td>
                 <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                    <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                        編集
                     </button>
                 </td>
             </tr>
@@ -2271,8 +2461,21 @@ function refreshLedgerTable(filter = {}) {
         const clientName = rep.client || (site ? site.client : '-');
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(
+            rep.startTime, rep.endTime,
+            rep.otherBreakStart || '', rep.otherBreakEnd || '',
+            rep.otherBreakStart2 || '', rep.otherBreakEnd2 || '',
+            rep.otherBreakStart3 || '', rep.otherBreakEnd3 || ''
+        );
         const totalTimeText = isOfficeWork ? '-' : times.total;
+
+        // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
+        const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
+        const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+        const depDisplay = depIsEarly 
+            ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+            : depText;
+        const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
@@ -2295,8 +2498,10 @@ function refreshLedgerTable(filter = {}) {
                 <td style="padding: 0.75rem;">${clientName}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${allWorkers}">${workerSnippet}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${depDisplay}</td> <!-- 出発 -->
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
+                <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${retText}</td> <!-- 帰社 -->
                 <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
                 ${showHolidayWork ? `
                     <td style="text-align: center; padding: 0.75rem;">
@@ -2307,8 +2512,8 @@ function refreshLedgerTable(filter = {}) {
                     ${totalTimeText}
                 </td>
                 <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                    <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                        編集
                     </button>
                 </td>
             </tr>
@@ -2374,14 +2579,16 @@ function refreshLedgerTable(filter = {}) {
                         <tr style="border-bottom: 1px solid var(--border-light); background: rgba(255,255,255,0.005); opacity: 0.7;">
                             <td style="font-family: 'Inter', sans-serif; font-size: 0.85rem; padding: 0.75rem; ${dateColorStyle}">${formattedD} (${dayStr})</td>
                             <td style="font-family: 'Inter', sans-serif; font-weight: 600; padding: 0.75rem; color: var(--text-muted);">-</td>
-                            <td style="padding: 0.75rem; color: var(--text-muted); font-style: italic;">[ 休日 ]</td>
+                            <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
                             <td style="padding: 0.75rem; color: var(--text-muted);">-</td>
                             <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">休日</td>
                             <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);">${filter.writer}</td>
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
-                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td>
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 出発 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 開始 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 完了 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 帰社 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 休憩 -->
+                            <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">-</td> <!-- 休日出勤 -->
                             <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); padding: 0.75rem;">-</td>
                             <td style="text-align: center; padding: 0.75rem;" class="no-print">-</td>
                         </tr>
@@ -2394,7 +2601,12 @@ function refreshLedgerTable(filter = {}) {
                         const isSubOff = r.isSubstituteOff || siteCode === 'SUBSTITUTE_OFF';
                         
                         if (!isOfficeWork && !isSubOff) {
-                            const times = calculateWorkTime(r.startTime, r.endTime);
+                            const times = calculateWorkTime(
+                                r.startTime, r.endTime,
+                                r.otherBreakStart || '', r.otherBreakEnd || '',
+                                r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                                r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                            );
                             if (times.min) workerTotalMin += times.min;
                         }
                         
@@ -2448,9 +2660,11 @@ function refreshLedgerTable(filter = {}) {
                                 <th style="text-align: left; padding: 0.75rem;">受注先 (元請/顧客)</th>
                                 <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                 <th style="text-align: left; padding: 0.75rem;">作業員</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">出発時間</th> <!-- 新設 -->
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
-                                <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">帰社時間</th> <!-- 新設 -->
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">休日出勤</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 70px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -2516,7 +2730,12 @@ function refreshLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(
+                        r.startTime, r.endTime,
+                        r.otherBreakStart || '', r.otherBreakEnd || '',
+                        r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                        r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                    );
                     if (times.min) deptTotalMin += times.min;
                 }
             });
@@ -2568,9 +2787,11 @@ function refreshLedgerTable(filter = {}) {
                                         <th style="text-align: left; padding: 0.75rem;">受注先 (元請/顧客)</th>
                                         <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                         <th style="text-align: left; padding: 0.75rem;">作業員</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">出発時間</th> <!-- 新設 -->
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
-                                        <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">帰社時間</th> <!-- 新設 -->
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                         <th style="width: 70px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
                                     </tr>
@@ -2608,21 +2829,67 @@ function refreshLedgerTable(filter = {}) {
             const printContent = document.getElementById('worker-print-area').innerHTML;
             const originalContent = document.body.innerHTML;
             
-            // 印刷用の一時的なDOM構築
+            const bodyClass = document.body.className;
+            const bodyStyle = document.body.getAttribute('style') || '';
+            const headStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(el => el.outerHTML).join('\n');
+            
+            // 印刷用の一時的なDOM構築 (ブラウザの表示スタイル・テーマを完全維持)
             document.body.innerHTML = `
-                <div style="padding: 1cm; background: white; color: black; font-family: sans-serif;">
+                <div class="${bodyClass}" style="${bodyStyle} padding: 1.5rem !important; min-height: 100vh; background: var(--bg-body) !important; color: var(--text-main) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; width: 100%;">
+                    ${headStyles}
                     <style>
-                        table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                        th, td { border: 1px solid #666; padding: 4px 6px; text-align: left; }
-                        th { background-color: #eee; font-weight: bold; }
+                        html, body { 
+                            margin: 0 !important; 
+                            padding: 0 !important; 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            background: var(--bg-body) !important; 
+                            color: var(--text-main) !important;
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important;
+                            overflow: visible !important;
+                            zoom: 75% !important; /* 🚨 印刷設定が100%でも自動で75%サイズに縮小 */
+                        }
+                        /* 印刷時に枠が縮こまらないよう、アコーディオンとコンテンツ全体の最大幅制限を強制解除 */
+                        .dept-accordion, .dept-content, .table-responsive { 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            margin: 0 0 10px 0 !important; 
+                            padding: 0 !important; 
+                            overflow: visible !important; 
+                            box-shadow: none !important;
+                        }
+                        .dept-header {
+                            width: 100% !important;
+                            max-width: 100% !important;
+                            padding: 8px 12px !important;
+                        }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 11px !important; table-layout: fixed !important; background: transparent !important; }
+                        th, td { border: 1px solid var(--border-light) !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
+                        th { background-color: rgba(255,255,255,0.03) !important; font-weight: bold !important; color: var(--text-main) !important; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
-                        @page { size: A4 landscape; margin: 1cm; }
+                        @page { size: A4 landscape; margin: 4mm !important; }
                         body { margin: 0; }
+                        
+                        /* カラム幅を用紙幅100%に合わせてパーセント比率で強制引き延ばし (13列に最適化) */
+                        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 8% !important; } /* 日付 */
+                        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 7% !important; } /* 工事番号 */
+                        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 15% !important; } /* 現場名称 */
+                        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 12% !important; } /* 受注先 */
+                        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 18% !important; } /* 作業内容 */
+                        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 7% !important; } /* 作業員 */
+                        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 7% !important; } /* 出発時間 (新設) */
+                        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 6% !important; } /* 作業開始 */
+                        .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 6% !important; } /* 作業完了 */
+                        .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 7% !important; } /* 帰社時間 (新設) */
+                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 4% !important; } /* 休憩 */
+                        .data-table th:nth-child(12), .data-table td:nth-child(12) { width: 4% !important; } /* 休日出勤 */
+                        .data-table th:nth-child(13), .data-table td:nth-child(13) { width: 9% !important; } /* 合計時間 */
                     </style>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h2 style="font-size: 20px; margin: 0 0 10px 0;">作業員: ${filter.writer} 業務日報・現場台帳</h2>
-                        <div style="text-align: right; font-size: 12px;">出力日時: ${new Date().toLocaleString()}</div>
+                    <div style="text-align: center; margin-bottom: 20px; color: var(--text-main) !important;">
+                        <h2 style="font-size: 20px; margin: 0 0 10px 0; color: var(--text-main) !important;">作業員: ${filter.writer} 業務日報・現場台帳</h2>
+                        <div style="text-align: right; font-size: 12px; color: var(--text-muted) !important;">出力日時: ${new Date().toLocaleString()}</div>
                     </div>
                     ${printContent}
                 </div>
@@ -2716,7 +2983,7 @@ function renderLedgerDetail(container, siteId) {
         container.innerHTML = `
             <div class="card" style="text-align: center; padding: 3rem 0;">
                 <p style="color: var(--text-danger); font-weight: 500; margin-bottom: 1rem;">指定された現場情報が見つかりません。</p>
-                <button class="btn btn-secondary" onclick="window.location.hash = '#ledger'">現場台帳一覧に戻る</button>
+                <button class="btn btn-secondary" onclick="window.location.hash = '#ledger'">作業日報一覧に戻る</button>
             </div>
         `;
         return;
@@ -2751,7 +3018,7 @@ function renderLedgerDetail(container, siteId) {
         <div style="margin-bottom: 1.5rem;" class="no-print">
             <button class="btn btn-secondary" id="btn-detail-back">
                 <i data-lucide="arrow-left"></i>
-                <span>現場台帳一覧に戻る</span>
+                <span>作業日報一覧に戻る</span>
             </button>
         </div>
 
@@ -2894,9 +3161,13 @@ function renderReportsTab(container, reports) {
                     </thead>
                     <tbody>
                         ${reports.map(rep => {
+                            const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
                             const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+                            const depDisplay = depIsEarly 
+                                ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+                                : depText;
                             const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
-                            const timeRoute = `${depText} 〜 ${retText}`;
+                            const timeRoute = `${depDisplay} 〜 ${retText}`;
 
                             const workTime = `${rep.startTime || '-'} 〜 ${rep.endTime || '-'}`;
                             let snippet = rep.workContent || '';
@@ -2995,11 +3266,8 @@ function renderPurchasesTab(container, purchases, siteId) {
                                     </td>
                                     <td>
                                         <div class="table-actions" style="justify-content: center;">
-                                            <button class="btn btn-secondary btn-icon-only btn-edit-purchase" data-id="${pur.id}" title="編集" style="width: 1.8rem; height: 1.8rem; padding:0;">
-                                                <i data-lucide="edit-3" style="width: 0.85rem; height: 0.85rem;"></i>
-                                            </button>
-                                            <button class="btn btn-danger btn-icon-only btn-delete-purchase" data-id="${pur.id}" title="削除" style="width: 1.8rem; height: 1.8rem; padding:0;">
-                                                <i data-lucide="trash-2" style="width: 0.85rem; height: 0.85rem;"></i>
+                                            <button class="btn btn-primary btn-edit-purchase" data-id="${pur.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                                編集
                                             </button>
                                         </div>
                                     </td>
@@ -3393,8 +3661,15 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
                 </div>
             </div>
 
-            <div class="modal-footer" style="display: flex; justify-content: space-between;">
-                <button type="button" class="btn btn-secondary" id="btn-pur-cancel">閉じる</button>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <button type="button" class="btn btn-secondary" id="btn-pur-cancel">閉じる</button>
+                    ${isEdit ? `
+                    <button type="button" class="btn btn-danger" id="btn-pur-delete" style="background: var(--color-danger); color: white; margin-left: 0.5rem;">
+                        この仕入れを削除
+                    </button>
+                    ` : ''}
+                </div>
                 <div style="display: flex; gap: 0.5rem;">
                     ${!isEdit ? '<button type="button" class="btn btn-info" id="btn-pur-save-continue" style="background:var(--color-info); color:white;">連続して登録</button>' : ''}
                     <button type="submit" class="btn btn-primary">${isEdit ? '変更を保存' : '登録して閉じる'}</button>
@@ -3539,6 +3814,9 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
             }
 
             try {
+
+
+
                 const arrayBuffer = await file.arrayBuffer();
                 const pdfjsLib = window['pdfjs-dist/build/pdf'];
                 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
@@ -3777,6 +4055,22 @@ function openPurchaseModal(siteId, purchaseId = null, callback = null) {
         }
     });
 
+    // モーダル内からの削除処理 (新規追加)
+    const btnDelete = document.getElementById('btn-pur-delete');
+    if (btnDelete && isEdit) {
+        btnDelete.addEventListener('click', () => {
+            if (confirm('この仕入れデータを本当に削除しますか？\n(削除したデータは元に戻せません)')) {
+                window.PurchaseDB.delete(purchaseId);
+                if (window.CloudSync && window.CloudSync.isEnabled()) {
+                    syncPurchasesToCloud();
+                }
+                window.app.showToast('仕入れデータを削除しました', 'success');
+                closeModal();
+                if (callback) callback();
+            }
+        });
+    }
+
     // 連続して登録
     const btnContinue = document.getElementById('btn-pur-save-continue');
     if (btnContinue) {
@@ -3865,8 +4159,25 @@ function openReportPreviewModal(reportId) {
                 <tr>
                     <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">勤務時間</th>
                     <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light); font-family: 'Inter';">
-                        ${report.isDirectGo ? '直行' : (report.departureTime || '-')} 〜 ${report.isDirectBack ? '直帰' : (report.returnTime || '-')}
+                        ${(() => {
+                            const depIsEarly = !report.isDirectGo && report.departureTime && isEarlyDeparture(report.departureTime);
+                            const depText = report.isDirectGo ? '直行' : (report.departureTime || '-');
+                            const depDisplay = depIsEarly 
+                                ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+                                : depText;
+                            const retText = report.isDirectBack ? '直帰' : (report.returnTime || '-');
+                            return `${depDisplay} 〜 ${retText}`;
+                        })()}
                         <span style="color: var(--text-muted); margin-left: 1rem;">(現場作業時間: ${report.startTime || '-'} 〜 ${report.endTime || '-'})</span>
+                        <span style="color: var(--text-muted); margin-left: 1rem;">(休憩: ${(() => {
+                            const times = calculateWorkTime(
+                                report.startTime, report.endTime,
+                                report.otherBreakStart || '', report.otherBreakEnd || '',
+                                report.otherBreakStart2 || '', report.otherBreakEnd2 || '',
+                                report.otherBreakStart3 || '', report.otherBreakEnd3 || ''
+                            );
+                            return times.breakTime;
+                        })()})</span>
                     </td>
                 </tr>
                 <tr>
@@ -3917,6 +4228,19 @@ function openReportPreviewModal(reportId) {
         }
     });
 
+    // 閉じるボタンと背景クリックで確実に閉じるための制御 (二重の安全ガード)
+    const closeBtn = document.getElementById('modal-close-btn');
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            backdrop.classList.remove('open');
+        };
+    }
+    backdrop.onclick = (e) => {
+        if (e.target === backdrop) {
+            backdrop.classList.remove('open');
+        }
+    };
+
     // 編集修正処理
     document.getElementById('modal-btn-edit-report').addEventListener('click', () => {
         openEditReportModal(reportId);
@@ -3927,7 +4251,16 @@ function openReportPreviewModal(reportId) {
         const originalContent = document.body.innerHTML;
 
         document.body.innerHTML = `
-            <div style="padding: 2cm; background: white; color: black; font-family: sans-serif;">
+            <div style="padding: 0; background: white; color: black; font-family: sans-serif; width: 100%;">
+                <style>
+                    html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: white !important; }
+                    .report-preview-sheet { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                    @page { size: A4 portrait; margin: 5mm !important; }
+                    body { margin: 0; }
+                    .detail-table { width: 100% !important; }
+                    .detail-table th, .detail-table td { border: 1px solid #444 !important; padding: 8px 12px !important; }
+                    .card { border: 1px solid #444 !important; padding: 12px !important; margin-top: 15px !important; }
+                </style>
                 ${printContent}
             </div>
         `;
@@ -4029,6 +4362,41 @@ function openEditReportModal(reportId) {
                 </div>
             </div>
 
+            <!-- その他休憩時間帯 (時間指定) -->
+            <div style="margin-bottom: 1rem; background: rgba(245,158,11,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(245,158,11,0.08);">
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">その他休憩時間 (時間帯)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
+                    <div class="form-group">
+                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">休憩① 開始</label>
+                        <input type="time" id="edit-rep-break-start" value="${report.otherBreakStart || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">休憩① 終了</label>
+                        <input type="time" id="edit-rep-break-end" value="${report.otherBreakEnd || ''}">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
+                    <div class="form-group">
+                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">休憩② 開始</label>
+                        <input type="time" id="edit-rep-break-start2" value="${report.otherBreakStart2 || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">休憩② 終了</label>
+                        <input type="time" id="edit-rep-break-end2" value="${report.otherBreakEnd2 || ''}">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">休憩③ 開始</label>
+                        <input type="time" id="edit-rep-break-start3" value="${report.otherBreakStart3 || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">休憩③ 終了</label>
+                        <input type="time" id="edit-rep-break-end3" value="${report.otherBreakEnd3 || ''}">
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label for="edit-rep-companions">同行者 (一般)</label>
                 <input type="text" id="edit-rep-companions" value="${report.companions || ''}" placeholder="例: 山田 太郎, 鈴木 次郎">
@@ -4103,6 +4471,12 @@ function openEditReportModal(reportId) {
             isDirectBack: chkBack.checked,
             returnTime: chkBack.checked ? '' : timeRet.value,
             companions: document.getElementById('edit-rep-companions').value.trim(),
+            otherBreakStart: document.getElementById('edit-rep-break-start').value,
+            otherBreakEnd: document.getElementById('edit-rep-break-end').value,
+            otherBreakStart2: document.getElementById('edit-rep-break-start2').value,
+            otherBreakEnd2: document.getElementById('edit-rep-break-end2').value,
+            otherBreakStart3: document.getElementById('edit-rep-break-start3').value,
+            otherBreakEnd3: document.getElementById('edit-rep-break-end3').value,
             partnerCompanions: document.getElementById('edit-rep-partner-companions').value.trim(),
             workContent: document.getElementById('edit-rep-content').value.trim(),
             memo: document.getElementById('edit-rep-memo').value.trim()
@@ -4478,6 +4852,9 @@ function checkAdminPasswordLock() {
 // アプリ初期化
 document.addEventListener('DOMContentLoaded', () => {
     try {
+
+
+
         // パスワードロック画面チェック
         if (typeof checkAdminPasswordLock === 'function') {
             checkAdminPasswordLock();
@@ -4490,6 +4867,9 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Initialization router error:", e);
     }
     try {
+
+
+
 
     // 1. 保存されたテーマ（ダーク/ライト）の適用
     const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -4559,14 +4939,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const headerMassiveBtn = document.getElementById('btn-header-massive-test');
     if (headerMassiveBtn) {
         headerMassiveBtn.addEventListener('click', () => {
-            if (confirm('【15万件負荷テスト】\n現場800件 / 日報5万件 / 仕入れ10万件 / 協力業者5万件相当 のテストデータをメモリ上に生成して接続します。\n(実行しますか？)')) {
+            if (confirm('【30万件負荷テスト】\n現場1600件 / 日報2万件 (早出・跨ぎ・代休含む) / 仕入れ4万件 / 各種マージ等による30万件相当の超負荷テストデータをメモリ上に生成して接続します。\n(実行しますか？)')) {
                 headerMassiveBtn.disabled = true;
                 headerMassiveBtn.textContent = '生成中...';
                 setTimeout(() => {
                     window.generateMassiveDatasetOnMemory((sCount, rCount, pCount) => {
-                        if (window.app && window.app.showToast) window.app.showToast(`🚀 テストデータ接続完了！ (現場 ${sCount}件 / 日報 ${rCount}件 / 仕入れ ${pCount}件)`, 'success');
+                        if (window.app && window.app.showToast) window.app.showToast(`🚀 30万件テストデータ接続完了！ (現場 ${sCount}件 / 日報 ${rCount}件 / 仕入れ ${pCount}件)`, 'success');
                         headerMassiveBtn.disabled = false;
-                        headerMassiveBtn.innerHTML = '<i data-lucide="zap" style="width: 0.9rem; height: 0.9rem;"></i> <span>15万件テスト接続中</span>';
+                        headerMassiveBtn.innerHTML = '<i data-lucide="zap" style="width: 0.9rem; height: 0.9rem;"></i> <span>30万件テスト接続中</span>';
                         if (window.lucide) window.lucide.createIcons();
                         const hash = window.location.hash || '#site-list';
                         window.location.hash = '#temp';
@@ -4612,6 +4992,9 @@ async function syncSitesToCloud() {
     if (!window.CloudSync || !window.CloudSync.init()) return;
 
     try {
+
+
+
         const collection = window.CloudSync.collection('sites');
         // ダミーID 'all_sites' で set() を1回だけ呼び出す
         // db.js 側の仕様で、個々のデータに関わらず常に全件が一括POST（上書き）されます。
@@ -4628,6 +5011,9 @@ async function syncPurchasesToCloud() {
     if (!window.CloudSync || !window.CloudSync.init()) return;
 
     try {
+
+
+
         const collection = window.CloudSync.collection('purchases');
         await collection.doc('all_purchases').set({});
         console.log('Purchases synced to cloud successfully (bulk).');
@@ -4658,6 +5044,9 @@ async function syncReportsFromCloud(isAutomatic = false) {
     }
 
     try {
+
+
+
         const collection = window.CloudSync.collection('reports');
         const snapshot = await collection.get();
 
@@ -4939,6 +5328,9 @@ function openCloudSettingsModal() {
 
         if (confirm('現在このブラウザ（LocalStorage）に保存されている全てのデータを、ローカル共有サーバー（ファイル）にコピーします。よろしいですか？\n※すでにサーバー上にデータがある場合は上書きされます。')) {
             try {
+
+
+
                 const sites = JSON.parse(localStorage.getItem('SiteDB')) || [];
                 const reports = JSON.parse(localStorage.getItem('ReportDB')) || [];
                 const purchases = JSON.parse(localStorage.getItem('PurchaseDB')) || [];
@@ -5016,6 +5408,9 @@ function openCloudSettingsModal() {
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
             try {
+
+
+
                 const backup = {
                     version: '2.0',
                     exportedAt: new Date().toISOString(),
@@ -5052,6 +5447,9 @@ function openCloudSettingsModal() {
             const reader = new FileReader();
             reader.onload = function(evt) {
                 try {
+
+
+
                     const data = JSON.parse(evt.target.result);
                     const sites = data.sites || (data.SiteDB ? JSON.parse(data.SiteDB) : null);
                     const reports = data.reports || (data.ReportDB ? JSON.parse(data.ReportDB) : null);
@@ -5266,6 +5664,9 @@ function openCloudSettingsModal() {
                 return;
             }
             try {
+
+
+
                 const token = adminPass || customEncKey || localStorage.getItem('admin_password') || localStorage.getItem('custom_encryption_key') || '';
                 const testRes = await fetch(`http://${localIP}:3000/api/ip`, {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -5296,6 +5697,9 @@ function openCloudSettingsModal() {
         }
 
         try {
+
+
+
             const res = await fetch(`${newConfig.url}/api/test`, {
                 headers: { 'Authorization': `Bearer ${newConfig.token}` }
             });
@@ -5328,6 +5732,9 @@ function openExcelImportModal(callback) {
         return false;
     };
     try {
+
+
+
         console.log("openExcelImportModal started");
     } catch(e) {}
 
@@ -5430,6 +5837,9 @@ function openExcelImportModal(callback) {
 
         reader.onload = function(e) {
             try {
+
+
+
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
@@ -5614,6 +6024,9 @@ function openExcelImportModal(callback) {
         submitBtn.textContent = '登録中...';
 
         try {
+
+
+
             let addCount = 0;
             let updateCount = 0;
             
@@ -5899,7 +6312,7 @@ function renderPartnerLedger(container) {
     const partnerFilter = document.getElementById('partner-ledger-partner-filter');
 
     // データ抽出 (協力業者が存在する日報のみ)
-    const reports = window.ReportDB.getAll() || [];
+    const reports = getSplitReports(window.ReportDB.getAll() || []);
     const reportsWithPartners = reports.filter(r => r.partnerCompanions && r.partnerCompanions.trim() !== '');
 
     // 選択肢の動的生成
@@ -6042,10 +6455,25 @@ function refreshPartnerLedgerTable(filter = {}) {
         const siteCode = rep.siteCode || (site ? site.code : '-');
         const siteName = rep.siteName || (site ? site.name : '不明な現場');
         const clientName = rep.client || (site ? site.client : '-');
+        const formattedDate = rep.date ? rep.date.replace(/-/g, '/') : '-';
+        const showHolidayWork = false; // 協力業者台帳では休日出勤列は不要
 
         const isOfficeWork = rep.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-        const times = calculateWorkTime(rep.startTime, rep.endTime);
+        const times = calculateWorkTime(
+            rep.startTime, rep.endTime,
+            rep.otherBreakStart || '', rep.otherBreakEnd || '',
+            rep.otherBreakStart2 || '', rep.otherBreakEnd2 || '',
+            rep.otherBreakStart3 || '', rep.otherBreakEnd3 || ''
+        );
         const totalTimeText = isOfficeWork ? '-' : times.total;
+
+        // 🚨 出発時間と帰社時間の定義を追加 (ReferenceErrorの修復)
+        const depIsEarly = !rep.isDirectGo && rep.departureTime && isEarlyDeparture(rep.departureTime);
+        const depText = rep.isDirectGo ? '直行' : (rep.departureTime || '-');
+        const depDisplay = depIsEarly 
+            ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
+            : depText;
+        const retText = rep.isDirectBack ? '直帰' : (rep.returnTime || '-');
 
         let snippet = rep.workContent || '';
         if (snippet.length > 25) snippet = snippet.substring(0, 25) + '...';
@@ -6076,8 +6504,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                 </td>
                 <td style="font-size: 0.85rem; padding: 0.75rem;">${rep.writer || '-'}</td>
                 <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                    <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${rep.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                        <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                    <button class="btn btn-primary btn-view-report-detail" data-repid="${rep.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                        編集
                     </button>
                 </td>
             </tr>
@@ -6087,7 +6515,7 @@ function refreshPartnerLedgerTable(filter = {}) {
     const printBtn = document.getElementById('btn-print-partner-ledger');
     if (!container) return;
 
-    let allReports = window.ReportDB.getAll() || [];
+    let allReports = getSplitReports(window.ReportDB.getAll() || []);
     const sites = window.SiteDB.getAll() || [];
     const siteMap = new Map(sites.map(s => [s.id, s]));
 
@@ -6165,7 +6593,7 @@ function refreshPartnerLedgerTable(filter = {}) {
 
 
     // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr) => {
+    const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
         if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
         const parseMin = (str) => {
             const [h, m] = str.split(':').map(Number);
@@ -6176,12 +6604,47 @@ function refreshPartnerLedgerTable(filter = {}) {
         if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
             return { start: startStr, end: endStr, breakTime: '-', total: '-' };
         }
+        
+        // その他休憩時間(分)の計算
+        let otherBreakMin = 0;
+        const addBreak = (s, e) => {
+            if (s && e) {
+                const obStart = parseMin(s);
+                const obEnd = parseMin(e);
+                if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
+                    otherBreakMin += (obEnd - obStart);
+                    return `${s}〜${e}`;
+                }
+            }
+            return null;
+        };
+
+        const breakRanges = [];
+        const r1 = addBreak(otherBreakStart, otherBreakEnd);
+        if (r1) breakRanges.push(r1);
+        const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
+        if (r2) breakRanges.push(r2);
+        const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
+        if (r3) breakRanges.push(r3);
+
         const breakStart = 12 * 60; // 12:00
         const breakEnd = 13 * 60;   // 13:00
         const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-        const breakMin = hasBreak ? 60 : 0;
-        const totalMin = (endMin - startMin) - breakMin;
-        const breakHours = hasBreak ? '1時間' : '0時間';
+        const lunchBreakMin = hasBreak ? 60 : 0;
+        const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
+        
+        let breakHours = '';
+        const otherBreakStr = breakRanges.join(', ');
+
+        if (lunchBreakMin > 0 && otherBreakStr) {
+            breakHours = `1時間(${otherBreakStr})`;
+        } else if (lunchBreakMin > 0) {
+            breakHours = '1時間';
+        } else if (otherBreakStr) {
+            breakHours = otherBreakStr;
+        } else {
+            breakHours = '0時間';
+        }
         const totalH = Math.floor(totalMin / 60);
         const totalM = totalMin % 60;
         const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
@@ -6219,7 +6682,12 @@ function refreshPartnerLedgerTable(filter = {}) {
                 const siteName = r.siteName || (site ? site.name : '不明な現場');
                 const clientName = r.client || (site ? site.client : '-');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
-                const times = calculateWorkTime(r.startTime, r.endTime);
+                const times = calculateWorkTime(
+                    r.startTime, r.endTime,
+                    r.otherBreakStart || '', r.otherBreakEnd || '',
+                    r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                    r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                );
                 if (!isOfficeWork && times.min) totalMin += times.min;
 
                 const formattedDate = r.date ? r.date.replace(/-/g, '/') : '-';
@@ -6293,8 +6761,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
-                                <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
-                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休日出勤</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                 <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -6306,7 +6773,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                         <tfoot class="print-only" style="display:none;">
                             <tr>
                                 <td colspan="9" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
-                                <td colspan="3" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
+                                <td colspan="2" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -6362,7 +6829,12 @@ function refreshPartnerLedgerTable(filter = {}) {
                 const siteCode = r.siteCode || (site ? site.code : '');
                 const isOfficeWork = r.isOfficeWork || siteCode === 'OFFICE' || !siteCode || siteCode === '-';
                 if (!isOfficeWork) {
-                    const times = calculateWorkTime(r.startTime, r.endTime);
+                    const times = calculateWorkTime(
+                        r.startTime, r.endTime,
+                        r.otherBreakStart || '', r.otherBreakEnd || '',
+                        r.otherBreakStart2 || '', r.otherBreakEnd2 || '',
+                        r.otherBreakStart3 || '', r.otherBreakEnd3 || ''
+                    );
                     if (times.min) deptTotalMin += times.min;
                 }
             });
@@ -6404,7 +6876,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                         <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
-                                        <th style="width: 80px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                         <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -6480,20 +6952,64 @@ function refreshPartnerLedgerTable(filter = {}) {
             const printContent = document.getElementById('partner-print-area').innerHTML;
             const originalContent = document.body.innerHTML;
             
+            const bodyClass = document.body.className;
+            const bodyStyle = document.body.getAttribute('style') || '';
+            const headStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(el => el.outerHTML).join('\n');
+            
             document.body.innerHTML = `
-                <div style="padding: 1cm; background: white; color: black; font-family: sans-serif;">
+                <div class="${bodyClass}" style="${bodyStyle} padding: 1.5rem !important; min-height: 100vh; background: var(--bg-body) !important; color: var(--text-main) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; width: 100%;">
+                    ${headStyles}
                     <style>
-                        table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                        th, td { border: 1px solid #666; padding: 4px 6px; text-align: left; }
-                        th { background-color: #eee; font-weight: bold; }
+                        html, body { 
+                            margin: 0 !important; 
+                            padding: 0 !important; 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            background: var(--bg-body) !important; 
+                            color: var(--text-main) !important;
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important;
+                            overflow: visible !important;
+                            zoom: 75% !important; /* 🚨 印刷設定が100%でも自動で75%サイズに縮小 */
+                        }
+                        /* 印刷時に枠が縮こまらないよう、アコーディオンとコンテンツ全体の最大幅制限を強制解除 */
+                        .dept-accordion, .dept-content, .table-responsive { 
+                            width: 100% !important; 
+                            max-width: 100% !important; 
+                            margin: 0 0 10px 0 !important; 
+                            padding: 0 !important; 
+                            overflow: visible !important; 
+                            box-shadow: none !important;
+                        }
+                        .dept-header {
+                            width: 100% !important;
+                            max-width: 100% !important;
+                            padding: 8px 12px !important;
+                        }
+                        table, .data-table { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-collapse: collapse !important; font-size: 10px !important; table-layout: fixed !important; background: transparent !important; }
+                        th, td { border: 1px solid var(--border-light) !important; padding: 5px 6px !important; text-align: left !important; word-wrap: break-word !important; }
+                        th { background-color: rgba(255,255,255,0.03) !important; font-weight: bold !important; color: var(--text-main) !important; }
                         .no-print { display: none !important; }
                         .print-only { display: block !important; }
-                        @page { size: A4 landscape; margin: 1cm; }
+                        @page { size: A4 landscape; margin: 4mm !important; }
                         body { margin: 0; }
+                        
+                        /* カラム幅を用紙幅100%に合わせてパーセント比率で強制引き延ばし (12列) */
+                        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 9% !important; }
+                        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 10% !important; }
+                        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 8% !important; }
+                        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 16% !important; }
+                        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 12% !important; }
+                        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 20% !important; }
+                        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 5% !important; }
+                        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 5% !important; }
+                        .data-table th:nth-child(9), .data-table td:nth-child(9) { width: 5% !important; }
+                        .data-table th:nth-child(10), .data-table td:nth-child(10) { width: 8% !important; }
+                        .data-table th:nth-child(11), .data-table td:nth-child(11) { width: 8% !important; }
                     </style>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h2 style="font-size: 20px; margin: 0 0 10px 0;">協力業者台帳: ${filter.partner}</h2>
-                        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                    <div style="text-align: center; margin-bottom: 20px; color: var(--text-main) !important;">
+                        <h2 style="font-size: 20px; margin: 0 0 10px 0; color: var(--text-main) !important;">協力業者台帳: ${filter.partner}</h2>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted) !important; margin-bottom: 10px;">
                             <span>対象月: ${filter.month === 'all' ? 'すべて' : filter.month}</span>
                             <span>出力日時: ${new Date().toLocaleString()}</span>
                         </div>
