@@ -511,6 +511,7 @@ function renderPurchaseListTable(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
+                        
                     </select>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -1271,6 +1272,7 @@ function renderSiteListTable(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
+                        
                     </select>
                 </div>
                 <div style="width: 150px;">
@@ -2122,6 +2124,7 @@ function renderLedgerList(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
+                        
                     </select>
                 </div>
                 <div style="width: 140px; flex-shrink: 0;">
@@ -6277,6 +6280,7 @@ function renderPartnerLedger(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
+                        
                     </select>
                 </div>
                 <div style="width: 150px;">
