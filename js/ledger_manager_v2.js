@@ -7217,8 +7217,13 @@ function refreshHolidayWorkListTable(filter) {
         }
     });
 
-    // 休日出勤と代休消化のペアリング処理
-    // 作業員ごとにまとめる
+    // 休日出勤と代休消化の厳密ペアリング処理
+    // すでにペアリング済みの代休消化日報IDを保持する Set
+    const usedSubstituteIds = new Set();
+
+    // 休日出勤日を日付昇順 (古い順) に並べてペアリング評価
+    holidayEntries.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
     const pairedList = holidayEntries.map(hRep => {
         const writer = (hRep.writer || '').trim();
         const hDate = hRep.date;
@@ -7227,18 +7232,30 @@ function refreshHolidayWorkListTable(filter) {
         const siteCode = hRep.siteCode || (site ? site.code : '-');
         const isAllowance = (hRep.holidayWorkType === 'allowance');
 
-        // 対応する代休消化日報を検索 (同じ作業員 かつ substituteTargetDate === 休日出勤日)
-        let matchedSub = substituteOffReports.find(sub => {
-            const subWriter = (sub.writer || '').trim();
-            return subWriter === writer && sub.substituteTargetDate === hDate;
-        });
+        let matchedSub = null;
 
-        // substituteTargetDate が空の場合は、日付順でマッチさせるフォールバック
-        if (!matchedSub && !isAllowance) {
+        if (!isAllowance) {
+            // 優先1: substituteTargetDate がこの休日出勤日 (hDate) と完全一致する代休消化日報
             matchedSub = substituteOffReports.find(sub => {
+                if (usedSubstituteIds.has(sub.id)) return false;
                 const subWriter = (sub.writer || '').trim();
-                return subWriter === writer && sub.date >= hDate;
+                return subWriter === writer && sub.substituteTargetDate === hDate;
             });
+
+            // 優先2: substituteTargetDate が未設定 (空) の旧形式代休消化日報とのみ FIFO でマッチ
+            if (!matchedSub) {
+                matchedSub = substituteOffReports.find(sub => {
+                    if (usedSubstituteIds.has(sub.id)) return false;
+                    const subWriter = (sub.writer || '').trim();
+                    // substituteTargetDate が空で、かつ代休取得日が休日出勤日以降の場合
+                    return subWriter === writer && (!sub.substituteTargetDate) && sub.date >= hDate;
+                });
+            }
+
+            // ペアリング成功時は一対一対応を保証するため既使用IDに追加
+            if (matchedSub) {
+                usedSubstituteIds.add(matchedSub.id);
+            }
         }
 
         let status = 'unsubstituted'; // 代休未消化
