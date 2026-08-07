@@ -7125,25 +7125,7 @@ function renderHolidayWorkList(container) {
             </div>
         </div>
 
-        <!-- 休日出勤集計サマリーカード -->
-        <div class="summary-cards-grid no-print" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="card" style="padding: 1rem; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-light);">
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">休日出勤 総件数</div>
-                <div id="summary-holiday-total" style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">0 件</div>
-            </div>
-            <div class="card" style="padding: 1rem; border-radius: 10px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
-                <div style="font-size: 0.8rem; color: #ef4444; margin-bottom: 0.3rem; font-weight: 600;">🔴 代休未消化 (残代休)</div>
-                <div id="summary-holiday-unsubstituted" style="font-size: 1.5rem; font-weight: 700; color: #ef4444;">0 件</div>
-            </div>
-            <div class="card" style="padding: 1rem; border-radius: 10px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
-                <div style="font-size: 0.8rem; color: #10b981; margin-bottom: 0.3rem; font-weight: 600;">🟢 代休消化済み</div>
-                <div id="summary-holiday-substituted" style="font-size: 1.5rem; font-weight: 700; color: #10b981;">0 件</div>
-            </div>
-            <div class="card" style="padding: 1rem; border-radius: 10px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
-                <div style="font-size: 0.8rem; color: #3b82f6; margin-bottom: 0.3rem; font-weight: 600;">🔵 休出手当対象</div>
-                <div id="summary-holiday-allowance" style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;">0 件</div>
-            </div>
-        </div>
+
 
         <!-- テーブル表示領域 -->
         <div id="holiday-work-table-container"></div>
@@ -7227,7 +7209,7 @@ function refreshHolidayWorkListTable(filter) {
     // 代休消化日報
     const substituteOffReports = reports.filter(r => r.isSubstituteOff);
 
-    # 休日出勤日報 (または代休指定・休日選択されているもの)
+    // 休日出勤日報 (または代休指定・休日選択されているもの)
     let holidayEntries = [];
     reports.forEach(r => {
         if (r.isHolidayWork && !r.isSubstituteOff) {

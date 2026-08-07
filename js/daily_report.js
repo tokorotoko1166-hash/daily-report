@@ -340,12 +340,21 @@ function renderBatchInputForm(container) {
                 </label>
             </div>
             
-            <!-- 代休元日付入力エリア (初期は非表示) -->
-            <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); flex-direction:column; gap:0.5rem;">
-                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休消化の設定：</div>
+            <!-- 代休元日付選択エリア (初期は非表示) -->
+            <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.65rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.2); flex-direction:column; gap:0.5rem;">
+                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning); display:flex; align-items:center; gap:0.3rem;">
+                    <i data-lucide="calendar" style="width:0.9rem; height:0.9rem;"></i> 代休消化の設定（未消化リスト）：
+                </div>
                 <div class="form-group" style="margin-bottom:0; width: 100%;">
-                    <label for="batch-substitute-target-date" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
-                    <input type="date" id="batch-substitute-target-date" style="padding: 0.5rem; font-size: 0.9rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
+                    <label for="batch-substitute-target-select" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
+                    <select id="batch-substitute-target-select" style="padding: 0.55rem; font-size: 0.85rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main); font-weight: 600;">
+                        <option value="">▼ 未消化の休日出勤を読み込み中...</option>
+                    </select>
+                </div>
+                <!-- 手入力日付指定用 (初期は非表示) -->
+                <div id="batch-substitute-target-custom-area" style="display:none; margin-top:0.25rem;">
+                    <label for="batch-substitute-target-date" style="font-size: 0.7rem; color:var(--text-muted); display:block; margin-bottom:0.15rem;">直接日付を入力:</label>
+                    <input type="date" id="batch-substitute-target-date" style="padding: 0.45rem 0.5rem; font-size: 0.85rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
                 </div>
             </div>
             
@@ -393,6 +402,116 @@ function renderBatchInputForm(container) {
     const submitBtn = document.getElementById('btn-batch-submit');
     
     // 日付カードでの休日出勤・代休取得の切り替え＆排他制御
+    
+    // 該当作業員の未消化休日出勤リストをドロップダウンに読み込む関数 (安全設計)
+    const updateSubstituteTargetDropdown = (targetWorkerName) => {
+        try {
+            const selectEl = document.getElementById('batch-substitute-target-select');
+            const customArea = document.getElementById('batch-substitute-target-custom-area');
+            const dateInput = document.getElementById('batch-substitute-target-date');
+            if (!selectEl) return;
+
+            // 作業員名を安全に解決 (引数 -> safeStorage -> localStorage)
+            let worker = (typeof targetWorkerName === 'string') ? targetWorkerName : '';
+            if (!worker) {
+                if (window.safeStorage) {
+                    worker = window.safeStorage.getItem('current_worker_name') || '';
+                }
+                if (!worker) {
+                    worker = localStorage.getItem('daily_report_worker_name') || localStorage.getItem('current_worker_name') || '';
+                }
+            }
+            worker = (worker || '').trim();
+
+            if (!worker) {
+                selectEl.innerHTML = `
+                    <option value="">【作業員名が未選択です】</option>
+                    <option value="__custom__">✏️ 直接日付を手入力する...</option>
+                `;
+                return;
+            }
+
+            const allReports = window.ReportDB ? (window.ReportDB.getAll() || []) : [];
+            const sites = window.SiteDB ? (window.SiteDB.getAll() || []) : [];
+            const siteMap = new Map((sites || []).map(s => [s.id, s.name || s.siteName]));
+
+            // 該当作業員がすでに代休消化した休日出勤日セット
+            const usedDates = new Set(
+                allReports
+                    .filter(r => r && (r.writer || '').trim() === worker && r.isSubstituteOff && r.substituteTargetDate)
+                    .map(r => r.substituteTargetDate)
+            );
+
+            // 未消化の休日出勤リスト
+            const unsubstitutedList = allReports.filter(r => {
+                if (!r) return false;
+                const w = (r.writer || '').trim();
+                if (w !== worker) return false;
+                if (!r.isHolidayWork || r.isSubstituteOff) return false;
+                if (r.holidayWorkType === 'allowance') return false; // 休出手当対象は代休対象外
+                if (usedDates.has(r.date)) return false; // 代休消化済み
+                return true;
+            });
+
+            // 古い休日出勤日から順にソート (昇順)
+            unsubstitutedList.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            selectEl.innerHTML = '';
+            if (unsubstitutedList.length === 0) {
+                selectEl.innerHTML = `
+                    <option value="">【未消化の休日出勤はありません】</option>
+                    <option value="__custom__">✏️ 直接日付を手入力する...</option>
+                `;
+                if (customArea) customArea.style.display = 'none';
+            } else {
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = `▼ 対象の休日出勤を選択 (${unsubstitutedList.length}件の未消化あり)`;
+                selectEl.appendChild(defaultOpt);
+
+                unsubstitutedList.forEach(item => {
+                    const siteName = item.siteName || siteMap.get(item.siteId) || '現場未設定';
+                    const dateFormatted = item.date ? item.date.replace(/-/g, '/') : '-';
+                    let dayOfWeek = '';
+                    if (item.date) {
+                        const d = new Date(item.date);
+                        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+                        dayOfWeek = dayNames[d.getDay()] || '';
+                    }
+                    
+                    const opt = document.createElement('option');
+                    opt.value = item.date;
+                    opt.textContent = `📅 ${dateFormatted} (${dayOfWeek}) - ${siteName}`;
+                    selectEl.appendChild(opt);
+                });
+
+                // 自由入力オプション
+                const customOpt = document.createElement('option');
+                customOpt.value = '__custom__';
+                customOpt.textContent = '✏️ 一覧にない日付を直接入力する...';
+                selectEl.appendChild(customOpt);
+                
+                if (customArea) customArea.style.display = 'none';
+            }
+
+            // 選択変更時処理
+            selectEl.onchange = () => {
+                if (selectEl.value === '__custom__') {
+                    if (customArea) customArea.style.display = 'block';
+                    if (dateInput) {
+                        dateInput.value = '';
+                        dateInput.focus();
+                    }
+                } else {
+                    if (customArea) customArea.style.display = 'none';
+                    if (dateInput) dateInput.value = selectEl.value;
+                }
+            };
+        } catch (err) {
+            console.error('Error in updateSubstituteTargetDropdown:', err);
+        }
+    };
+
     const chkBatchHoliday = document.getElementById('chk-batch-holiday-work');
     const chkBatchSubOff = document.getElementById('chk-batch-substitute-off');
     const batchHolidayArea = document.getElementById('batch-holiday-work-type-area');
@@ -417,6 +536,8 @@ function renderBatchInputForm(container) {
                 chkBatchHoliday.checked = false;
                 batchHolidayArea.style.display = 'none';
                 if (subOffArea) subOffArea.style.display = 'flex';
+                // 未消化代休ドロップダウンを最新の作業員名で更新
+                updateSubstituteTargetDropdown();
                 // 現場カード入力エリアを非表示にする (代休で休む日は現場入力不要)
                 cardsContainer.style.display = 'none';
                 addRowBtn.style.display = 'none';
@@ -827,11 +948,19 @@ function renderBatchInputForm(container) {
         const isSubstituteOff = document.getElementById('chk-batch-substitute-off').checked;
         
         if (isSubstituteOff) {
-            const subTargetDateInput = document.getElementById('batch-substitute-target-date');
-            const substituteTargetDate = subTargetDateInput ? subTargetDateInput.value : '';
+            const selectEl = document.getElementById('batch-substitute-target-select');
+            const customInput = document.getElementById('batch-substitute-target-date');
+            let substituteTargetDate = '';
+            
+            if (selectEl && selectEl.value && selectEl.value !== '__custom__') {
+                substituteTargetDate = selectEl.value;
+            } else if (customInput && customInput.value) {
+                substituteTargetDate = customInput.value;
+            }
+            
             if (!substituteTargetDate) {
-                window.app.showToast('元になった休日出勤日の日付を入力してください', 'error');
-                if (subTargetDateInput) subTargetDateInput.focus();
+                window.app.showToast('代休対象となる休日出勤日を選択してください', 'error');
+                if (selectEl) selectEl.focus();
                 return;
             }
             // 代休取得の場合：現場情報のバリデーションを完全にスルーして、ダミー日報を1件作成
