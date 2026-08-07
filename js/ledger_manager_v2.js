@@ -249,6 +249,10 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 workContentText = "電気配線深夜工事 (跨ぎ勤務)";
             }
 
+            // 休日出勤の仕込み (約15%)
+            const isHolidayWork = (i % 7 === 5);
+            const holidayWorkType = isHolidayWork ? ((i % 5 === 0) ? 'allowance' : 'substitute') : '';
+
             // 代休 (休み取得 ＆ 元出勤日) の仕込み (約8%)
             const isSubstituteOff = (i % 12 === 0);
             let substituteTargetDate = "";
@@ -298,6 +302,8 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 workContent: workContentText,
                 partnerCompanions: isSubstituteOff ? "" : partnerStr,
                 isOfficeWork: false,
+                isHolidayWork: isHolidayWork,
+                holidayWorkType: holidayWorkType,
                 isSubstituteOff: isSubstituteOff,
                 substituteTargetDate: substituteTargetDate,
                 otherBreakStart: otherBreakStart,
@@ -474,6 +480,12 @@ function router() {
         if (hash === '#partner-ledger') {
             pageTitle.textContent = '協力業者台帳';
             renderPartnerLedger(container);
+            return;
+        }
+
+        if (hash === '#holiday-work-list') {
+            pageTitle.textContent = '休日出勤・代休管理リスト';
+            renderHolidayWorkList(container);
             return;
         }
     } catch (e) {
@@ -7063,4 +7075,337 @@ function refreshPartnerLedgerTable(filter = {}) {
 
 } catch (err) {
     alert('🚨 ledger_manager_v2.js 内で致命的なエラーが発生しました！\n\n【エラー型】: ' + err.name + '\n【メッセージ】: ' + err.message + '\n\n【スタックトレース】:\n' + err.stack);
+}
+
+// ==========================================
+// 📅 休日出勤・代休管理リスト (個別表示対応)
+// ==========================================
+function renderHolidayWorkList(container) {
+    container.innerHTML = `
+        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 90; background: var(--bg-body); padding: 1rem 0; border-bottom: 1px solid var(--border-light); transition: all 0.2s ease;">
+            <div class="search-filter-group" style="display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1;">
+                <div class="input-search-wrapper" style="position: relative; min-width: 220px; flex: 1;">
+                    <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted);"></i>
+                    <input type="text" id="list-holiday-search" class="input-search" placeholder="作業員名、現場名、日付などで検索..." style="padding-left: 2.2rem; width: 100%;">
+                </div>
+                
+                <!-- 個別作業員フィルター -->
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;"><i data-lucide="user" style="width:0.9rem; height:0.9rem; vertical-align:middle;"></i> 作業員:</span>
+                    <select id="list-holiday-worker-filter" class="form-control" style="width: 160px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="all">全作業員 (個別選択可能)</option>
+                    </select>
+                </div>
+
+                <!-- 区分フィルター -->
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">ステータス:</span>
+                    <select id="list-holiday-type-filter" class="form-control" style="width: 160px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="all">すべてのステータス</option>
+                        <option value="unsubstituted">🔴 未消化 (代休保持中)</option>
+                        <option value="substituted">🟢 代休消化済み</option>
+                        <option value="allowance">🔵 休出手当対象</option>
+                    </select>
+                </div>
+
+                <!-- 期間フィルター -->
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">表示対象:</span>
+                    <select id="list-holiday-period-filter" class="form-control" style="width: 140px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
+                        <option value="current">今期分のみ</option>
+                        <option value="all">すべての期間</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem;" class="no-print">
+                <button class="btn btn-secondary" onclick="window.print()" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.85rem; font-size: 0.85rem;">
+                    <i data-lucide="printer" style="width: 0.9rem; height: 0.9rem;"></i> 印刷
+                </button>
+            </div>
+        </div>
+
+        <!-- 休日出勤集計サマリーカード -->
+        <div class="summary-cards-grid no-print" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card" style="padding: 1rem; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-light);">
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">休日出勤 総件数</div>
+                <div id="summary-holiday-total" style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">0 件</div>
+            </div>
+            <div class="card" style="padding: 1rem; border-radius: 10px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
+                <div style="font-size: 0.8rem; color: #ef4444; margin-bottom: 0.3rem; font-weight: 600;">🔴 代休未消化 (残代休)</div>
+                <div id="summary-holiday-unsubstituted" style="font-size: 1.5rem; font-weight: 700; color: #ef4444;">0 件</div>
+            </div>
+            <div class="card" style="padding: 1rem; border-radius: 10px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
+                <div style="font-size: 0.8rem; color: #10b981; margin-bottom: 0.3rem; font-weight: 600;">🟢 代休消化済み</div>
+                <div id="summary-holiday-substituted" style="font-size: 1.5rem; font-weight: 700; color: #10b981;">0 件</div>
+            </div>
+            <div class="card" style="padding: 1rem; border-radius: 10px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+                <div style="font-size: 0.8rem; color: #3b82f6; margin-bottom: 0.3rem; font-weight: 600;">🔵 休出手当対象</div>
+                <div id="summary-holiday-allowance" style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;">0 件</div>
+            </div>
+        </div>
+
+        <!-- テーブル表示領域 -->
+        <div id="holiday-work-table-container"></div>
+    `;
+
+    if (window.lucide) window.lucide.createIcons();
+
+    // 作業員フィルターの選択肢を動的生成
+    const reports = window.ReportDB.getAll() || [];
+    const workerSet = new Set();
+    reports.forEach(r => {
+        if (r.writer && r.writer.trim()) workerSet.add(r.writer.trim());
+    });
+    const sortedWorkers = Array.from(workerSet).sort();
+    const workerSelect = document.getElementById('list-holiday-worker-filter');
+    if (workerSelect) {
+        sortedWorkers.forEach(w => {
+            const opt = document.createElement('option');
+            opt.value = w;
+            opt.textContent = w;
+            workerSelect.appendChild(opt);
+        });
+    }
+
+    const currentFilter = {
+        search: '',
+        worker: 'all',
+        type: 'all',
+        period: 'current'
+    };
+
+    const updateTable = () => refreshHolidayWorkListTable(currentFilter);
+
+    document.getElementById('list-holiday-search')?.addEventListener('input', (e) => {
+        currentFilter.search = e.target.value;
+        updateTable();
+    });
+
+    document.getElementById('list-holiday-worker-filter')?.addEventListener('change', (e) => {
+        currentFilter.worker = e.target.value;
+        updateTable();
+    });
+
+    document.getElementById('list-holiday-type-filter')?.addEventListener('change', (e) => {
+        currentFilter.type = e.target.value;
+        updateTable();
+    });
+
+    document.getElementById('list-holiday-period-filter')?.addEventListener('change', (e) => {
+        currentFilter.period = e.target.value;
+        updateTable();
+    });
+
+    updateTable();
+}
+
+function refreshHolidayWorkListTable(filter) {
+    const container = document.getElementById('holiday-work-table-container');
+    if (!container) return;
+
+    let reports = window.ReportDB.getAll() || [];
+    const sites = window.SiteDB.getAll() || [];
+    const siteMap = new Map(sites.map(s => [s.id, s]));
+
+    // 10月期切り替え判定ヘルパー
+    const getFiscalYear = (dateStr) => {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        return m >= 10 ? y + 1 : y;
+    };
+    const targetFY = getFiscalYear(new Date()) || 2026;
+
+    // 年度フィルター
+    if (filter.period === 'current') {
+        reports = reports.filter(r => getFiscalYear(r.date) === targetFY);
+    }
+
+    // 代休消化日報
+    const substituteOffReports = reports.filter(r => r.isSubstituteOff);
+
+    # 休日出勤日報 (または代休指定・休日選択されているもの)
+    let holidayEntries = [];
+    reports.forEach(r => {
+        if (r.isHolidayWork && !r.isSubstituteOff) {
+            holidayEntries.push(r);
+        }
+    });
+
+    // 休日出勤と代休消化のペアリング処理
+    // 作業員ごとにまとめる
+    const pairedList = holidayEntries.map(hRep => {
+        const writer = (hRep.writer || '').trim();
+        const hDate = hRep.date;
+        const site = siteMap.get(hRep.siteId);
+        const siteName = hRep.siteName || (site ? site.name : '現場未設定');
+        const siteCode = hRep.siteCode || (site ? site.code : '-');
+        const isAllowance = (hRep.holidayWorkType === 'allowance');
+
+        // 対応する代休消化日報を検索 (同じ作業員 かつ substituteTargetDate === 休日出勤日)
+        let matchedSub = substituteOffReports.find(sub => {
+            const subWriter = (sub.writer || '').trim();
+            return subWriter === writer && sub.substituteTargetDate === hDate;
+        });
+
+        // substituteTargetDate が空の場合は、日付順でマッチさせるフォールバック
+        if (!matchedSub && !isAllowance) {
+            matchedSub = substituteOffReports.find(sub => {
+                const subWriter = (sub.writer || '').trim();
+                return subWriter === writer && sub.date >= hDate;
+            });
+        }
+
+        let status = 'unsubstituted'; // 代休未消化
+        if (isAllowance) {
+            status = 'allowance'; // 休出手当
+        } else if (matchedSub) {
+            status = 'substituted'; // 代休消化済み
+        }
+
+        return {
+            report: hRep,
+            id: hRep.id,
+            date: hDate,
+            writer: writer,
+            siteCode: siteCode,
+            siteName: siteName,
+            holidayWorkType: hRep.holidayWorkType || 'substitute',
+            status: status,
+            substituteDate: matchedSub ? matchedSub.date : null,
+            substituteReportId: matchedSub ? matchedSub.id : null,
+            startTime: hRep.startTime || '-',
+            endTime: hRep.endTime || '-',
+            workContent: hRep.workContent || '-'
+        };
+    });
+
+    // 集計サマリーの計算 (フィルター前の全体または現在のフィルター対象)
+    let totalCount = pairedList.length;
+    let unsubCount = pairedList.filter(item => item.status === 'unsubstituted').length;
+    let subCount = pairedList.filter(item => item.status === 'substituted').length;
+    let allowCount = pairedList.filter(item => item.status === 'allowance').length;
+
+    const elTotal = document.getElementById('summary-holiday-total');
+    const elUnsub = document.getElementById('summary-holiday-unsubstituted');
+    const elSub = document.getElementById('summary-holiday-substituted');
+    const elAllow = document.getElementById('summary-holiday-allowance');
+
+    if (elTotal) elTotal.textContent = `${totalCount} 件`;
+    if (elUnsub) elUnsub.textContent = `${unsubCount} 件`;
+    if (elSub) elSub.textContent = `${subCount} 件`;
+    if (elAllow) elAllow.textContent = `${allowCount} 件`;
+
+    // フィルタリング適用
+    let filteredList = pairedList;
+
+    // 個別作業員フィルター
+    if (filter.worker && filter.worker !== 'all') {
+        filteredList = filteredList.filter(item => item.writer === filter.worker);
+    }
+
+    // ステータスフィルター
+    if (filter.type && filter.type !== 'all') {
+        filteredList = filteredList.filter(item => item.status === filter.type);
+    }
+
+    // キーワード検索
+    if (filter.search) {
+        const q = filter.search.toLowerCase();
+        filteredList = filteredList.filter(item => 
+            item.writer.toLowerCase().includes(q) ||
+            item.siteName.toLowerCase().includes(q) ||
+            item.siteCode.toLowerCase().includes(q) ||
+            item.date.includes(q) ||
+            (item.substituteDate && item.substituteDate.includes(q))
+        );
+    }
+
+    // 日付昇順ソート (新しい日付が上)
+    filteredList.sort((a, b) => b.date.localeCompare(a.date));
+
+    if (filteredList.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light);">
+                <i data-lucide="calendar-x" style="width: 2.5rem; height: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5;"></i>
+                <p style="font-size: 0.95rem; font-weight: 500;">該当する休日出勤・代休データは見つかりませんでした。</p>
+            </div>
+        `;
+        if (window.lucide) window.lucide.createIcons();
+        return;
+    }
+
+    let rowsHtml = '';
+    filteredList.forEach(item => {
+        const formattedHDate = item.date.replace(/-/g, '/');
+        const formattedSDate = item.substituteDate ? item.substituteDate.replace(/-/g, '/') : null;
+
+        let statusBadge = '';
+        if (item.status === 'unsubstituted') {
+            statusBadge = `<span style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">🔴 未消化 (代休保持中)</span>`;
+        } else if (item.status === 'substituted') {
+            statusBadge = `<span style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">🟢 代休消化済み (${formattedSDate})</span>`;
+        } else {
+            statusBadge = `<span style="background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">🔵 休出手当対象</span>`;
+        }
+
+        const typeLabel = (item.holidayWorkType === 'allowance') ? '休出手当' : '代休にする';
+
+        rowsHtml += `
+            <tr style="border-bottom: 1px solid var(--border-light); transition: background 0.15s ease;">
+                <td style="padding: 0.75rem 0.85rem; font-weight: 700; color: var(--text-main); white-space: nowrap;">
+                    ${formattedHDate}
+                </td>
+                <td style="padding: 0.75rem 0.85rem; font-weight: 600; color: var(--color-primary); white-space: nowrap;">
+                    <span style="cursor: pointer; text-decoration: underline;" onclick="document.getElementById('list-holiday-worker-filter').value='${item.writer}'; refreshHolidayWorkListTable({search:'', worker:'${item.writer}', type:'all', period:'current'});" title="この作業員のデータを個別表示">
+                        ${item.writer}
+                    </span>
+                </td>
+                <td style="padding: 0.75rem 0.85rem; color: var(--text-main);">
+                    <div style="font-weight: 600;">[${item.siteCode}] ${item.siteName}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">${item.workContent}</div>
+                </td>
+                <td style="padding: 0.75rem 0.85rem; white-space: nowrap; color: var(--text-main); font-size: 0.82rem;">
+                    ${item.startTime} 〜 ${item.endTime}
+                </td>
+                <td style="padding: 0.75rem 0.85rem; white-space: nowrap;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${typeLabel}</span>
+                </td>
+                <td style="padding: 0.75rem 0.85rem; white-space: nowrap;">
+                    ${statusBadge}
+                </td>
+                <td style="padding: 0.75rem 0.85rem; text-align: center; white-space: nowrap;" class="no-print">
+                    <button class="btn btn-primary" onclick="openEditReportModal('${item.id}')" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; border-radius: 6px;">
+                        編集
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    container.innerHTML = `
+        <div class="table-wrapper" style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: var(--bg-body); border-bottom: 2px solid var(--border-light); color: var(--text-muted); font-size: 0.8rem; text-align: left;">
+                        <th style="padding: 0.75rem 0.85rem; width: 110px;">休日出勤日</th>
+                        <th style="padding: 0.75rem 0.85rem; width: 120px;">作業員名 (個別)</th>
+                        <th style="padding: 0.75rem 0.85rem;">出勤現場 / 作業内容</th>
+                        <th style="padding: 0.75rem 0.85rem; width: 120px;">勤務時間</th>
+                        <th style="padding: 0.75rem 0.85rem; width: 100px;">区分</th>
+                        <th style="padding: 0.75rem 0.85rem; width: 220px;">代休消化状況</th>
+                        <th style="padding: 0.75rem 0.85rem; width: 80px; text-align: center;" class="no-print">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    if (window.lucide) window.lucide.createIcons();
 }
