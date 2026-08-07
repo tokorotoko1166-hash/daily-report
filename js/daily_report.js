@@ -404,6 +404,7 @@ function renderBatchInputForm(container) {
     // 日付カードでの休日出勤・代休取得の切り替え＆排他制御
     
     // 該当作業員の未消化休日出勤リストをドロップダウンに読み込む関数 (安全設計)
+        // 該当作業員の未消化休日出勤リストをドロップダウンに読み込む関数 (超堅牢版)
     const updateSubstituteTargetDropdown = (targetWorkerName) => {
         try {
             const selectEl = document.getElementById('batch-substitute-target-select');
@@ -411,17 +412,22 @@ function renderBatchInputForm(container) {
             const dateInput = document.getElementById('batch-substitute-target-date');
             if (!selectEl) return;
 
+            // 名前正規化ヘルパー (全角/半角スペース除去)
+            const cleanName = (n) => (n || '').toString().replace(/\s+/g, '');
+            // 日付フォーマット統一ヘルパー (YYYY-MM-DD)
+            const normDate = (dStr) => (dStr || '').toString().replace(/\//g, '-').trim();
+
             // 作業員名を安全に解決 (引数 -> safeStorage -> localStorage)
-            let worker = (typeof targetWorkerName === 'string') ? targetWorkerName : '';
-            if (!worker) {
+            let rawWorker = (typeof targetWorkerName === 'string') ? targetWorkerName : '';
+            if (!rawWorker) {
                 if (window.safeStorage) {
-                    worker = window.safeStorage.getItem('current_worker_name') || '';
+                    rawWorker = window.safeStorage.getItem('current_worker_name') || '';
                 }
-                if (!worker) {
-                    worker = localStorage.getItem('daily_report_worker_name') || localStorage.getItem('current_worker_name') || '';
+                if (!rawWorker) {
+                    rawWorker = localStorage.getItem('daily_report_worker_name') || localStorage.getItem('current_worker_name') || '';
                 }
             }
-            worker = (worker || '').trim();
+            const worker = cleanName(rawWorker);
 
             if (!worker) {
                 selectEl.innerHTML = `
@@ -435,26 +441,41 @@ function renderBatchInputForm(container) {
             const sites = window.SiteDB ? (window.SiteDB.getAll() || []) : [];
             const siteMap = new Map((sites || []).map(s => [s.id, s.name || s.siteName]));
 
-            // 該当作業員がすでに代休消化した休日出勤日セット
-            const usedDates = new Set(
+            // 該当作業員がすでに代休消化したターゲット日付セット (フォーマット統一)
+            const usedTargetDates = new Set(
                 allReports
-                    .filter(r => r && (r.writer || '').trim() === worker && r.isSubstituteOff && r.substituteTargetDate)
-                    .map(r => r.substituteTargetDate)
+                    .filter(r => r && cleanName(r.writer) === worker && (r.isSubstituteOff || r.siteId === 'site_substitute_off') && r.substituteTargetDate)
+                    .map(r => normDate(r.substituteTargetDate))
             );
 
             // 未消化の休日出勤リスト
             const unsubstitutedList = allReports.filter(r => {
                 if (!r) return false;
-                const w = (r.writer || '').trim();
-                if (w !== worker) return false;
-                if (!r.isHolidayWork || r.isSubstituteOff) return false;
-                if (r.holidayWorkType === 'allowance') return false; // 休出手当対象は代休対象外
-                if (usedDates.has(r.date)) return false; // 代休消化済み
+                // 作業員名一致 (スペース揺れを吸収)
+                if (cleanName(r.writer) !== worker) return false;
+
+                // 休日出勤フラグ判定 (各種型の表記揺れに対応)
+                const isHoliday = (r.isHolidayWork === true || r.isHolidayWork === 'true' || r.holidayWorkType === 'substitute' || r.holidayWorkType === 'allowance');
+                if (!isHoliday) return false;
+
+                // 代休消化用日報自体は除外
+                if (r.isSubstituteOff || r.siteId === 'site_substitute_off') return false;
+
+                // 休出手当(allowance)は代休対象外
+                if (r.holidayWorkType === 'allowance') return false;
+
+                // 日付をハイフン統一
+                const rDateNorm = normDate(r.date);
+                if (!rDateNorm) return false;
+
+                // すでに代休消化済みの日付は除外
+                if (usedTargetDates.has(rDateNorm)) return false;
+
                 return true;
             });
 
             // 古い休日出勤日から順にソート (昇順)
-            unsubstitutedList.sort((a, b) => new Date(a.date) - new Date(b.date));
+            unsubstitutedList.sort((a, b) => normDate(a.date).localeCompare(normDate(b.date)));
 
             selectEl.innerHTML = '';
             if (unsubstitutedList.length === 0) {
@@ -470,17 +491,20 @@ function renderBatchInputForm(container) {
                 selectEl.appendChild(defaultOpt);
 
                 unsubstitutedList.forEach(item => {
+                    const normD = normDate(item.date);
                     const siteName = item.siteName || siteMap.get(item.siteId) || '現場未設定';
-                    const dateFormatted = item.date ? item.date.replace(/-/g, '/') : '-';
+                    const dateFormatted = normD ? normD.replace(/-/g, '/') : '-';
                     let dayOfWeek = '';
-                    if (item.date) {
-                        const d = new Date(item.date);
-                        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-                        dayOfWeek = dayNames[d.getDay()] || '';
+                    if (normD) {
+                        const d = new Date(normD);
+                        if (!isNaN(d.getTime())) {
+                            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+                            dayOfWeek = dayNames[d.getDay()] || '';
+                        }
                     }
                     
                     const opt = document.createElement('option');
-                    opt.value = item.date;
+                    opt.value = normD;
                     opt.textContent = `📅 ${dateFormatted} (${dayOfWeek}) - ${siteName}`;
                     selectEl.appendChild(opt);
                 });
