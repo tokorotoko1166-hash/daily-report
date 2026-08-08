@@ -336,13 +336,13 @@ function renderBatchInputForm(container) {
                 </label>
                 <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--color-warning); font-weight:600; font-size:0.85rem;">
                     <input type="checkbox" id="chk-batch-substitute-off" style="width:1.1rem; height:1.1rem; cursor:pointer;">
-                    <span>代休で休み (取得)</span>
+                    <span>代休消化</span>
                 </label>
             </div>
             
             <!-- 代休元日付入力エリア (初期は非表示) -->
             <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); flex-direction:column; gap:0.5rem;">
-                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休取得の設定：</div>
+                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休消化の設定：</div>
                 <div class="form-group" style="margin-bottom:0; width: 100%;">
                     <label for="batch-substitute-target-date" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
                     <input type="date" id="batch-substitute-target-date" style="padding: 0.5rem; font-size: 0.9rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
@@ -420,7 +420,7 @@ function renderBatchInputForm(container) {
                 // 現場カード入力エリアを非表示にする (代休で休む日は現場入力不要)
                 cardsContainer.style.display = 'none';
                 addRowBtn.style.display = 'none';
-                submitBtn.querySelector('span').textContent = '代休取得（休み）を送信する';
+                submitBtn.querySelector('span').textContent = '本日分の日報を一括提出する';
             } else {
                 if (subOffArea) subOffArea.style.display = 'none';
                 cardsContainer.style.display = 'flex';
@@ -477,38 +477,42 @@ function renderBatchInputForm(container) {
             </div>
             
             <!-- 出発時間 (直行) / 開始時間 -->
-            <div class="form-row" style="background: rgba(59,130,246,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0.75rem;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(59,130,246,0.03); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0.75rem;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; width:100%; max-width:130px;">
                         <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0;">出発時間</label>
-                        <label style="display:inline-flex; align-items:center; gap:0.2rem; font-size:0.8rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
-                            <input type="checkbox" class="chk-row-go" style="width:0.95rem; height:0.95rem;">
+                        <label style="display:inline-flex; align-items:center; gap:0.15rem; font-size:0.75rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
+                            <input type="checkbox" class="chk-row-go" style="width:0.9rem; height:0.9rem;">
                             <span>直行</span>
                         </label>
                     </div>
-                    <input type="time" class="time-row-dep" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+                    <input type="time" class="time-row-dep" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">作業開始 <span style="color: var(--color-danger);">*</span></label>
-                    <input type="time" class="time-row-start" required value="08:00" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">作業開始 <span style="color: var(--color-danger);">*</span></label>
+                    </div>
+                    <input type="time" class="time-row-start" required value="08:00" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
             </div>
             
             <!-- 終了時間 / 帰社時間 (直帰) -->
-            <div class="form-row" style="background: rgba(16,185,129,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(16,185,129,0.08); margin-bottom: 1rem;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">作業終了 <span style="color: var(--color-danger);">*</span></label>
-                    <input type="time" class="time-row-end" required value="17:00" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(16,185,129,0.03); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(16,185,129,0.08); margin-bottom: 1rem;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">作業終了 <span style="color: var(--color-danger);">*</span></label>
+                    </div>
+                    <input type="time" class="time-row-end" required value="17:00" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; width:100%; max-width:130px;">
                         <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0;">帰社時間</label>
-                        <label style="display:inline-flex; align-items:center; gap:0.2rem; font-size:0.8rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
-                            <input type="checkbox" class="chk-row-back" style="width:0.95rem; height:0.95rem;">
+                        <label style="display:inline-flex; align-items:center; gap:0.15rem; font-size:0.75rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
+                            <input type="checkbox" class="chk-row-back" style="width:0.9rem; height:0.9rem;">
                             <span>直帰</span>
                         </label>
                     </div>
-                    <input type="time" class="time-row-ret" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
+                    <input type="time" class="time-row-ret" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
                 </div>
             </div>
             
@@ -518,51 +522,63 @@ function renderBatchInputForm(container) {
                 <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
             </div>
             
-            <!-- その他休憩時間帯の入力 (時間指定) -->
-            <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
-                <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 1</label>
-                        <input type="time" class="time-row-break-start" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+            <!-- 現場待機時間帯の入力 (時間指定) -->
+            <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 1</label>
+                        </div>
+                        <input type="time" class="time-row-break-start" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 1</label>
-                        <input type="time" class="time-row-break-end" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 1</label>
+                        </div>
+                        <input type="time" class="time-row-break-end" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
                 
-                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                     <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
                         <input type="checkbox" class="chk-add-break2" style="width:1rem; height:1rem; cursor:pointer;">
-                        <span>休憩2を追加</span>
+                        <span>待機2を追加</span>
                     </label>
                     <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
                         <input type="checkbox" class="chk-add-break3" style="width:1rem; height:1rem; cursor:pointer;">
-                        <span>休憩3を追加</span>
+                        <span>待機3を追加</span>
                     </label>
                 </div>
 
-                <!-- その他休憩2 -->
-                <div class="form-row row-break2" style="gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 2</label>
-                        <input type="time" class="time-row-break-start2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                <!-- 現場待機2 -->
+                <div class="form-row row-break2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 2</label>
+                        </div>
+                        <input type="time" class="time-row-break-start2" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 2</label>
-                        <input type="time" class="time-row-break-end2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 2</label>
+                        </div>
+                        <input type="time" class="time-row-break-end2" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
 
-                <!-- その他休憩3 -->
-                <div class="form-row row-break3" style="gap: 0.5rem; display: none;">
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 3</label>
-                        <input type="time" class="time-row-break-start3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                <!-- 現場待機3 -->
+                <div class="form-row row-break3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 3</label>
+                        </div>
+                        <input type="time" class="time-row-break-start3" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; flex: 1;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 3</label>
-                        <input type="time" class="time-row-break-end3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
+                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
+                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 3</label>
+                        </div>
+                        <input type="time" class="time-row-break-end3" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
             </div>
@@ -830,7 +846,7 @@ function renderBatchInputForm(container) {
                 endTime: '',
                 returnTime: '',
                 isDirectBack: false,
-                workContent: '代休取得による休日',
+                workContent: '代休消化による休日',
                 companions: '',
                 partnerCompanions: '',
                 isOfficeWork: false,
@@ -839,7 +855,7 @@ function renderBatchInputForm(container) {
                 isSubstituteOff: true,
                 substituteTargetDate: substituteTargetDate, // 🚨 元になった休日出勤日を保存
                 client: '-',
-                siteName: '代休 (休み取得)',
+                siteName: '代休消化',
                 siteCode: 'SUBSTITUTE_OFF'
             });
         } else {
