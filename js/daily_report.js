@@ -336,25 +336,16 @@ function renderBatchInputForm(container) {
                 </label>
                 <label style="display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer; color:var(--color-warning); font-weight:600; font-size:0.85rem;">
                     <input type="checkbox" id="chk-batch-substitute-off" style="width:1.1rem; height:1.1rem; cursor:pointer;">
-                    <span>代休消化</span>
+                    <span>代休で休み (取得)</span>
                 </label>
             </div>
             
-            <!-- 代休元日付選択エリア (初期は非表示) -->
-            <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.65rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.2); flex-direction:column; gap:0.5rem;">
-                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning); display:flex; align-items:center; gap:0.3rem;">
-                    <i data-lucide="calendar" style="width:0.9rem; height:0.9rem;"></i> 代休消化の設定（未消化リスト）：
-                </div>
+            <!-- 代休元日付入力エリア (初期は非表示) -->
+            <div id="batch-substitute-off-area" style="display:none; margin-top:0.75rem; background:rgba(245,158,11,0.04); padding:0.6rem 0.85rem; border-radius:8px; border:1px solid rgba(245,158,11,0.15); flex-direction:column; gap:0.5rem;">
+                <div style="font-size:0.8rem; font-weight:bold; color:var(--color-warning);">代休取得の設定：</div>
                 <div class="form-group" style="margin-bottom:0; width: 100%;">
-                    <label for="batch-substitute-target-select" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
-                    <select id="batch-substitute-target-select" style="padding: 0.55rem; font-size: 0.85rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main); font-weight: 600;">
-                        <option value="">▼ 未消化の休日出勤を読み込み中...</option>
-                    </select>
-                </div>
-                <!-- 手入力日付指定用 (初期は非表示) -->
-                <div id="batch-substitute-target-custom-area" style="display:none; margin-top:0.25rem;">
-                    <label for="batch-substitute-target-date" style="font-size: 0.7rem; color:var(--text-muted); display:block; margin-bottom:0.15rem;">直接日付を入力:</label>
-                    <input type="date" id="batch-substitute-target-date" style="padding: 0.45rem 0.5rem; font-size: 0.85rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
+                    <label for="batch-substitute-target-date" style="font-size: 0.75rem; font-weight: 600; color:var(--text-main); display:block; margin-bottom:0.25rem;">どの日付の休日出勤分の代休ですか？ <span style="color: var(--color-danger); font-size:0.7rem;">*必須</span></label>
+                    <input type="date" id="batch-substitute-target-date" style="padding: 0.5rem; font-size: 0.9rem; border-radius: 6px; width: 100%; border: 1px solid var(--border-light); background:var(--bg-body); color:var(--text-main);">
                 </div>
             </div>
             
@@ -402,140 +393,6 @@ function renderBatchInputForm(container) {
     const submitBtn = document.getElementById('btn-batch-submit');
     
     // 日付カードでの休日出勤・代休取得の切り替え＆排他制御
-    
-    // 該当作業員の未消化休日出勤リストをドロップダウンに読み込む関数 (安全設計)
-        // 該当作業員の未消化休日出勤リストをドロップダウンに読み込む関数 (超堅牢版)
-    const updateSubstituteTargetDropdown = (targetWorkerName) => {
-        try {
-            const selectEl = document.getElementById('batch-substitute-target-select');
-            const customArea = document.getElementById('batch-substitute-target-custom-area');
-            const dateInput = document.getElementById('batch-substitute-target-date');
-            if (!selectEl) return;
-
-            // 名前正規化ヘルパー (全角/半角スペース除去)
-            const cleanName = (n) => (n || '').toString().replace(/\s+/g, '');
-            // 日付フォーマット統一ヘルパー (YYYY-MM-DD)
-            const normDate = (dStr) => (dStr || '').toString().replace(/\//g, '-').trim();
-
-            // 作業員名を安全に解決 (引数 -> safeStorage -> localStorage)
-            let rawWorker = (typeof targetWorkerName === 'string') ? targetWorkerName : '';
-            if (!rawWorker) {
-                if (window.safeStorage) {
-                    rawWorker = window.safeStorage.getItem('current_worker_name') || '';
-                }
-                if (!rawWorker) {
-                    rawWorker = localStorage.getItem('daily_report_worker_name') || localStorage.getItem('current_worker_name') || '';
-                }
-            }
-            const worker = cleanName(rawWorker);
-
-            if (!worker) {
-                selectEl.innerHTML = `
-                    <option value="">【作業員名が未選択です】</option>
-                    <option value="__custom__">✏️ 直接日付を手入力する...</option>
-                `;
-                return;
-            }
-
-            const allReports = window.ReportDB ? (window.ReportDB.getAll() || []) : [];
-            const sites = window.SiteDB ? (window.SiteDB.getAll() || []) : [];
-            const siteMap = new Map((sites || []).map(s => [s.id, s.name || s.siteName]));
-
-            // 該当作業員がすでに代休消化したターゲット日付セット (フォーマット統一)
-            const usedTargetDates = new Set(
-                allReports
-                    .filter(r => r && cleanName(r.writer) === worker && (r.isSubstituteOff || r.siteId === 'site_substitute_off') && r.substituteTargetDate)
-                    .map(r => normDate(r.substituteTargetDate))
-            );
-
-            // 未消化の休日出勤リスト
-            const unsubstitutedList = allReports.filter(r => {
-                if (!r) return false;
-                // 作業員名一致 (スペース揺れを吸収)
-                if (cleanName(r.writer) !== worker) return false;
-
-                // 休日出勤フラグ判定 (各種型の表記揺れに対応)
-                const isHoliday = (r.isHolidayWork === true || r.isHolidayWork === 'true' || r.holidayWorkType === 'substitute' || r.holidayWorkType === 'allowance');
-                if (!isHoliday) return false;
-
-                // 代休消化用日報自体は除外
-                if (r.isSubstituteOff || r.siteId === 'site_substitute_off') return false;
-
-                // 休出手当(allowance)は代休対象外
-                if (r.holidayWorkType === 'allowance') return false;
-
-                // 日付をハイフン統一
-                const rDateNorm = normDate(r.date);
-                if (!rDateNorm) return false;
-
-                // すでに代休消化済みの日付は除外
-                if (usedTargetDates.has(rDateNorm)) return false;
-
-                return true;
-            });
-
-            // 古い休日出勤日から順にソート (昇順)
-            unsubstitutedList.sort((a, b) => normDate(a.date).localeCompare(normDate(b.date)));
-
-            selectEl.innerHTML = '';
-            if (unsubstitutedList.length === 0) {
-                selectEl.innerHTML = `
-                    <option value="">【未消化の休日出勤はありません】</option>
-                    <option value="__custom__">✏️ 直接日付を手入力する...</option>
-                `;
-                if (customArea) customArea.style.display = 'none';
-            } else {
-                const defaultOpt = document.createElement('option');
-                defaultOpt.value = '';
-                defaultOpt.textContent = `▼ 対象の休日出勤を選択 (${unsubstitutedList.length}件の未消化あり)`;
-                selectEl.appendChild(defaultOpt);
-
-                unsubstitutedList.forEach(item => {
-                    const normD = normDate(item.date);
-                    const siteName = item.siteName || siteMap.get(item.siteId) || '現場未設定';
-                    const dateFormatted = normD ? normD.replace(/-/g, '/') : '-';
-                    let dayOfWeek = '';
-                    if (normD) {
-                        const d = new Date(normD);
-                        if (!isNaN(d.getTime())) {
-                            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-                            dayOfWeek = dayNames[d.getDay()] || '';
-                        }
-                    }
-                    
-                    const opt = document.createElement('option');
-                    opt.value = normD;
-                    opt.textContent = `📅 ${dateFormatted} (${dayOfWeek}) - ${siteName}`;
-                    selectEl.appendChild(opt);
-                });
-
-                // 自由入力オプション
-                const customOpt = document.createElement('option');
-                customOpt.value = '__custom__';
-                customOpt.textContent = '✏️ 一覧にない日付を直接入力する...';
-                selectEl.appendChild(customOpt);
-                
-                if (customArea) customArea.style.display = 'none';
-            }
-
-            // 選択変更時処理
-            selectEl.onchange = () => {
-                if (selectEl.value === '__custom__') {
-                    if (customArea) customArea.style.display = 'block';
-                    if (dateInput) {
-                        dateInput.value = '';
-                        dateInput.focus();
-                    }
-                } else {
-                    if (customArea) customArea.style.display = 'none';
-                    if (dateInput) dateInput.value = selectEl.value;
-                }
-            };
-        } catch (err) {
-            console.error('Error in updateSubstituteTargetDropdown:', err);
-        }
-    };
-
     const chkBatchHoliday = document.getElementById('chk-batch-holiday-work');
     const chkBatchSubOff = document.getElementById('chk-batch-substitute-off');
     const batchHolidayArea = document.getElementById('batch-holiday-work-type-area');
@@ -560,12 +417,10 @@ function renderBatchInputForm(container) {
                 chkBatchHoliday.checked = false;
                 batchHolidayArea.style.display = 'none';
                 if (subOffArea) subOffArea.style.display = 'flex';
-                // 未消化代休ドロップダウンを最新の作業員名で更新
-                updateSubstituteTargetDropdown();
                 // 現場カード入力エリアを非表示にする (代休で休む日は現場入力不要)
                 cardsContainer.style.display = 'none';
                 addRowBtn.style.display = 'none';
-                submitBtn.querySelector('span').textContent = '本日分の日報を一括提出する';
+                submitBtn.querySelector('span').textContent = '代休取得（休み）を送信する';
             } else {
                 if (subOffArea) subOffArea.style.display = 'none';
                 cardsContainer.style.display = 'flex';
@@ -622,42 +477,38 @@ function renderBatchInputForm(container) {
             </div>
             
             <!-- 出発時間 (直行) / 開始時間 -->
-            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(59,130,246,0.03); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0.75rem;">
-                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; width:100%; max-width:130px;">
+            <div class="form-row" style="background: rgba(59,130,246,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(59,130,246,0.08); margin-bottom: 0.75rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
                         <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0;">出発時間</label>
-                        <label style="display:inline-flex; align-items:center; gap:0.15rem; font-size:0.75rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
-                            <input type="checkbox" class="chk-row-go" style="width:0.9rem; height:0.9rem;">
+                        <label style="display:inline-flex; align-items:center; gap:0.2rem; font-size:0.8rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
+                            <input type="checkbox" class="chk-row-go" style="width:0.95rem; height:0.95rem;">
                             <span>直行</span>
                         </label>
                     </div>
-                    <input type="time" class="time-row-dep" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
+                    <input type="time" class="time-row-dep" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
                 </div>
-                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                    <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">作業開始 <span style="color: var(--color-danger);">*</span></label>
-                    </div>
-                    <input type="time" class="time-row-start" required value="08:00" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">作業開始 <span style="color: var(--color-danger);">*</span></label>
+                    <input type="time" class="time-row-start" required value="08:00" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
                 </div>
             </div>
             
             <!-- 終了時間 / 帰社時間 (直帰) -->
-            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(16,185,129,0.03); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(16,185,129,0.08); margin-bottom: 1rem;">
-                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                    <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">作業終了 <span style="color: var(--color-danger);">*</span></label>
-                    </div>
-                    <input type="time" class="time-row-end" required value="17:00" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
+            <div class="form-row" style="background: rgba(16,185,129,0.03); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(16,185,129,0.08); margin-bottom: 1rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">作業終了 <span style="color: var(--color-danger);">*</span></label>
+                    <input type="time" class="time-row-end" required value="17:00" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
                 </div>
-                <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem; width:100%; max-width:130px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
                         <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0;">帰社時間</label>
-                        <label style="display:inline-flex; align-items:center; gap:0.15rem; font-size:0.75rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
-                            <input type="checkbox" class="chk-row-back" style="width:0.9rem; height:0.9rem;">
+                        <label style="display:inline-flex; align-items:center; gap:0.2rem; font-size:0.8rem; margin-bottom:0; cursor:pointer; color:var(--color-warning); font-weight:600;">
+                            <input type="checkbox" class="chk-row-back" style="width:0.95rem; height:0.95rem;">
                             <span>直帰</span>
                         </label>
                     </div>
-                    <input type="time" class="time-row-ret" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center;">
+                    <input type="time" class="time-row-ret" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px;">
                 </div>
             </div>
             
@@ -667,63 +518,51 @@ function renderBatchInputForm(container) {
                 <textarea class="txt-row-content" rows="3" required placeholder="この現場での作業内容を記入してください" style="padding: 0.7rem; font-size: 0.95rem; border-radius: 10px; font-family:var(--font-sans);"></textarea>
             </div>
             
-            <!-- 現場待機時間帯の入力 (時間指定) -->
-            <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.65rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
-                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 1</label>
-                        </div>
-                        <input type="time" class="time-row-break-start" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+            <!-- その他休憩時間帯の入力 (時間指定) -->
+            <div class="break-time-container" style="background: rgba(245,158,11,0.02); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(245,158,11,0.08); margin-bottom: 1rem;">
+                <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 1</label>
+                        <input type="time" class="time-row-break-start" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 1</label>
-                        </div>
-                        <input type="time" class="time-row-break-end" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 1</label>
+                        <input type="time" class="time-row-break-end" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
                 
-                <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                     <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
                         <input type="checkbox" class="chk-add-break2" style="width:1rem; height:1rem; cursor:pointer;">
-                        <span>待機2を追加</span>
+                        <span>休憩2を追加</span>
                     </label>
                     <label style="display:inline-flex; align-items:center; gap:0.3rem; cursor:pointer; font-size:0.8rem; color:var(--text-main);">
                         <input type="checkbox" class="chk-add-break3" style="width:1rem; height:1rem; cursor:pointer;">
-                        <span>待機3を追加</span>
+                        <span>休憩3を追加</span>
                     </label>
                 </div>
 
-                <!-- 現場待機2 -->
-                <div class="form-row row-break2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
-                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 2</label>
-                        </div>
-                        <input type="time" class="time-row-break-start2" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                <!-- その他休憩2 -->
+                <div class="form-row row-break2" style="gap: 0.5rem; margin-bottom: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 2</label>
+                        <input type="time" class="time-row-break-start2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 2</label>
-                        </div>
-                        <input type="time" class="time-row-break-end2" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 2</label>
+                        <input type="time" class="time-row-break-end2" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
 
-                <!-- 現場待機3 -->
-                <div class="form-row row-break3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; display: none;">
-                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機開始 3</label>
-                        </div>
-                        <input type="time" class="time-row-break-start3" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                <!-- その他休憩3 -->
+                <div class="form-row row-break3" style="gap: 0.5rem; display: none;">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩開始 3</label>
+                        <input type="time" class="time-row-break-start3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
-                    <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; align-items:center;">
-                        <div style="width:100%; max-width:130px; margin-bottom:0.25rem;">
-                            <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0; display:block;">現場待機終了 3</label>
-                        </div>
-                        <input type="time" class="time-row-break-end3" style="padding: 0.45rem 0.5rem; font-size: 0.9rem; border-radius: 8px; width: 100%; max-width: 130px; text-align: center; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
+                    <div class="form-group" style="margin-bottom:0; flex: 1;">
+                        <label style="font-size: 0.8rem; font-weight: 600; margin-bottom:0.25rem; display:block;">その他休憩終了 3</label>
+                        <input type="time" class="time-row-break-end3" style="padding: 0.65rem; font-size: 0.95rem; border-radius: 8px; width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-light);">
                     </div>
                 </div>
             </div>
@@ -972,19 +811,11 @@ function renderBatchInputForm(container) {
         const isSubstituteOff = document.getElementById('chk-batch-substitute-off').checked;
         
         if (isSubstituteOff) {
-            const selectEl = document.getElementById('batch-substitute-target-select');
-            const customInput = document.getElementById('batch-substitute-target-date');
-            let substituteTargetDate = '';
-            
-            if (selectEl && selectEl.value && selectEl.value !== '__custom__') {
-                substituteTargetDate = selectEl.value;
-            } else if (customInput && customInput.value) {
-                substituteTargetDate = customInput.value;
-            }
-            
+            const subTargetDateInput = document.getElementById('batch-substitute-target-date');
+            const substituteTargetDate = subTargetDateInput ? subTargetDateInput.value : '';
             if (!substituteTargetDate) {
-                window.app.showToast('代休対象となる休日出勤日を選択してください', 'error');
-                if (selectEl) selectEl.focus();
+                window.app.showToast('元になった休日出勤日の日付を入力してください', 'error');
+                if (subTargetDateInput) subTargetDateInput.focus();
                 return;
             }
             // 代休取得の場合：現場情報のバリデーションを完全にスルーして、ダミー日報を1件作成
@@ -999,7 +830,7 @@ function renderBatchInputForm(container) {
                 endTime: '',
                 returnTime: '',
                 isDirectBack: false,
-                workContent: '代休消化による休日',
+                workContent: '代休取得による休日',
                 companions: '',
                 partnerCompanions: '',
                 isOfficeWork: false,
@@ -1008,7 +839,7 @@ function renderBatchInputForm(container) {
                 isSubstituteOff: true,
                 substituteTargetDate: substituteTargetDate, // 🚨 元になった休日出勤日を保存
                 client: '-',
-                siteName: '代休消化',
+                siteName: '代休 (休み取得)',
                 siteCode: 'SUBSTITUTE_OFF'
             });
         } else {

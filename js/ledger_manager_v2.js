@@ -1,22 +1,3 @@
-
-// 最終クラウド同期日時の表示更新 (グローバル定義)
-window.updateSyncTimeDisplay = function updateSyncTimeDisplay() {
-    try {
-        const lastSync = localStorage.getItem('last_cloud_sync_time') || 'なし';
-        const el = document.getElementById('last-sync-time');
-        if (el) {
-            el.textContent = `最終同期: ${lastSync}`;
-        }
-        const badge = document.getElementById('sync-time-badge');
-        if (badge) {
-            badge.textContent = `最終同期: ${lastSync}`;
-        }
-    } catch (e) {
-        console.warn('updateSyncTimeDisplay error:', e);
-    }
-};
-var updateSyncTimeDisplay = window.updateSyncTimeDisplay;
-
 try {
 // 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
 function getSplitReports(rawReports) {
@@ -86,71 +67,8 @@ function isEarlyDeparture(timeStr) {
     return (h * 60 + m) < (7 * 60); // 7:00未満
 }
 
-// ⏱️ 時間計算用ヘルパー (どこからでも呼び出せるグローバル定義)
-const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
-    if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
-    const parseMin = (str) => {
-        const [h, m] = str.split(':').map(Number);
-        return h * 60 + m;
-    };
-    const startMin = parseMin(startStr);
-    const endMin = parseMin(endStr);
-    if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
-        return { start: startStr, end: endStr, breakTime: '-', total: '-' };
-    }
-    
-    // その他休憩時間(分)の計算
-    let otherBreakMin = 0;
-    const addBreak = (s, e) => {
-        if (s && e) {
-            const obStart = parseMin(s);
-            const obEnd = parseMin(e);
-            if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
-                otherBreakMin += (obEnd - obStart);
-                return `${s}〜${e}`;
-            }
-        }
-        return null;
-    };
 
-    const breakRanges = [];
-    const r1 = addBreak(otherBreakStart, otherBreakEnd);
-    if (r1) breakRanges.push(r1);
-    const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
-    if (r2) breakRanges.push(r2);
-    const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
-    if (r3) breakRanges.push(r3);
 
-    const breakStart = 12 * 60; // 12:00
-    const breakEnd = 13 * 60;   // 13:00
-    const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-    const lunchBreakMin = hasBreak ? 60 : 0;
-    const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
-    
-    let breakHours = '';
-    const otherBreakStr = breakRanges.join(', ');
-
-    if (lunchBreakMin > 0 && otherBreakStr) {
-        breakHours = `1時間 (現場待機: ${otherBreakStr})`;
-    } else if (lunchBreakMin > 0) {
-        breakHours = '1時間';
-    } else if (otherBreakStr) {
-        breakHours = `現場待機: ${otherBreakStr}`;
-    } else {
-        breakHours = '0時間';
-    }
-    let lunchBreakText = lunchBreakMin > 0 ? '1時間' : '0時間';
-    let waitingTimeText = otherBreakStr ? otherBreakStr : '-';
-    const totalH = Math.floor(totalMin / 60);
-    const totalM = totalMin % 60;
-    const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-    return { start: startStr, end: endStr, breakTime: breakHours, lunchBreakTime: lunchBreakText, waitingTime: waitingTimeText, total: totalText, min: totalMin };
-};
-
-// 外部/グローバルから安全にアクセスできるようにwindowにエクスポート
-window.getSplitReports = getSplitReports;
-window.isEarlyDeparture = isEarlyDeparture;
-window.calculateWorkTime = calculateWorkTime;
 
 if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 
@@ -268,10 +186,6 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 workContentText = "電気配線深夜工事 (跨ぎ勤務)";
             }
 
-            // 休日出勤の仕込み (約15%)
-            const isHolidayWork = (i % 7 === 5);
-            const holidayWorkType = isHolidayWork ? ((i % 5 === 0) ? 'allowance' : 'substitute') : '';
-
             // 代休 (休み取得 ＆ 元出勤日) の仕込み (約8%)
             const isSubstituteOff = (i % 12 === 0);
             let substituteTargetDate = "";
@@ -321,8 +235,6 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
                 workContent: workContentText,
                 partnerCompanions: isSubstituteOff ? "" : partnerStr,
                 isOfficeWork: false,
-                isHolidayWork: isHolidayWork,
-                holidayWorkType: holidayWorkType,
                 isSubstituteOff: isSubstituteOff,
                 substituteTargetDate: substituteTargetDate,
                 otherBreakStart: otherBreakStart,
@@ -388,11 +300,6 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
             window.PurchaseDB.getAll = function() { return window._massiveMemoryDb.purchases; };
         }
 
-        try {
-            if (window.SiteDB && window.SiteDB.saveAll) window.SiteDB.saveAll(sites);
-            if (window.ReportDB && window.ReportDB.saveAll) window.ReportDB.saveAll(reports);
-            if (window.PurchaseDB && window.PurchaseDB.saveAll) window.PurchaseDB.saveAll(purchases);
-        } catch(e) { console.warn("Local storage save warn:", e); }
         if (onComplete) onComplete(sites.length, reports.length, purchases.length);
 
     } catch (err) {
@@ -506,12 +413,6 @@ function router() {
             renderPartnerLedger(container);
             return;
         }
-
-        if (hash === '#holiday-work-list') {
-            pageTitle.textContent = '休日出勤・代休管理リスト';
-            renderHolidayWorkList(container);
-            return;
-        }
     } catch (e) {
         alert("🚨 ルーター実行中にエラーをキャッチしました！\n\nエラーメッセージ: " + e.message + "\n\nスタック情報:\n" + e.stack);
     }
@@ -547,7 +448,6 @@ function renderPurchaseListTable(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
-                        
                     </select>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -1308,7 +1208,6 @@ function renderSiteListTable(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
-                        
                     </select>
                 </div>
                 <div style="width: 150px;">
@@ -2160,7 +2059,6 @@ function renderLedgerList(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
-                        
                     </select>
                 </div>
                 <div style="width: 140px; flex-shrink: 0;">
@@ -2343,7 +2241,7 @@ function refreshLedgerTable(filter = {}) {
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
-    siteMap.set('site_substitute_off', { id: 'site_substitute_off', code: 'SUBSTITUTE_OFF', name: '代休消化', client: '-' });
+    siteMap.set('site_substitute_off', { id: 'site_substitute_off', code: 'SUBSTITUTE_OFF', name: '代休 (休み取得)', client: '-' });
 
     // 検索フィルタの適用
     if (filter.search) {
@@ -2396,7 +2294,64 @@ function refreshLedgerTable(filter = {}) {
         reports = reports.filter(r => r.date && getClosingMonth(r.date) === filter.month);
     }
 
+    // 時間計算用ヘルパー
+    const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
+        if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
+        const parseMin = (str) => {
+            const [h, m] = str.split(':').map(Number);
+            return h * 60 + m;
+        };
+        const startMin = parseMin(startStr);
+        const endMin = parseMin(endStr);
+        if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
+            return { start: startStr, end: endStr, breakTime: '-', total: '-' };
+        }
+        
+        // その他休憩時間(分)の計算
+        let otherBreakMin = 0;
+        const addBreak = (s, e) => {
+            if (s && e) {
+                const obStart = parseMin(s);
+                const obEnd = parseMin(e);
+                if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
+                    otherBreakMin += (obEnd - obStart);
+                    return `${s}〜${e}`;
+                }
+            }
+            return null;
+        };
 
+        const breakRanges = [];
+        const r1 = addBreak(otherBreakStart, otherBreakEnd);
+        if (r1) breakRanges.push(r1);
+        const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
+        if (r2) breakRanges.push(r2);
+        const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
+        if (r3) breakRanges.push(r3);
+
+        const breakStart = 12 * 60; // 12:00
+        const breakEnd = 13 * 60;   // 13:00
+        const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
+        const lunchBreakMin = hasBreak ? 60 : 0;
+        const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
+        
+        let breakHours = '';
+        const otherBreakStr = breakRanges.join(', ');
+
+        if (lunchBreakMin > 0 && otherBreakStr) {
+            breakHours = `1時間(${otherBreakStr})`;
+        } else if (lunchBreakMin > 0) {
+            breakHours = '1時間';
+        } else if (otherBreakStr) {
+            breakHours = otherBreakStr;
+        } else {
+            breakHours = '0時間';
+        }
+        const totalH = Math.floor(totalMin / 60);
+        const totalM = totalMin % 60;
+        const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
+        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
+    };
 
     // 作業日報一覧用の行HTMLジェネレーター (11列)
     const generateLedgerRow = (rep, showHolidayWork = false) => {
@@ -4205,7 +4160,7 @@ function openReportPreviewModal(reportId) {
                     <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">勤務時間</th>
                     <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light); font-family: 'Inter';">
                         ${(() => {
-                            const depIsEarly = !report.isDirectGo && report.departureTime && window.isEarlyDeparture(report.departureTime);
+                            const depIsEarly = !report.isDirectGo && report.departureTime && isEarlyDeparture(report.departureTime);
                             const depText = report.isDirectGo ? '直行' : (report.departureTime || '-');
                             const depDisplay = depIsEarly 
                                 ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
@@ -4215,7 +4170,7 @@ function openReportPreviewModal(reportId) {
                         })()}
                         <span style="color: var(--text-muted); margin-left: 1rem;">(現場作業時間: ${report.startTime || '-'} 〜 ${report.endTime || '-'})</span>
                         <span style="color: var(--text-muted); margin-left: 1rem;">(休憩: ${(() => {
-                            const times = window.calculateWorkTime(
+                            const times = calculateWorkTime(
                                 report.startTime, report.endTime,
                                 report.otherBreakStart || '', report.otherBreakEnd || '',
                                 report.otherBreakStart2 || '', report.otherBreakEnd2 || '',
@@ -4274,6 +4229,12 @@ function openReportPreviewModal(reportId) {
     });
 
     // 閉じるボタンと背景クリックで確実に閉じるための制御 (二重の安全ガード)
+    const closeBtn = document.getElementById('modal-close-btn');
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            backdrop.classList.remove('open');
+        };
+    }
     backdrop.onclick = (e) => {
         if (e.target === backdrop) {
             backdrop.classList.remove('open');
@@ -4401,36 +4362,36 @@ function openEditReportModal(reportId) {
                 </div>
             </div>
 
-            <!-- 現場待機時間帯 (時間指定) -->
+            <!-- その他休憩時間帯 (時間指定) -->
             <div style="margin-bottom: 1rem; background: rgba(245,158,11,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(245,158,11,0.08);">
-                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">現場待機時間 (時間帯)</div>
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">その他休憩時間 (時間帯)</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">待機① 開始</label>
+                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">休憩① 開始</label>
                         <input type="time" id="edit-rep-break-start" value="${report.otherBreakStart || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">待機① 終了</label>
+                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">休憩① 終了</label>
                         <input type="time" id="edit-rep-break-end" value="${report.otherBreakEnd || ''}">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">待機② 開始</label>
+                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">休憩② 開始</label>
                         <input type="time" id="edit-rep-break-start2" value="${report.otherBreakStart2 || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">待機② 終了</label>
+                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">休憩② 終了</label>
                         <input type="time" id="edit-rep-break-end2" value="${report.otherBreakEnd2 || ''}">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">待機③ 開始</label>
+                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">休憩③ 開始</label>
                         <input type="time" id="edit-rep-break-start3" value="${report.otherBreakStart3 || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">待機③ 終了</label>
+                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">休憩③ 終了</label>
                         <input type="time" id="edit-rep-break-end3" value="${report.otherBreakEnd3 || ''}">
                     </div>
                 </div>
@@ -5012,7 +4973,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 最終同期時間の初期表示
-    if (typeof updateSyncTimeDisplay === 'function') updateSyncTimeDisplay();
+    updateSyncTimeDisplay();
 
     // 1時間おきに自動バックグラウンド同期を実行するタイマー (3600000ミリ秒)
     setInterval(() => {
@@ -5063,11 +5024,14 @@ async function syncPurchasesToCloud() {
 }
 
 // クラウド中継ポストから暗号化された日報をダウンロード ＆ 復号マージ ＆ クラウド消去
-// クラウド中継ポストと全データ (日報・現場・仕入れ) を双方向自動同期
-// クラウド中継ポストと全データ (日報・現場・仕入れ) を双方向自動同期
-// 超高速 ＆ 無限「同期中」防止ガード付きクラウド同期処理
-// 【完全双方向対応】全データ (日報・現場・仕入れ) のクラウド同期
 async function syncReportsFromCloud(isAutomatic = false) {
+    if (!window.CloudSync || !window.CloudSync.init()) {
+        if (!isAutomatic) {
+            window.app.showToast('クラウド接続設定が未完了です。設定ボタンから登録してください。', 'warning');
+        }
+        return;
+    }
+
     const syncBtn = document.getElementById('btn-cloud-sync');
     if (syncBtn && !isAutomatic) {
         syncBtn.disabled = true;
@@ -5075,190 +5039,119 @@ async function syncReportsFromCloud(isAutomatic = false) {
         if (window.lucide) window.lucide.createIcons();
     }
 
-    if (window.CloudSync) { window.CloudSync.saveConfig(window.CloudSync.getConfig()); window.CloudSync.init(); }
-    if (!window.CloudSync || !window.CloudSync.init()) {
-        if (!isAutomatic && window.app) {
-            window.app.showToast('クラウド接続設定が未完了です。', 'warning');
-        }
-        if (typeof resetSyncButton === 'function') resetSyncButton();
-        return;
+    if (!isAutomatic) {
+        window.app.showToast('クラウドから提出済みの未処理日報を読み込んでいます...', 'info');
     }
-
-    // 最新データソースを取得 (メモリDBまたはStorage DB)
-    const localReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
-    const localSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
-    const localPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
-
-    if (!isAutomatic && window.app) {
-        window.app.showToast(`☁️ データ同期開始 (現場${localSites.length}件 / 日報${localReports.length}件 / 仕入${localPurchases.length}件)`, 'info');
-    }
-
-    let isFinished = false;
-    const safetyTimer = setTimeout(() => {
-        if (!isFinished) {
-            console.warn('⚠️ クラウド同期タイムアウト復帰');
-            if (typeof resetSyncButton === 'function') resetSyncButton();
-        }
-    }, 15000);
 
     try {
-        let hasNewData = false;
 
-        const reportCollection = window.CloudSync.collection('reports');
-        const siteCollection = window.CloudSync.collection('sites');
-        const purchaseCollection = window.CloudSync.collection('purchases');
 
-        // --- STEP 1: ローカルデータをクラウドへアップロード (送信) ---
-        if (localReports.length > 0 || localSites.length > 0 || localPurchases.length > 0) {
-            await Promise.all([
-                (reportCollection.saveAll && localReports.length > 0) ? reportCollection.saveAll(localReports).catch(e => console.warn("Reports upload warn:", e)) : Promise.resolve(),
-                (siteCollection.saveAll && localSites.length > 0) ? siteCollection.saveAll(localSites).catch(e => console.warn("Sites upload warn:", e)) : Promise.resolve(),
-                (purchaseCollection.saveAll && localPurchases.length > 0) ? purchaseCollection.saveAll(localPurchases).catch(e => console.warn("Purchases upload warn:", e)) : Promise.resolve()
-            ]);
+
+        const collection = window.CloudSync.collection('reports');
+        const snapshot = await collection.get();
+
+        if (snapshot.empty) {
+            if (!isAutomatic) {
+                window.app.showToast('新着日報はありません (中継ポスト is 空です)', 'info');
+            }
+            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
+            updateSyncTimeDisplay();
+            if (!isAutomatic) resetSyncButton();
+            return;
         }
 
-        // --- STEP 2: クラウドから最新データをダウンロード ＆ マージ (受信) ---
+        let successCount = 0;
+        let failCount = 0;
+        const deletePromises = [];
 
-        // 2-A. 日報 (Reports) のマージ
-        try {
-            const cloudReports = await Promise.race([
-                reportCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 7000))
-            ]);
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.encrypted) {
+                const report = window.CryptoUtil.decrypt(data.encrypted);
+                if (report) {
+                    const exists = window.ReportDB.getAll().some(r => 
+                        r.id === report.id || 
+                        (
+                            r.date === report.date && 
+                            r.siteId === report.siteId && 
+                            r.writer === report.writer &&
+                            r.startTime === report.startTime &&
+                            r.endTime === report.endTime &&
+                            r.content === report.content
+                        )
+                    );
 
-            if (Array.isArray(cloudReports) && cloudReports.length > 0) {
-                let currentReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
-                let reportUpdated = false;
-
-                cloudReports.forEach(item => {
-                    try {
-                        const data = typeof item.data === 'function' ? item.data() : item;
-                        if (data && data.encrypted) {
-                            const report = window.CryptoUtil.decrypt(data.encrypted);
-                            if (report && report.id) {
-                                const idx = currentReports.findIndex(r => r.id === report.id);
-                                if (idx === -1) {
-                                    currentReports.push(report);
-                                    reportUpdated = true;
-                                } else {
-                                    currentReports[idx] = report;
-                                    reportUpdated = true;
-                                }
-                            }
-                        }
-                    } catch (e) {}
-                });
-
-                if (reportUpdated && window.ReportDB) {
-                    window.ReportDB.saveAll(currentReports);
-                    hasNewData = true;
+                    if (!exists) {
+                        window.ReportDB.add(report);
+                    }
+                    successCount++;
+                    deletePromises.push(collection.doc(doc.id).delete());
+                } else {
+                    console.warn('Decryption failed for doc:', doc.id);
+                    failCount++;
+                    // 復号に失敗したゴミデータも、いつまでもクラウドに居座ってエラーを出し続けないように、同期時にクラウドから消去する
+                    deletePromises.push(collection.doc(doc.id).delete());
                 }
             }
-        } catch (e) {
-            console.warn('Report download merge warning:', e);
-        }
+        });
 
-        // 2-B. 現場 (Sites) のマージ
-        try {
-            const cloudSites = await Promise.race([
-                siteCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 6000))
-            ]);
-
-            if (Array.isArray(cloudSites) && cloudSites.length > 0) {
-                let currentSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
-                let siteUpdated = false;
-
-                cloudSites.forEach(item => {
-                    try {
-                        const data = typeof item.data === 'function' ? item.data() : item;
-                        if (data && data.encrypted) {
-                            const site = window.CryptoUtil.decrypt(data.encrypted);
-                            if (site && site.id) {
-                                const idx = currentSites.findIndex(s => s.id === site.id);
-                                if (idx === -1) {
-                                    currentSites.push(site);
-                                    siteUpdated = true;
-                                } else {
-                                    currentSites[idx] = site;
-                                    siteUpdated = true;
-                                }
-                            }
-                        }
-                    } catch (e) {}
-                });
-
-                if (siteUpdated && window.SiteDB) {
-                    window.SiteDB.saveAll(currentSites);
-                    hasNewData = true;
-                }
+        if (failCount > 0) {
+            if (window.app && typeof window.app.showToast === 'function') {
+                window.app.showToast(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。スマホとPCのパスワードを一致させてください。`, 'danger');
+            } else {
+                alert(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。\nスマホとPCのパスワードを一致させてください。`);
             }
-        } catch (e) {
-            console.warn('Site download merge warning:', e);
         }
 
-        // 2-C. 仕入れ (Purchases) のマージ
-        try {
-            const cloudPurchases = await Promise.race([
-                purchaseCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 6000))
-            ]);
-
-            if (Array.isArray(cloudPurchases) && cloudPurchases.length > 0) {
-                let currentPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
-                let purchaseUpdated = false;
-
-                cloudPurchases.forEach(item => {
-                    try {
-                        const data = typeof item.data === 'function' ? item.data() : item;
-                        if (data && data.encrypted) {
-                            const purchase = window.CryptoUtil.decrypt(data.encrypted);
-                            if (purchase && purchase.id) {
-                                const idx = currentPurchases.findIndex(p => p.id === purchase.id);
-                                if (idx === -1) {
-                                    currentPurchases.push(purchase);
-                                    purchaseUpdated = true;
-                                } else {
-                                    currentPurchases[idx] = purchase;
-                                    purchaseUpdated = true;
-                                }
-                            }
-                        }
-                    } catch (e) {}
-                });
-
-                if (purchaseUpdated && window.PurchaseDB) {
-                    window.PurchaseDB.saveAll(currentPurchases);
-                    hasNewData = true;
-                }
+        if (successCount > 0) {
+            await Promise.all(deletePromises);
+            window.app.showToast(`${successCount}件の新着日報を取り込み、台帳に同期しました！`, 'success');
+            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
+            updateSyncTimeDisplay();
+            router();
+        } else {
+            if (!isAutomatic) {
+                window.app.showToast('新しい日報データは見つかりませんでした。', 'info');
             }
-        } catch (e) {
-            console.warn('Purchase download merge warning:', e);
+            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
+            updateSyncTimeDisplay();
         }
-
-        // タイムスタンプ保存と画面全画面再描画
-        localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
-        if (typeof updateSyncTimeDisplay === 'function') updateSyncTimeDisplay();
-
-        // 画面強制リフレッシュ・ハッシュ再接続
-        const currentHash = window.location.hash || '#site-list';
-        window.location.hash = '#temp';
-        setTimeout(() => {
-            window.location.hash = currentHash;
-            if (typeof refreshCurrentView === 'function') refreshCurrentView();
-        }, 100);
-
-        if (!isAutomatic && window.app) {
-            const finalReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
-            window.app.showToast(`🎉 クラウド同期完了！ (全日報 ${finalReports.length} 件が最新化されました)`, 'success');
+    } catch (e) {
+        console.error('Cloud report sync failed:', e);
+        if (!isAutomatic) {
+            window.app.showToast('同期中に接続エラーが発生しました。設定情報をご確認ください。', 'error');
         }
-    } catch (err) {
-        console.error('Error during cloud sync:', err);
     } finally {
-        isFinished = true;
-        clearTimeout(safetyTimer);
-        if (typeof resetSyncButton === 'function') {
-            resetSyncButton();
+        if (!isAutomatic) resetSyncButton();
+    }
+}
+
+// 最終同期バッジの更新表示
+function updateSyncTimeDisplay() {
+    const lastSyncSpan = document.getElementById('last-sync-time');
+    const syncBadge = document.getElementById('sync-time-badge');
+    if (lastSyncSpan) {
+        const lastSync = localStorage.getItem('last_cloud_sync_time');
+        if (lastSync) {
+            const dateObj = new Date(lastSync);
+            if (!isNaN(dateObj.getTime())) {
+                const today = new Date();
+                const isToday = dateObj.toDateString() === today.toDateString();
+                const timeStr = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+                if (isToday) {
+                    lastSyncSpan.textContent = `最終同期: 今日 ${timeStr}`;
+                } else {
+                    const m = dateObj.getMonth() + 1;
+                    const d = dateObj.getDate();
+                    lastSyncSpan.textContent = `最終同期: ${m}/${d} ${timeStr}`;
+                }
+            } else {
+                lastSyncSpan.textContent = `最終同期: ${lastSync}`;
+            }
+            if (syncBadge) syncBadge.style.display = 'inline-flex';
+        } else {
+            lastSyncSpan.textContent = '最終同期: なし';
+            if (syncBadge) syncBadge.style.display = 'inline-flex';
         }
     }
 }
@@ -6384,7 +6277,6 @@ function renderPartnerLedger(container) {
                         <option value="QS">公共事業部</option>
                         <option value="QY">本部</option>
                         <option value="OTHER">その他</option>
-                        
                     </select>
                 </div>
                 <div style="width: 150px;">
@@ -6601,8 +6493,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
-                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.lunchBreakTime}</td>
-                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.waitingTime}</td>
+                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
                 ${showHolidayWork ? `
                     <td style="text-align: center; padding: 0.75rem;">
                         ${rep.isHolidayWork ? (rep.holidayWorkType === 'substitute' ? '<span style="background:var(--color-primary); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">代休</span>' : '<span style="background:#e11d48; color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">休出</span>') : '-'}
@@ -6746,20 +6637,18 @@ function refreshPartnerLedgerTable(filter = {}) {
         const otherBreakStr = breakRanges.join(', ');
 
         if (lunchBreakMin > 0 && otherBreakStr) {
-            breakHours = `1時間 (現場待機: ${otherBreakStr})`;
+            breakHours = `1時間(${otherBreakStr})`;
         } else if (lunchBreakMin > 0) {
             breakHours = '1時間';
         } else if (otherBreakStr) {
-            breakHours = `現場待機: ${otherBreakStr}`;
+            breakHours = otherBreakStr;
         } else {
             breakHours = '0時間';
         }
-        let lunchBreakText = lunchBreakMin > 0 ? '1時間' : '0時間';
-        let waitingTimeText = otherBreakStr ? otherBreakStr : '-';
         const totalH = Math.floor(totalMin / 60);
         const totalM = totalMin % 60;
         const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-        return { start: startStr, end: endStr, breakTime: breakHours, lunchBreakTime: lunchBreakText, waitingTime: waitingTimeText, total: totalText, min: totalMin };
+        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
     };
 
 
@@ -6820,15 +6709,14 @@ function refreshPartnerLedgerTable(filter = {}) {
                         <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${r.workContent || ''}">${snippet}</td>
                         <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                         <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
-                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.lunchBreakTime}</td>
-                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.waitingTime}</td>
+                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
                         <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
                             ${isOfficeWork ? '-' : times.total}
                         </td>
                         <td style="font-size: 0.85rem; padding: 0.75rem;">${r.writer || '-'}</td>
                         <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                            <button class="btn btn-primary btn-view-report-detail" data-repid="${r.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                                編集
+                            <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${r.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
+                                <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
                             </button>
                         </td>
                     </tr>
@@ -6873,8 +6761,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
-                                <th style="width: 90px; text-align: center; padding: 0.75rem;">昼休憩</th>
-                                <th style="width: 120px; text-align: center; padding: 0.75rem;">現場待機</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                 <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -6885,7 +6772,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                         </tbody>
                         <tfoot class="print-only" style="display:none;">
                             <tr>
-                                <td colspan="10" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
+                                <td colspan="9" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
                                 <td colspan="2" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
                             </tr>
                         </tfoot>
@@ -6989,8 +6876,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                                         <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
-                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">昼休憩</th>
-                                        <th style="width: 120px; text-align: center; padding: 0.75rem;">現場待機</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                         <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -7167,336 +7053,4 @@ function refreshPartnerLedgerTable(filter = {}) {
 
 } catch (err) {
     alert('🚨 ledger_manager_v2.js 内で致命的なエラーが発生しました！\n\n【エラー型】: ' + err.name + '\n【メッセージ】: ' + err.message + '\n\n【スタックトレース】:\n' + err.stack);
-}
-
-// ==========================================
-// 📅 休日出勤・代休管理リスト (個別表示対応)
-// ==========================================
-function renderHolidayWorkList(container) {
-    container.innerHTML = `
-        <div class="toolbar no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 90; background: var(--bg-body); padding: 1rem 0; border-bottom: 1px solid var(--border-light); transition: all 0.2s ease;">
-            <div class="search-filter-group" style="display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1;">
-                <div class="input-search-wrapper" style="position: relative; min-width: 220px; flex: 1;">
-                    <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--text-muted);"></i>
-                    <input type="text" id="list-holiday-search" class="input-search" placeholder="作業員名、現場名、日付などで検索..." style="padding-left: 2.2rem; width: 100%;">
-                </div>
-                
-                <!-- 個別作業員フィルター -->
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;"><i data-lucide="user" style="width:0.9rem; height:0.9rem; vertical-align:middle;"></i> 作業員:</span>
-                    <select id="list-holiday-worker-filter" class="form-control" style="width: 160px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
-                        <option value="all">全作業員 (個別選択可能)</option>
-                    </select>
-                </div>
-
-                <!-- 区分フィルター -->
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">ステータス:</span>
-                    <select id="list-holiday-type-filter" class="form-control" style="width: 160px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
-                        <option value="all">すべてのステータス</option>
-                        <option value="unsubstituted">🔴 未消化 (代休保持中)</option>
-                        <option value="substituted">🟢 代休消化済み</option>
-                        <option value="allowance">🔵 休出手当対象</option>
-                    </select>
-                </div>
-
-                <!-- 期間フィルター -->
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">表示対象:</span>
-                    <select id="list-holiday-period-filter" class="form-control" style="width: 140px; padding: 0.4rem; border-radius: 6px; font-size: 0.85rem;">
-                        <option value="current">今期分のみ</option>
-                        <option value="all">すべての期間</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 0.5rem;" class="no-print">
-                <button class="btn btn-secondary" onclick="window.print()" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.85rem; font-size: 0.85rem;">
-                    <i data-lucide="printer" style="width: 0.9rem; height: 0.9rem;"></i> 印刷
-                </button>
-            </div>
-        </div>
-
-
-
-        <!-- テーブル表示領域 -->
-        <div id="holiday-work-table-container"></div>
-    `;
-
-    if (window.lucide) window.lucide.createIcons();
-
-    // 作業員フィルターの選択肢を動的生成
-    const reports = window.ReportDB.getAll() || [];
-    const workerSet = new Set();
-    reports.forEach(r => {
-        if (r.writer && r.writer.trim()) workerSet.add(r.writer.trim());
-    });
-    const sortedWorkers = Array.from(workerSet).sort();
-    const workerSelect = document.getElementById('list-holiday-worker-filter');
-    if (workerSelect) {
-        sortedWorkers.forEach(w => {
-            const opt = document.createElement('option');
-            opt.value = w;
-            opt.textContent = w;
-            workerSelect.appendChild(opt);
-        });
-    }
-
-    const currentFilter = {
-        search: '',
-        worker: 'all',
-        type: 'all',
-        period: 'current'
-    };
-
-    const updateTable = () => refreshHolidayWorkListTable(currentFilter);
-
-    document.getElementById('list-holiday-search')?.addEventListener('input', (e) => {
-        currentFilter.search = e.target.value;
-        updateTable();
-    });
-
-    document.getElementById('list-holiday-worker-filter')?.addEventListener('change', (e) => {
-        currentFilter.worker = e.target.value;
-        updateTable();
-    });
-
-    document.getElementById('list-holiday-type-filter')?.addEventListener('change', (e) => {
-        currentFilter.type = e.target.value;
-        updateTable();
-    });
-
-    document.getElementById('list-holiday-period-filter')?.addEventListener('change', (e) => {
-        currentFilter.period = e.target.value;
-        updateTable();
-    });
-
-    updateTable();
-}
-
-function refreshHolidayWorkListTable(filter) {
-    const container = document.getElementById('holiday-work-table-container');
-    if (!container) return;
-
-    let reports = window.ReportDB.getAll() || [];
-    const sites = window.SiteDB.getAll() || [];
-    const siteMap = new Map(sites.map(s => [s.id, s]));
-
-    // 10月期切り替え判定ヘルパー
-    const getFiscalYear = (dateStr) => {
-        if (!dateStr) return null;
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return null;
-        const y = d.getFullYear();
-        const m = d.getMonth() + 1;
-        return m >= 10 ? y + 1 : y;
-    };
-    const targetFY = getFiscalYear(new Date()) || 2026;
-
-    // 年度フィルター
-    if (filter.period === 'current') {
-        reports = reports.filter(r => getFiscalYear(r.date) === targetFY);
-    }
-
-    // 代休消化日報
-    const substituteOffReports = reports.filter(r => r.isSubstituteOff);
-
-    // 休日出勤日報 (または代休指定・休日選択されているもの)
-    let holidayEntries = [];
-    reports.forEach(r => {
-        if (r.isHolidayWork && !r.isSubstituteOff) {
-            holidayEntries.push(r);
-        }
-    });
-
-    // 休日出勤と代休消化の厳密ペアリング処理
-    // すでにペアリング済みの代休消化日報IDを保持する Set
-    const usedSubstituteIds = new Set();
-
-    // 休日出勤日を日付昇順 (古い順) に並べてペアリング評価
-    holidayEntries.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-
-    const pairedList = holidayEntries.map(hRep => {
-        const writer = (hRep.writer || '').trim();
-        const hDate = hRep.date;
-        const site = siteMap.get(hRep.siteId);
-        const siteName = hRep.siteName || (site ? site.name : '現場未設定');
-        const siteCode = hRep.siteCode || (site ? site.code : '-');
-        const isAllowance = (hRep.holidayWorkType === 'allowance');
-
-        let matchedSub = null;
-
-        if (!isAllowance) {
-            // 優先1: substituteTargetDate がこの休日出勤日 (hDate) と完全一致する代休消化日報
-            matchedSub = substituteOffReports.find(sub => {
-                if (usedSubstituteIds.has(sub.id)) return false;
-                const subWriter = (sub.writer || '').trim();
-                return subWriter === writer && sub.substituteTargetDate === hDate;
-            });
-
-            // 優先2: substituteTargetDate が未設定 (空) の旧形式代休消化日報とのみ FIFO でマッチ
-            if (!matchedSub) {
-                matchedSub = substituteOffReports.find(sub => {
-                    if (usedSubstituteIds.has(sub.id)) return false;
-                    const subWriter = (sub.writer || '').trim();
-                    // substituteTargetDate が空で、かつ代休取得日が休日出勤日以降の場合
-                    return subWriter === writer && (!sub.substituteTargetDate) && sub.date >= hDate;
-                });
-            }
-
-            // ペアリング成功時は一対一対応を保証するため既使用IDに追加
-            if (matchedSub) {
-                usedSubstituteIds.add(matchedSub.id);
-            }
-        }
-
-        let status = 'unsubstituted'; // 代休未消化
-        if (isAllowance) {
-            status = 'allowance'; // 休出手当
-        } else if (matchedSub) {
-            status = 'substituted'; // 代休消化済み
-        }
-
-        return {
-            report: hRep,
-            id: hRep.id,
-            date: hDate,
-            writer: writer,
-            siteCode: siteCode,
-            siteName: siteName,
-            holidayWorkType: hRep.holidayWorkType || 'substitute',
-            status: status,
-            substituteDate: matchedSub ? matchedSub.date : null,
-            substituteReportId: matchedSub ? matchedSub.id : null,
-            startTime: hRep.startTime || '-',
-            endTime: hRep.endTime || '-',
-            workContent: hRep.workContent || '-'
-        };
-    });
-
-    // 集計サマリーの計算 (フィルター前の全体または現在のフィルター対象)
-    let totalCount = pairedList.length;
-    let unsubCount = pairedList.filter(item => item.status === 'unsubstituted').length;
-    let subCount = pairedList.filter(item => item.status === 'substituted').length;
-    let allowCount = pairedList.filter(item => item.status === 'allowance').length;
-
-    const elTotal = document.getElementById('summary-holiday-total');
-    const elUnsub = document.getElementById('summary-holiday-unsubstituted');
-    const elSub = document.getElementById('summary-holiday-substituted');
-    const elAllow = document.getElementById('summary-holiday-allowance');
-
-    if (elTotal) elTotal.textContent = `${totalCount} 件`;
-    if (elUnsub) elUnsub.textContent = `${unsubCount} 件`;
-    if (elSub) elSub.textContent = `${subCount} 件`;
-    if (elAllow) elAllow.textContent = `${allowCount} 件`;
-
-    // フィルタリング適用
-    let filteredList = pairedList;
-
-    // 個別作業員フィルター
-    if (filter.worker && filter.worker !== 'all') {
-        filteredList = filteredList.filter(item => item.writer === filter.worker);
-    }
-
-    // ステータスフィルター
-    if (filter.type && filter.type !== 'all') {
-        filteredList = filteredList.filter(item => item.status === filter.type);
-    }
-
-    // キーワード検索
-    if (filter.search) {
-        const q = filter.search.toLowerCase();
-        filteredList = filteredList.filter(item => 
-            item.writer.toLowerCase().includes(q) ||
-            item.siteName.toLowerCase().includes(q) ||
-            item.siteCode.toLowerCase().includes(q) ||
-            item.date.includes(q) ||
-            (item.substituteDate && item.substituteDate.includes(q))
-        );
-    }
-
-    // 日付昇順ソート (新しい日付が上)
-    filteredList.sort((a, b) => b.date.localeCompare(a.date));
-
-    if (filteredList.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light);">
-                <i data-lucide="calendar-x" style="width: 2.5rem; height: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5;"></i>
-                <p style="font-size: 0.95rem; font-weight: 500;">該当する休日出勤・代休データは見つかりませんでした。</p>
-            </div>
-        `;
-        if (window.lucide) window.lucide.createIcons();
-        return;
-    }
-
-    let rowsHtml = '';
-    filteredList.forEach(item => {
-        const formattedHDate = item.date.replace(/-/g, '/');
-        const formattedSDate = item.substituteDate ? item.substituteDate.replace(/-/g, '/') : null;
-
-        let statusBadge = '';
-        if (item.status === 'unsubstituted') {
-            statusBadge = `<span style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">🔴 未消化 (代休保持中)</span>`;
-        } else if (item.status === 'substituted') {
-            statusBadge = `<span style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">🟢 代休消化済み (${formattedSDate})</span>`;
-        } else {
-            statusBadge = `<span style="background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">🔵 休出手当対象</span>`;
-        }
-
-        const typeLabel = (item.holidayWorkType === 'allowance') ? '休出手当' : '代休にする';
-
-        rowsHtml += `
-            <tr style="border-bottom: 1px solid var(--border-light); transition: background 0.15s ease;">
-                <td style="padding: 0.75rem 0.85rem; font-weight: 700; color: var(--text-main); white-space: nowrap;">
-                    ${formattedHDate}
-                </td>
-                <td style="padding: 0.75rem 0.85rem; font-weight: 600; color: var(--color-primary); white-space: nowrap;">
-                    <span style="cursor: pointer; text-decoration: underline;" onclick="document.getElementById('list-holiday-worker-filter').value='${item.writer}'; refreshHolidayWorkListTable({search:'', worker:'${item.writer}', type:'all', period:'current'});" title="この作業員のデータを個別表示">
-                        ${item.writer}
-                    </span>
-                </td>
-                <td style="padding: 0.75rem 0.85rem; color: var(--text-main);">
-                    <div style="font-weight: 600;">[${item.siteCode}] ${item.siteName}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">${item.workContent}</div>
-                </td>
-                <td style="padding: 0.75rem 0.85rem; white-space: nowrap; color: var(--text-main); font-size: 0.82rem;">
-                    ${item.startTime} 〜 ${item.endTime}
-                </td>
-                <td style="padding: 0.75rem 0.85rem; white-space: nowrap;">
-                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${typeLabel}</span>
-                </td>
-                <td style="padding: 0.75rem 0.85rem; white-space: nowrap;">
-                    ${statusBadge}
-                </td>
-                <td style="padding: 0.75rem 0.85rem; text-align: center; white-space: nowrap;" class="no-print">
-                    <button class="btn btn-primary" onclick="openEditReportModal('${item.id}')" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; border-radius: 6px;">
-                        編集
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
-
-    container.innerHTML = `
-        <div class="table-wrapper" style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-light); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-                <thead>
-                    <tr style="background: var(--bg-body); border-bottom: 2px solid var(--border-light); color: var(--text-muted); font-size: 0.8rem; text-align: left;">
-                        <th style="padding: 0.75rem 0.85rem; width: 110px;">休日出勤日</th>
-                        <th style="padding: 0.75rem 0.85rem; width: 120px;">作業員名 (個別)</th>
-                        <th style="padding: 0.75rem 0.85rem;">出勤現場 / 作業内容</th>
-                        <th style="padding: 0.75rem 0.85rem; width: 120px;">勤務時間</th>
-                        <th style="padding: 0.75rem 0.85rem; width: 100px;">区分</th>
-                        <th style="padding: 0.75rem 0.85rem; width: 220px;">代休消化状況</th>
-                        <th style="padding: 0.75rem 0.85rem; width: 80px; text-align: center;" class="no-print">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
-        </div>
-    `;
-
-    if (window.lucide) window.lucide.createIcons();
 }

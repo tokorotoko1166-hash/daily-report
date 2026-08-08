@@ -1,22 +1,3 @@
-
-// タイムアウト機能付き fetch (最大 5 秒で強制復帰)
-async function fetchWithTimeout(resource, options = {}) {
-    const { timeout = 5000 } = options;
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await fetchWithTimeout(resource, {
-            ...options,
-            signal: controller.signal
-        });
-        clearTimeout(id);
-        return response;
-    } catch (error) {
-        clearTimeout(id);
-        throw error;
-    }
-}
-
 try {
 // パスワード検証用の一方向ハッシュ計算 (SHA-256)
 async function calculateSHA256(message) {
@@ -906,22 +887,16 @@ window.CloudSync = {
     config: null,
     isMock: false,
     getConfig: function() {
-        const defaultConfig = {
-            url: 'https://daily-report-sync.tokoro-toko1166.workers.dev',
-            token: 'TokoroEdgeOneAuthToken2026'
-        };
         const saved = safeStorage.getItem('cloudflare_config');
         if (saved) {
             try {
-                const parsed = JSON.parse(saved);
-                if (parsed && parsed.url && parsed.token) return parsed;
+                return JSON.parse(saved);
             } catch (e) {}
         }
-        // 未設定時は自動でデフォルト設定を永続化保存
-        try {
-            safeStorage.setItem('cloudflare_config', JSON.stringify(defaultConfig));
-        } catch(e) {}
-        return defaultConfig;
+        return {
+            url: 'https://daily-report-sync.tokoro-toko1166.workers.dev',
+            token: 'TokoroEdgeOneAuthToken2026'
+        };
     },
     saveConfig: function(config) {
         safeStorage.setItem('cloudflare_config', JSON.stringify(config));
@@ -953,7 +928,7 @@ window.CloudSync = {
                     const headers = { 'Authorization': `Bearer ${config.token}` };
 
                     if (name === 'sites') {
-                        const res = await fetchWithTimeout(`${config.url}/api/sites`, { headers });
+                        const res = await fetch(`${config.url}/api/sites`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
                             throw new Error(`GET sites failed with status ${res.status}: ${errText}`);
@@ -973,7 +948,7 @@ window.CloudSync = {
                         }
                         return [];
                     } else if (name === 'purchases') {
-                        const res = await fetchWithTimeout(`${config.url}/api/purchases`, { headers });
+                        const res = await fetch(`${config.url}/api/purchases`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
                             throw new Error(`GET purchases failed with status ${res.status}: ${errText}`);
@@ -993,7 +968,7 @@ window.CloudSync = {
                         }
                         return [];
                     } else {
-                        const res = await fetchWithTimeout(`${config.url}/api/reports`, { headers });
+                        const res = await fetch(`${config.url}/api/reports`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
                             throw new Error(`GET reports failed with status ${res.status}: ${errText}`);
@@ -1005,23 +980,8 @@ window.CloudSync = {
                         }));
                     }
                 },
-                                saveAll: async function(items) {
-                    if (!Array.isArray(items) || items.length === 0) return;
-                    const headers = { 
-                        'Authorization': `Bearer ${config.token}`,
-                        'Content-Type': 'application/json'
-                    };
-                    const encryptedPayload = window.CryptoUtil.encrypt(items);
-                    const endpoint = `${config.url}/api/${name}`;
-                    const res = await fetchWithTimeout(endpoint, {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify({ encrypted: encryptedPayload, items: items })
-                    });
-                    return res.ok;
-                },
                 add: async function(data) {
-                    const res = await fetchWithTimeout(`${config.url}/api/reports`, {
+                    const res = await fetch(`${config.url}/api/reports`, {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${config.token}`,
@@ -1042,7 +1002,7 @@ window.CloudSync = {
                                 const allSites = window.SiteDB.getAll();
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
-                                const res = await fetchWithTimeout(`${config.url}/api/sites`, {
+                                const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
@@ -1059,7 +1019,7 @@ window.CloudSync = {
                                 const allPurchases = window.PurchaseDB.getAll();
                                 const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
-                                const res = await fetchWithTimeout(`${config.url}/api/purchases`, {
+                                const res = await fetch(`${config.url}/api/purchases`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
@@ -1080,7 +1040,7 @@ window.CloudSync = {
                                 const allSites = window.SiteDB.getAll();
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
-                                const res = await fetchWithTimeout(`${config.url}/api/sites`, {
+                                const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
@@ -1097,7 +1057,7 @@ window.CloudSync = {
                                 const allPurchases = window.PurchaseDB.getAll();
                                 const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
-                                const res = await fetchWithTimeout(`${config.url}/api/purchases`, {
+                                const res = await fetch(`${config.url}/api/purchases`, {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
@@ -1111,7 +1071,7 @@ window.CloudSync = {
                                 }
                                 return true;
                             } else {
-                                const res = await fetchWithTimeout(`${config.url}/api/reports`, {
+                                const res = await fetch(`${config.url}/api/reports`, {
                                     method: 'DELETE',
                                     headers: {
                                         'Authorization': `Bearer ${config.token}`,
