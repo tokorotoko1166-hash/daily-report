@@ -388,6 +388,11 @@ window.generateMassiveDatasetOnMemory = function(onComplete) {
             window.PurchaseDB.getAll = function() { return window._massiveMemoryDb.purchases; };
         }
 
+        try {
+            if (window.SiteDB && window.SiteDB.saveAll) window.SiteDB.saveAll(sites);
+            if (window.ReportDB && window.ReportDB.saveAll) window.ReportDB.saveAll(reports);
+            if (window.PurchaseDB && window.PurchaseDB.saveAll) window.PurchaseDB.saveAll(purchases);
+        } catch(e) { console.warn("Local storage save warn:", e); }
         if (onComplete) onComplete(sites.length, reports.length, purchases.length);
 
     } catch (err) {
@@ -5079,8 +5084,13 @@ async function syncReportsFromCloud(isAutomatic = false) {
         return;
     }
 
+    // 最新データソースを取得 (メモリDBまたはStorage DB)
+    const localReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
+    const localSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
+    const localPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
+
     if (!isAutomatic && window.app) {
-        window.app.showToast('全データ (日報・現場・仕入れ) をクラウドと共有中...', 'info');
+        window.app.showToast(`☁️ データ同期開始 (現場${localSites.length}件 / 日報${localReports.length}件 / 仕入${localPurchases.length}件)`, 'info');
     }
 
     let isFinished = false;
@@ -5089,26 +5099,23 @@ async function syncReportsFromCloud(isAutomatic = false) {
             console.warn('⚠️ クラウド同期タイムアウト復帰');
             if (typeof resetSyncButton === 'function') resetSyncButton();
         }
-    }, 10000);
+    }, 15000);
 
     try {
         let hasNewData = false;
-
-        // --- STEP 1: ローカルデータをクラウドへアップロード (送信) ---
-        const localReports = window.ReportDB.getAll() || [];
-        const localSites = window.SiteDB.getAll() || [];
-        const localPurchases = window.PurchaseDB.getAll() || [];
 
         const reportCollection = window.CloudSync.collection('reports');
         const siteCollection = window.CloudSync.collection('sites');
         const purchaseCollection = window.CloudSync.collection('purchases');
 
-        // アップロード (送信)
-        await Promise.all([
-            reportCollection.saveAll ? reportCollection.saveAll(localReports).catch(() => {}) : Promise.resolve(),
-            siteCollection.saveAll ? siteCollection.saveAll(localSites).catch(() => {}) : Promise.resolve(),
-            purchaseCollection.saveAll ? purchaseCollection.saveAll(localPurchases).catch(() => {}) : Promise.resolve()
-        ]);
+        // --- STEP 1: ローカルデータをクラウドへアップロード (送信) ---
+        if (localReports.length > 0 || localSites.length > 0 || localPurchases.length > 0) {
+            await Promise.all([
+                (reportCollection.saveAll && localReports.length > 0) ? reportCollection.saveAll(localReports).catch(e => console.warn("Reports upload warn:", e)) : Promise.resolve(),
+                (siteCollection.saveAll && localSites.length > 0) ? siteCollection.saveAll(localSites).catch(e => console.warn("Sites upload warn:", e)) : Promise.resolve(),
+                (purchaseCollection.saveAll && localPurchases.length > 0) ? purchaseCollection.saveAll(localPurchases).catch(e => console.warn("Purchases upload warn:", e)) : Promise.resolve()
+            ]);
+        }
 
         // --- STEP 2: クラウドから最新データをダウンロード ＆ マージ (受信) ---
 
@@ -5116,11 +5123,11 @@ async function syncReportsFromCloud(isAutomatic = false) {
         try {
             const cloudReports = await Promise.race([
                 reportCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 5000))
+                new Promise(res => setTimeout(() => res([]), 7000))
             ]);
 
             if (Array.isArray(cloudReports) && cloudReports.length > 0) {
-                let currentReports = window.ReportDB.getAll() || [];
+                let currentReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
                 let reportUpdated = false;
 
                 cloudReports.forEach(item => {
@@ -5142,7 +5149,7 @@ async function syncReportsFromCloud(isAutomatic = false) {
                     } catch (e) {}
                 });
 
-                if (reportUpdated) {
+                if (reportUpdated && window.ReportDB) {
                     window.ReportDB.saveAll(currentReports);
                     hasNewData = true;
                 }
@@ -5155,11 +5162,11 @@ async function syncReportsFromCloud(isAutomatic = false) {
         try {
             const cloudSites = await Promise.race([
                 siteCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 4000))
+                new Promise(res => setTimeout(() => res([]), 6000))
             ]);
 
             if (Array.isArray(cloudSites) && cloudSites.length > 0) {
-                let currentSites = window.SiteDB.getAll() || [];
+                let currentSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
                 let siteUpdated = false;
 
                 cloudSites.forEach(item => {
@@ -5181,7 +5188,7 @@ async function syncReportsFromCloud(isAutomatic = false) {
                     } catch (e) {}
                 });
 
-                if (siteUpdated) {
+                if (siteUpdated && window.SiteDB) {
                     window.SiteDB.saveAll(currentSites);
                     hasNewData = true;
                 }
@@ -5194,11 +5201,11 @@ async function syncReportsFromCloud(isAutomatic = false) {
         try {
             const cloudPurchases = await Promise.race([
                 purchaseCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 4000))
+                new Promise(res => setTimeout(() => res([]), 6000))
             ]);
 
             if (Array.isArray(cloudPurchases) && cloudPurchases.length > 0) {
-                let currentPurchases = window.PurchaseDB.getAll() || [];
+                let currentPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
                 let purchaseUpdated = false;
 
                 cloudPurchases.forEach(item => {
@@ -5220,7 +5227,7 @@ async function syncReportsFromCloud(isAutomatic = false) {
                     } catch (e) {}
                 });
 
-                if (purchaseUpdated) {
+                if (purchaseUpdated && window.PurchaseDB) {
                     window.PurchaseDB.saveAll(currentPurchases);
                     hasNewData = true;
                 }
@@ -5229,16 +5236,21 @@ async function syncReportsFromCloud(isAutomatic = false) {
             console.warn('Purchase download merge warning:', e);
         }
 
-        // タイムスタンプ保存と画面再描画
+        // タイムスタンプ保存と画面全画面再描画
         localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
         if (typeof updateSyncTimeDisplay === 'function') updateSyncTimeDisplay();
 
-        if (typeof refreshCurrentView === 'function') {
-            refreshCurrentView();
-        }
+        // 画面強制リフレッシュ・ハッシュ再接続
+        const currentHash = window.location.hash || '#site-list';
+        window.location.hash = '#temp';
+        setTimeout(() => {
+            window.location.hash = currentHash;
+            if (typeof refreshCurrentView === 'function') refreshCurrentView();
+        }, 100);
 
         if (!isAutomatic && window.app) {
-            window.app.showToast('☁️ クラウド双方向データ同期が完了しました！', 'success');
+            const finalReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
+            window.app.showToast(`🎉 クラウド同期完了！ (全日報 ${finalReports.length} 件が最新化されました)`, 'success');
         }
     } catch (err) {
         console.error('Error during cloud sync:', err);
