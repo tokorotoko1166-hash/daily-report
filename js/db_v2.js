@@ -828,7 +828,23 @@ window.PurchaseDB = PurchaseDB;
 window.StatsDB = StatsDB;
 
 function getEncryptionKey() {
-    return 'yks1322';
+    // 1. まずブラウザ標準の localStorage から直接取得を試みる (絶対確実)
+    try {
+        const customKey = localStorage.getItem('custom_encryption_key');
+        if (customKey) return customKey;
+        const adminPass = localStorage.getItem('admin_password');
+        if (adminPass) return adminPass;
+    } catch (e) {}
+
+    // 2. localStorageが使えない制限環境の場合は、safeStorageから取得を試みる (Cookieやメモリ参照)
+    const customKey = safeStorage.getItem('custom_encryption_key');
+    if (customKey) return customKey;
+    
+    const adminPass = safeStorage.getItem('admin_password');
+    if (adminPass) return adminPass;
+    
+    // 3. どちらも未設定の場合はデフォルトキーを使用
+    return 'TokoroDailyReportSecretKeyToken2026';
 }
 
 window.CryptoUtil = {
@@ -850,33 +866,52 @@ window.CryptoUtil = {
             console.error('CryptoJS is not loaded.');
             return null;
         }
-        try {
-            const key = getEncryptionKey();
-            let bytes = CryptoJS.AES.decrypt(encryptedStr, key);
-            let decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
-            
-            const defaultKey = 'TokoroDailyReportSecretKeyToken2026';
-            if (!isStrict && !decryptedStr && key !== defaultKey) {
-                bytes = CryptoJS.AES.decrypt(encryptedStr, defaultKey);
-                decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+        
+        let targetStr = encryptedStr;
+        
+        // もし受信データが JSON 形式 {"encrypted": "..."} の場合、中の暗号化文字列を抽出する
+        if (typeof encryptedStr === 'string' && encryptedStr.trim().startsWith('{')) {
+            try {
+                const parsed = JSON.parse(encryptedStr);
+                if (parsed && parsed.encrypted) {
+                    targetStr = parsed.encrypted;
+                }
+            } catch (e) {
+                // パース失敗した場合はそのまま試行する
             }
-            
-            if (decryptedStr) {
-                return JSON.parse(decryptedStr);
-            }
-        } catch (e) {
-            console.warn('First decryption attempt failed, trying fallback key...');
         }
         
+        // 試行するキーの候補リスト
+        const keysToTry = [];
+        try {
+            const currentKey = getEncryptionKey();
+            if (currentKey) keysToTry.push(currentKey);
+        } catch (e) {}
+        
         if (!isStrict) {
+            keysToTry.push('yks1979'); // ユーザーの本来のパスコードをフォールバックに含める
+            keysToTry.push('yks1322'); // 前回の誤設定時のキーをフォールバックに含める
+            keysToTry.push('TokoroDailyReportSecretKeyToken2026'); // デフォルトキー
+        }
+        
+        // 重複を除去
+        const uniqueKeys = [...new Set(keysToTry)];
+        
+        for (const key of uniqueKeys) {
             try {
-                const bytes = CryptoJS.AES.decrypt(encryptedStr, 'TokoroDailyReportSecretKeyToken2026');
+                const bytes = CryptoJS.AES.decrypt(targetStr, key);
                 const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
                 if (decryptedStr) {
                     return JSON.parse(decryptedStr);
                 }
-            } catch (err) {}
+            } catch (e) {
+                // 次のキーを試す
+            }
         }
+        
+        // 復号失敗時のデバッグアラート
+        const sampleText = typeof encryptedStr === 'string' ? encryptedStr.slice(0, 150) : '文字列ではありません';
+        alert('🚨 復号化に失敗しました。\n\n【試したキー候補】: ' + uniqueKeys.join(', ') + '\n【受信データの先頭150文字】:\n' + sampleText);
         
         console.error('All decryption attempts failed.');
         return null;
