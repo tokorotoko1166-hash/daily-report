@@ -980,6 +980,21 @@ window.CloudSync = {
                         }));
                     }
                 },
+                                saveAll: async function(items) {
+                    if (!Array.isArray(items) || items.length === 0) return;
+                    const headers = { 
+                        'Authorization': `Bearer ${config.token}`,
+                        'Content-Type': 'application/json'
+                    };
+                    const encryptedPayload = window.CryptoUtil.encrypt(items);
+                    const endpoint = `${config.url}/api/${name}`;
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({ encrypted: encryptedPayload, items: items })
+                    });
+                    return res.ok;
+                },
                 add: async function(data) {
                     const res = await fetch(`${config.url}/api/reports`, {
                         method: 'POST',
