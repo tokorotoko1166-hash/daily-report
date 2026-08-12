@@ -5115,7 +5115,7 @@ async function syncReportsFromCloud(isAutomatic = false) {
             console.warn('Report download merge warning:', e);
         }
 
-        // 2-B. 現場 (Sites) のマージ
+        // 2-B. 現場 (Sites) の同期 (マスターデータで完全上書き)
         try {
             const cloudSites = await Promise.race([
                 siteCollection.get(),
@@ -5123,38 +5123,30 @@ async function syncReportsFromCloud(isAutomatic = false) {
             ]);
 
             if (Array.isArray(cloudSites) && cloudSites.length > 0) {
-                let currentSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
-                let siteUpdated = false;
-
+                const parsedSites = [];
                 cloudSites.forEach(item => {
                     try {
                         const data = typeof item.data === 'function' ? item.data() : item;
                         if (data && data.encrypted) {
                             const site = window.CryptoUtil.decrypt(data.encrypted);
                             if (site && site.id) {
-                                const idx = currentSites.findIndex(s => s.id === site.id);
-                                if (idx === -1) {
-                                    currentSites.push(site);
-                                    siteUpdated = true;
-                                } else {
-                                    currentSites[idx] = site;
-                                    siteUpdated = true;
-                                }
+                                parsedSites.push(site);
                             }
                         }
                     } catch (e) {}
                 });
 
-                if (siteUpdated && window.SiteDB) {
-                    window.SiteDB.saveAll(currentSites);
+                if (parsedSites.length > 0 && window.SiteDB) {
+                    // クラウド上の最新現場マスターでローカルデータベースを完全に上書きして置き換えます
+                    window.SiteDB.saveAll(parsedSites);
                     hasNewData = true;
                 }
             }
         } catch (e) {
-            console.warn('Site download merge warning:', e);
+            console.warn('Site download sync warning:', e);
         }
 
-        // 2-C. 仕入れ (Purchases) のマージ
+        // 2-C. 仕入れ (Purchases) の同期 (マスターデータで完全上書き)
         try {
             const cloudPurchases = await Promise.race([
                 purchaseCollection.get(),
@@ -5162,35 +5154,27 @@ async function syncReportsFromCloud(isAutomatic = false) {
             ]);
 
             if (Array.isArray(cloudPurchases) && cloudPurchases.length > 0) {
-                let currentPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
-                let purchaseUpdated = false;
-
+                const parsedPurchases = [];
                 cloudPurchases.forEach(item => {
                     try {
                         const data = typeof item.data === 'function' ? item.data() : item;
                         if (data && data.encrypted) {
                             const purchase = window.CryptoUtil.decrypt(data.encrypted);
                             if (purchase && purchase.id) {
-                                const idx = currentPurchases.findIndex(p => p.id === purchase.id);
-                                if (idx === -1) {
-                                    currentPurchases.push(purchase);
-                                    purchaseUpdated = true;
-                                } else {
-                                    currentPurchases[idx] = purchase;
-                                    purchaseUpdated = true;
-                                }
+                                parsedPurchases.push(purchase);
                             }
                         }
                     } catch (e) {}
                 });
 
-                if (purchaseUpdated && window.PurchaseDB) {
-                    window.PurchaseDB.saveAll(currentPurchases);
+                if (parsedPurchases.length > 0 && window.PurchaseDB) {
+                    // クラウド上の最新仕入れマスターでローカルデータベースを完全に上書きして置き換えます
+                    window.PurchaseDB.saveAll(parsedPurchases);
                     hasNewData = true;
                 }
             }
         } catch (e) {
-            console.warn('Purchase download merge warning:', e);
+            console.warn('Purchase download sync warning:', e);
         }
 
         // タイムスタンプ保存と画面全画面再描画
