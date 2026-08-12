@@ -96,6 +96,26 @@ export default {
         }
       }
 
+      // 全日報台帳マスター用API (複数PC間での台帳共有用)
+      if (path === '/api/reports_all') {
+        if (method === 'GET') {
+          // 暗号化された全日報リストの取得
+          const data = await env.DATA_KV.get('reports_list') || '[]';
+          return new Response(data, {
+            status: 200,
+            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+          });
+        } else if (method === 'POST') {
+          // 暗号化された全日報リストの保存
+          const body = await request.text();
+          await env.DATA_KV.put('reports_list', body);
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       // 提出日報用API
       if (path === '/api/reports') {
         if (method === 'POST') {

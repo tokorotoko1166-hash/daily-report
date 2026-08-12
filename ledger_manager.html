@@ -42,7 +42,7 @@
     </div>
     <script>
         setTimeout(() => {
-            const expected = '20260812_1715';
+            const expected = '20260812_1730';
             if (window.LEDGER_MANAGER_VERSION !== expected || window.DB_V2_VERSION !== expected) {
                 document.getElementById('version-warning-banner').style.display = 'block';
                 console.error('Version mismatch! Expected:', expected, 'Actual Manager:', window.LEDGER_MANAGER_VERSION, 'Actual DB:', window.DB_V2_VERSION);
@@ -358,7 +358,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <!-- Crypto-JS SDK (Updated: 20260730_101929) -->
     <script src="js/crypto-js.min.js"></script>
-    <script src="js/db_v2.js?v=20260812_1715"></script>
-    <script src="js/ledger_manager_v2.js?v=20260812_1715"></script>
+    <script src="js/db_v2.js?v=20260812_1730"></script>
+    <script src="js/ledger_manager_v2.js?v=20260812_1730"></script>
 </body>
 </html>
