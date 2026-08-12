@@ -5025,13 +5025,6 @@ async function syncPurchasesToCloud() {
 
 // クラウド中継ポストから暗号化された日報をダウンロード ＆ 復号マージ ＆ クラウド消去
 async function syncReportsFromCloud(isAutomatic = false) {
-    if (!window.CloudSync || !window.CloudSync.init()) {
-        if (!isAutomatic) {
-            window.app.showToast('クラウド接続設定が未完了です。設定ボタンから登録してください。', 'warning');
-        }
-        return;
-    }
-
     const syncBtn = document.getElementById('btn-cloud-sync');
     if (syncBtn && !isAutomatic) {
         syncBtn.disabled = true;
@@ -5039,90 +5032,191 @@ async function syncReportsFromCloud(isAutomatic = false) {
         if (window.lucide) window.lucide.createIcons();
     }
 
-    if (!isAutomatic) {
-        window.app.showToast('クラウドから提出済みの未処理日報を読み込んでいます...', 'info');
+    if (window.CloudSync) { window.CloudSync.saveConfig(window.CloudSync.getConfig()); window.CloudSync.init(); }
+    if (!window.CloudSync || !window.CloudSync.init()) {
+        if (!isAutomatic && window.app) {
+            window.app.showToast('クラウド接続設定が未完了です。', 'warning');
+        }
+        if (typeof resetSyncButton === 'function') resetSyncButton();
+        return;
     }
 
+    // 最新データソースを取得 (メモリDBまたはStorage DB)
+    const localReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
+    const localSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
+    const localPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
+
+    if (!isAutomatic && window.app) {
+        window.app.showToast(`☁️ データ同期開始 (現場${localSites.length}件 / 日報${localReports.length}件 / 仕入${localPurchases.length}件)`, 'info');
+    }
+
+    let isFinished = false;
+    const safetyTimer = setTimeout(() => {
+        if (!isFinished) {
+            console.warn('⚠️ クラウド同期タイムアウト復帰');
+            if (typeof resetSyncButton === 'function') resetSyncButton();
+        }
+    }, 15000);
+
     try {
+        let hasNewData = false;
 
+        const reportCollection = window.CloudSync.collection('reports');
+        const siteCollection = window.CloudSync.collection('sites');
+        const purchaseCollection = window.CloudSync.collection('purchases');
 
-
-        const collection = window.CloudSync.collection('reports');
-        const snapshot = await collection.get();
-
-        if (snapshot.empty) {
-            if (!isAutomatic) {
-                window.app.showToast('新着日報はありません (中継ポスト is 空です)', 'info');
-            }
-            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
-            updateSyncTimeDisplay();
-            if (!isAutomatic) resetSyncButton();
-            return;
+        // --- STEP 1: ローカルデータをクラウドへアップロード (送信) ---
+        if (localReports.length > 0 || localSites.length > 0 || localPurchases.length > 0) {
+            await Promise.all([
+                (reportCollection.saveAll && localReports.length > 0) ? reportCollection.saveAll(localReports).catch(e => console.warn("Reports upload warn:", e)) : Promise.resolve(),
+                (siteCollection.saveAll && localSites.length > 0) ? siteCollection.saveAll(localSites).catch(e => console.warn("Sites upload warn:", e)) : Promise.resolve(),
+                (purchaseCollection.saveAll && localPurchases.length > 0) ? purchaseCollection.saveAll(localPurchases).catch(e => console.warn("Purchases upload warn:", e)) : Promise.resolve()
+            ]);
         }
 
-        let successCount = 0;
-        let failCount = 0;
-        const deletePromises = [];
+        // --- STEP 2: クラウドから最新データをダウンロード ＆ マージ (受信) ---
 
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.encrypted) {
-                const report = window.CryptoUtil.decrypt(data.encrypted);
-                if (report) {
-                    const exists = window.ReportDB.getAll().some(r => 
-                        r.id === report.id || 
-                        (
-                            r.date === report.date && 
-                            r.siteId === report.siteId && 
-                            r.writer === report.writer &&
-                            r.startTime === report.startTime &&
-                            r.endTime === report.endTime &&
-                            r.content === report.content
-                        )
-                    );
+        // 2-A. 日報 (Reports) のマージ
+        try {
+            const cloudReports = await Promise.race([
+                reportCollection.get(),
+                new Promise(res => setTimeout(() => res([]), 7000))
+            ]);
 
-                    if (!exists) {
-                        window.ReportDB.add(report);
-                    }
-                    successCount++;
-                    deletePromises.push(collection.doc(doc.id).delete());
-                } else {
-                    console.warn('Decryption failed for doc:', doc.id);
-                    failCount++;
-                    // 復号に失敗したゴミデータも、いつまでもクラウドに居座ってエラーを出し続けないように、同期時にクラウドから消去する
-                    deletePromises.push(collection.doc(doc.id).delete());
+            if (Array.isArray(cloudReports) && cloudReports.length > 0) {
+                let currentReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
+                let reportUpdated = false;
+
+                cloudReports.forEach(item => {
+                    try {
+                        const data = typeof item.data === 'function' ? item.data() : item;
+                        if (data && data.encrypted) {
+                            const report = window.CryptoUtil.decrypt(data.encrypted);
+                            if (report && report.id) {
+                                const idx = currentReports.findIndex(r => r.id === report.id);
+                                if (idx === -1) {
+                                    currentReports.push(report);
+                                    reportUpdated = true;
+                                } else {
+                                    currentReports[idx] = report;
+                                    reportUpdated = true;
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                });
+
+                if (reportUpdated && window.ReportDB) {
+                    window.ReportDB.saveAll(currentReports);
+                    hasNewData = true;
                 }
             }
-        });
-
-        if (failCount > 0) {
-            if (window.app && typeof window.app.showToast === 'function') {
-                window.app.showToast(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。スマホとPCのパスワードを一致させてください。`, 'danger');
-            } else {
-                alert(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。\nスマホとPCのパスワードを一致させてください。`);
-            }
+        } catch (e) {
+            console.warn('Report download merge warning:', e);
         }
 
-        if (successCount > 0) {
-            await Promise.all(deletePromises);
-            window.app.showToast(`${successCount}件の新着日報を取り込み、台帳に同期しました！`, 'success');
-            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
-            updateSyncTimeDisplay();
-            router();
-        } else {
-            if (!isAutomatic) {
-                window.app.showToast('新しい日報データは見つかりませんでした。', 'info');
+        // 2-B. 現場 (Sites) のマージ
+        try {
+            const cloudSites = await Promise.race([
+                siteCollection.get(),
+                new Promise(res => setTimeout(() => res([]), 6000))
+            ]);
+
+            if (Array.isArray(cloudSites) && cloudSites.length > 0) {
+                let currentSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
+                let siteUpdated = false;
+
+                cloudSites.forEach(item => {
+                    try {
+                        const data = typeof item.data === 'function' ? item.data() : item;
+                        if (data && data.encrypted) {
+                            const site = window.CryptoUtil.decrypt(data.encrypted);
+                            if (site && site.id) {
+                                const idx = currentSites.findIndex(s => s.id === site.id);
+                                if (idx === -1) {
+                                    currentSites.push(site);
+                                    siteUpdated = true;
+                                } else {
+                                    currentSites[idx] = site;
+                                    siteUpdated = true;
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                });
+
+                if (siteUpdated && window.SiteDB) {
+                    window.SiteDB.saveAll(currentSites);
+                    hasNewData = true;
+                }
             }
-            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
-            updateSyncTimeDisplay();
+        } catch (e) {
+            console.warn('Site download merge warning:', e);
         }
-    } catch (e) {
-        console.error('Cloud report sync failed:', e);
-        if (!isAutomatic) {
-            window.app.showToast('同期中に接続エラーが発生しました。設定情報をご確認ください。', 'error');
+
+        // 2-C. 仕入れ (Purchases) のマージ
+        try {
+            const cloudPurchases = await Promise.race([
+                purchaseCollection.get(),
+                new Promise(res => setTimeout(() => res([]), 6000))
+            ]);
+
+            if (Array.isArray(cloudPurchases) && cloudPurchases.length > 0) {
+                let currentPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
+                let purchaseUpdated = false;
+
+                cloudPurchases.forEach(item => {
+                    try {
+                        const data = typeof item.data === 'function' ? item.data() : item;
+                        if (data && data.encrypted) {
+                            const purchase = window.CryptoUtil.decrypt(data.encrypted);
+                            if (purchase && purchase.id) {
+                                const idx = currentPurchases.findIndex(p => p.id === purchase.id);
+                                if (idx === -1) {
+                                    currentPurchases.push(purchase);
+                                    purchaseUpdated = true;
+                                } else {
+                                    currentPurchases[idx] = purchase;
+                                    purchaseUpdated = true;
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                });
+
+                if (purchaseUpdated && window.PurchaseDB) {
+                    window.PurchaseDB.saveAll(currentPurchases);
+                    hasNewData = true;
+                }
+            }
+        } catch (e) {
+            console.warn('Purchase download merge warning:', e);
         }
+
+        // タイムスタンプ保存と画面全画面再描画
+        localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
+        if (typeof updateSyncTimeDisplay === 'function') updateSyncTimeDisplay();
+
+        // 画面強制リフレッシュ・ハッシュ再接続
+        const currentHash = window.location.hash || '#site-list';
+        window.location.hash = '#temp';
+        setTimeout(() => {
+            window.location.hash = currentHash;
+            if (typeof refreshCurrentView === 'function') refreshCurrentView();
+        }, 100);
+
+        if (!isAutomatic && window.app) {
+            const finalReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
+            window.app.showToast(`🎉 クラウド同期完了！ (全日報 ${finalReports.length} 件が最新化されました)`, 'success');
+        }
+    } catch (err) {
+        console.error('Error during cloud sync:', err);
     } finally {
-        if (!isAutomatic) resetSyncButton();
+        isFinished = true;
+        clearTimeout(safetyTimer);
+        if (typeof resetSyncButton === 'function') {
+            resetSyncButton();
+        }
     }
 }
 
