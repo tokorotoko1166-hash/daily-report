@@ -1,4 +1,5 @@
 try {
+window.DB_V2_VERSION = '20260812_1715';
 // パスワード検証用の一方向ハッシュ計算 (SHA-256)
 async function calculateSHA256(message) {
     const cleanMsg = message.replace(/[\s　]/g, '').trim();
@@ -828,6 +829,7 @@ window.PurchaseDB = PurchaseDB;
 window.StatsDB = StatsDB;
 
 function getEncryptionKey() {
+    // 本システムは、固定パスワード yks1322 で自動暗号化する設計に統一します
     return 'yks1322';
 }
 
@@ -850,33 +852,52 @@ window.CryptoUtil = {
             console.error('CryptoJS is not loaded.');
             return null;
         }
-        try {
-            const key = getEncryptionKey();
-            let bytes = CryptoJS.AES.decrypt(encryptedStr, key);
-            let decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
-            
-            const defaultKey = 'TokoroDailyReportSecretKeyToken2026';
-            if (!isStrict && !decryptedStr && key !== defaultKey) {
-                bytes = CryptoJS.AES.decrypt(encryptedStr, defaultKey);
-                decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+        
+        let targetStr = encryptedStr;
+        
+        // もし受信データが JSON 形式 {"encrypted": "..."} の場合、中の暗号化文字列を抽出する
+        if (typeof encryptedStr === 'string' && encryptedStr.trim().startsWith('{')) {
+            try {
+                const parsed = JSON.parse(encryptedStr);
+                if (parsed && parsed.encrypted) {
+                    targetStr = parsed.encrypted;
+                }
+            } catch (e) {
+                // パース失敗した場合はそのまま試行する
             }
-            
-            if (decryptedStr) {
-                return JSON.parse(decryptedStr);
-            }
-        } catch (e) {
-            console.warn('First decryption attempt failed, trying fallback key...');
         }
         
+        // 試行するキーの候補リスト
+        const keysToTry = [];
+        try {
+            const currentKey = getEncryptionKey();
+            if (currentKey) keysToTry.push(currentKey);
+        } catch (e) {}
+        
         if (!isStrict) {
+            keysToTry.push('yks1979'); // ユーザーの本来のパスコードをフォールバックに含める
+            keysToTry.push('yks1322'); // 前回の誤設定時のキーをフォールバックに含める
+            keysToTry.push('TokoroDailyReportSecretKeyToken2026'); // デフォルトキー
+        }
+        
+        // 重複を除去
+        const uniqueKeys = [...new Set(keysToTry)];
+        
+        for (const key of uniqueKeys) {
             try {
-                const bytes = CryptoJS.AES.decrypt(encryptedStr, 'TokoroDailyReportSecretKeyToken2026');
+                const bytes = CryptoJS.AES.decrypt(targetStr, key);
                 const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
                 if (decryptedStr) {
                     return JSON.parse(decryptedStr);
                 }
-            } catch (err) {}
+            } catch (e) {
+                // 次のキーを試す
+            }
         }
+        
+        // 復号失敗時のデバッグアラート
+        const sampleText = typeof encryptedStr === 'string' ? encryptedStr.slice(0, 150) : '文字列ではありません';
+        alert('🚨 復号化に失敗しました。\n\n【試したキー候補】: ' + uniqueKeys.join(', ') + '\n【受信データの先頭150文字】:\n' + sampleText);
         
         console.error('All decryption attempts failed.');
         return null;
@@ -887,12 +908,7 @@ window.CloudSync = {
     config: null,
     isMock: false,
     getConfig: function() {
-        const saved = safeStorage.getItem('cloudflare_config');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {}
-        }
+        // クラウド同期トラブルを防ぐため、常に正しい接続先(URL・トークン)を強制適用して返します
         return {
             url: 'https://daily-report-sync.tokoro-toko1166.workers.dev',
             token: 'TokoroEdgeOneAuthToken2026'
