@@ -1,5 +1,5 @@
 try {
-window.DB_V2_VERSION = '20260812_1715';
+window.DB_V2_VERSION = '20260812_1730';
 // パスワード検証用の一方向ハッシュ計算 (SHA-256)
 async function calculateSHA256(message) {
     const cleanMsg = message.replace(/[\s　]/g, '').trim();

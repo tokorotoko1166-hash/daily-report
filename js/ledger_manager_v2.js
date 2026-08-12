@@ -1,5 +1,5 @@
 try {
-window.LEDGER_MANAGER_VERSION = '20260812_1715';
+window.LEDGER_MANAGER_VERSION = '20260812_1730';
 // 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
 function getSplitReports(rawReports) {
     if (!rawReports) return [];
