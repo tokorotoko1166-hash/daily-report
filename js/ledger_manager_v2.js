@@ -5069,8 +5069,8 @@ async function syncReportsFromCloud(isAutomatic = false) {
         if (localReports.length > 0 || localSites.length > 0 || localPurchases.length > 0) {
             await Promise.all([
                 (reportCollection.saveAll && localReports.length > 0) ? reportCollection.saveAll(localReports).catch(e => console.warn("Reports upload warn:", e)) : Promise.resolve(),
-                (siteCollection.saveAll && localSites.length > 0) ? siteCollection.saveAll(localSites).catch(e => console.warn("Sites upload warn:", e)) : Promise.resolve(),
-                (purchaseCollection.saveAll && localPurchases.length > 0) ? purchaseCollection.saveAll(localPurchases).catch(e => console.warn("Purchases upload warn:", e)) : Promise.resolve()
+                (localSites.length > 0) ? siteCollection.doc('all_sites').set({}).catch(e => console.warn("Sites upload warn:", e)) : Promise.resolve(),
+                (localPurchases.length > 0) ? purchaseCollection.doc('all_purchases').set({}).catch(e => console.warn("Purchases upload warn:", e)) : Promise.resolve()
             ]);
         }
 

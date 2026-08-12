@@ -828,23 +828,8 @@ window.PurchaseDB = PurchaseDB;
 window.StatsDB = StatsDB;
 
 function getEncryptionKey() {
-    // 1. まずブラウザ標準の localStorage から直接取得を試みる (絶対確実)
-    try {
-        const customKey = localStorage.getItem('custom_encryption_key');
-        if (customKey) return customKey;
-        const adminPass = localStorage.getItem('admin_password');
-        if (adminPass) return adminPass;
-    } catch (e) {}
-
-    // 2. localStorageが使えない制限環境の場合は、safeStorageから取得を試みる (Cookieやメモリ参照)
-    const customKey = safeStorage.getItem('custom_encryption_key');
-    if (customKey) return customKey;
-    
-    const adminPass = safeStorage.getItem('admin_password');
-    if (adminPass) return adminPass;
-    
-    // 3. どちらも未設定の場合はデフォルトキーを使用
-    return 'TokoroDailyReportSecretKeyToken2026';
+    // 本システムは、固定パスワード yks1322 で自動暗号化する設計に統一します
+    return 'yks1322';
 }
 
 window.CryptoUtil = {
