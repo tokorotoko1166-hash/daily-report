@@ -1,4 +1,5 @@
 try {
+window.LEDGER_MANAGER_VERSION = '20260812_1715';
 // 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
 function getSplitReports(rawReports) {
     if (!rawReports) return [];
@@ -5056,19 +5057,20 @@ async function syncReportsFromCloud(isAutomatic = false) {
             console.warn('⚠️ クラウド同期タイムアウト復帰');
             if (typeof resetSyncButton === 'function') resetSyncButton();
         }
-    }, 15000);
+    }, 20000);
 
     try {
         let hasNewData = false;
 
         const reportCollection = window.CloudSync.collection('reports');
+        const reportAllCollection = window.CloudSync.collection('reports_all');
         const siteCollection = window.CloudSync.collection('sites');
         const purchaseCollection = window.CloudSync.collection('purchases');
 
         // --- STEP 1: ローカルデータをクラウドへアップロード (送信) ---
         if (localReports.length > 0 || localSites.length > 0 || localPurchases.length > 0) {
             await Promise.all([
-                (reportCollection.saveAll && localReports.length > 0) ? reportCollection.saveAll(localReports).catch(e => console.warn("Reports upload warn:", e)) : Promise.resolve(),
+                (localReports.length > 0) ? reportAllCollection.doc('all_reports').set({}).catch(e => console.warn("Reports upload warn:", e)) : Promise.resolve(),
                 (localSites.length > 0) ? siteCollection.doc('all_sites').set({}).catch(e => console.warn("Sites upload warn:", e)) : Promise.resolve(),
                 (localPurchases.length > 0) ? purchaseCollection.doc('all_purchases').set({}).catch(e => console.warn("Purchases upload warn:", e)) : Promise.resolve()
             ]);
@@ -5076,43 +5078,81 @@ async function syncReportsFromCloud(isAutomatic = false) {
 
         // --- STEP 2: クラウドから最新データをダウンロード ＆ マージ (受信) ---
 
-        // 2-A. 日報 (Reports) のマージ
+        // 2-A-1. 中継ポスト（スマホから提出された日報）の回収とローカルへのマージ
+        let reportUpdated = false;
         try {
-            const cloudReports = await Promise.race([
+            const snapshot = await Promise.race([
                 reportCollection.get(),
                 new Promise(res => setTimeout(() => res([]), 7000))
             ]);
 
-            if (Array.isArray(cloudReports) && cloudReports.length > 0) {
+            if (Array.isArray(snapshot) && snapshot.length > 0) {
                 let currentReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
-                let reportUpdated = false;
+                const deletePromises = [];
+                let successCount = 0;
 
-                cloudReports.forEach(item => {
-                    try {
-                        const data = typeof item.data === 'function' ? item.data() : item;
-                        if (data && data.encrypted) {
-                            const report = window.CryptoUtil.decrypt(data.encrypted);
-                            if (report && report.id) {
-                                const idx = currentReports.findIndex(r => r.id === report.id);
-                                if (idx === -1) {
-                                    currentReports.push(report);
-                                    reportUpdated = true;
-                                } else {
-                                    currentReports[idx] = report;
-                                    reportUpdated = true;
-                                }
+                snapshot.forEach(doc => {
+                    const data = typeof doc.data === 'function' ? doc.data() : doc;
+                    if (data && data.encrypted) {
+                        const report = window.CryptoUtil.decrypt(data.encrypted);
+                        if (report && report.id) {
+                            const idx = currentReports.findIndex(r => r.id === report.id);
+                            if (idx === -1) {
+                                currentReports.push(report);
+                                reportUpdated = true;
+                            } else {
+                                currentReports[idx] = report;
+                                reportUpdated = true;
                             }
+                            successCount++;
+                            deletePromises.push(reportCollection.doc(doc.id).delete().catch(() => {}));
                         }
-                    } catch (e) {}
+                    }
                 });
 
-                if (reportUpdated && window.ReportDB) {
+                if (successCount > 0) {
+                    await Promise.all(deletePromises);
                     window.ReportDB.saveAll(currentReports);
                     hasNewData = true;
                 }
             }
         } catch (e) {
-            console.warn('Report download merge warning:', e);
+            console.warn('Pending reports harvest warning:', e);
+        }
+
+        // 2-A-2. 全日報台帳マスター（reports_all）の同期 (完全上書き)
+        try {
+            const cloudReportsAll = await Promise.race([
+                reportAllCollection.get(),
+                new Promise(res => setTimeout(() => res([]), 7000))
+            ]);
+
+            if (Array.isArray(cloudReportsAll) && cloudReportsAll.length > 0) {
+                const parsedReports = [];
+                cloudReportsAll.forEach(item => {
+                    try {
+                        const data = typeof item.data === 'function' ? item.data() : item;
+                        if (data && data.encrypted) {
+                            const report = window.CryptoUtil.decrypt(data.encrypted);
+                            if (report && report.id) {
+                                parsedReports.push(report);
+                            }
+                        }
+                    } catch (e) {}
+                });
+
+                if (parsedReports.length > 0 && window.ReportDB) {
+                    // スマホから今回新しく回収した日報（reportUpdated）がある場合は、
+                    // マスターデータで上書きせずに、マージ済みのローカルデータを使用します。
+                    // (回収した新規データも、この後の STEP 3 でクラウドのマスターに統合保存されます)
+                    if (!reportUpdated) {
+                        window.ReportDB.saveAll(parsedReports);
+                        hasNewData = true;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Reports master sync warning:', e);
         }
 
         // 2-B. 現場 (Sites) の同期 (マスターデータで完全上書き)
@@ -5137,7 +5177,6 @@ async function syncReportsFromCloud(isAutomatic = false) {
                 });
 
                 if (parsedSites.length > 0 && window.SiteDB) {
-                    // クラウド上の最新現場マスターでローカルデータベースを完全に上書きして置き換えます
                     window.SiteDB.saveAll(parsedSites);
                     hasNewData = true;
                 }
@@ -5168,13 +5207,20 @@ async function syncReportsFromCloud(isAutomatic = false) {
                 });
 
                 if (parsedPurchases.length > 0 && window.PurchaseDB) {
-                    // クラウド上の最新仕入れマスターでローカルデータベースを完全に上書きして置き換えます
                     window.PurchaseDB.saveAll(parsedPurchases);
                     hasNewData = true;
                 }
             }
         } catch (e) {
             console.warn('Purchase download sync warning:', e);
+        }
+
+        // --- STEP 3: 新たに回収した日報がある場合、最新の全日報マスターをクラウドに再送信して保管庫を更新する ---
+        if (reportUpdated && window.ReportDB) {
+            const freshReports = window.ReportDB.getAll() || [];
+            if (freshReports.length > 0) {
+                await reportAllCollection.doc('all_reports').set({}).catch(e => console.warn("Reports final re-upload warn:", e));
+            }
         }
 
         // タイムスタンプ保存と画面全画面再描画
@@ -5190,8 +5236,7 @@ async function syncReportsFromCloud(isAutomatic = false) {
         }, 100);
 
         if (!isAutomatic && window.app) {
-            const finalReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
-            window.app.showToast(`🎉 クラウド同期完了！ (全日報 ${finalReports.length} 件が最新化されました)`, 'success');
+            window.app.showToast(`🎉 クラウド同期完了！ (全日報・現場・仕入れデータが同期されました)`, 'success');
         }
     } catch (err) {
         console.error('Error during cloud sync:', err);

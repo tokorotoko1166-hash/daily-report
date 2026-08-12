@@ -1,4 +1,5 @@
 try {
+window.DB_V2_VERSION = '20260812_1715';
 // パスワード検証用の一方向ハッシュ計算 (SHA-256)
 async function calculateSHA256(message) {
     const cleanMsg = message.replace(/[\s　]/g, '').trim();
@@ -907,12 +908,7 @@ window.CloudSync = {
     config: null,
     isMock: false,
     getConfig: function() {
-        const saved = safeStorage.getItem('cloudflare_config');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {}
-        }
+        // クラウド同期トラブルを防ぐため、常に正しい接続先(URL・トークン)を強制適用して返します
         return {
             url: 'https://daily-report-sync.tokoro-toko1166.workers.dev',
             token: 'TokoroEdgeOneAuthToken2026'
@@ -987,6 +983,26 @@ window.CloudSync = {
                             }));
                         }
                         return [];
+                    } else if (name === 'reports_all') {
+                        const res = await fetch(`${config.url}/api/reports_all`, { headers });
+                        if (!res.ok) {
+                            const errText = await res.text().catch(() => '');
+                            throw new Error(`GET reports_all failed with status ${res.status}: ${errText}`);
+                        }
+                        let encryptedText = await res.text();
+                        if (!encryptedText || encryptedText === '[]') return [];
+                        
+                        const decryptedList = window.CryptoUtil.decrypt(encryptedText);
+                        if (encryptedText && encryptedText !== '[]' && !decryptedList) {
+                            throw new Error('DECRYPTION_FAILED');
+                        }
+                        if (Array.isArray(decryptedList)) {
+                            return decryptedList.map(r => ({
+                                id: r.id,
+                                data: () => ({ encrypted: window.CryptoUtil.encrypt(r) })
+                            }));
+                        }
+                        return [];
                     } else {
                         const res = await fetch(`${config.url}/api/reports`, { headers });
                         if (!res.ok) {
@@ -1050,6 +1066,23 @@ window.CloudSync = {
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
                                     throw new Error(`POST purchases failed with status ${res.status}: ${errText}`);
+                                }
+                                return true;
+                            } else if (name === 'reports_all') {
+                                const allReports = window.ReportDB.getAll();
+                                const reportsToSync = allReports.length > 0 ? allReports : [{ id: 'verify_dummy_rep', dummy: true }];
+                                const encryptedAll = window.CryptoUtil.encrypt(reportsToSync);
+                                const res = await fetch(`${config.url}/api/reports_all`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
+                                });
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`POST reports_all failed with status ${res.status}: ${errText}`);
                                 }
                                 return true;
                             }
