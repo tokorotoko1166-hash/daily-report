@@ -1,5 +1,5 @@
 try {
-window.DB_V2_VERSION = '20260813_1815';
+window.DB_V2_VERSION = '20260812_1730';
 // パスワード検証用の一方向ハッシュ計算 (SHA-256)
 async function calculateSHA256(message) {
     const cleanMsg = message.replace(/[\s　]/g, '').trim();
@@ -941,24 +941,19 @@ window.CloudSync = {
         if (!this.isMock && config && config.url) {
             return {
                 get: async function() {
-                    const headers = {};
-                    if (config.token) {
-                        headers['X-Relay-Key'] = config.token;
-                    }
+                    const headers = { 'Authorization': `Bearer ${config.token}` };
 
                     if (name === 'sites') {
-                        const res = await fetch(`${config.url}/api/data?id=sites_master`, { headers });
-                        if (res.status === 404) return [];
+                        const res = await fetch(`${config.url}/api/sites`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
                             throw new Error(`GET sites failed with status ${res.status}: ${errText}`);
                         }
-                        const json = await res.json();
-                        let encryptedText = json.payload;
-                        if (!encryptedText) return [];
+                        let encryptedText = await res.text();
+                        if (!encryptedText || encryptedText === '[]') return [];
                         
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
-                        if (encryptedText && !decryptedList) {
+                        if (encryptedText && encryptedText !== '[]' && !decryptedList) {
                             throw new Error('DECRYPTION_FAILED');
                         }
                         if (Array.isArray(decryptedList)) {
@@ -969,18 +964,16 @@ window.CloudSync = {
                         }
                         return [];
                     } else if (name === 'purchases') {
-                        const res = await fetch(`${config.url}/api/data?id=purchases_master`, { headers });
-                        if (res.status === 404) return [];
+                        const res = await fetch(`${config.url}/api/purchases`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
                             throw new Error(`GET purchases failed with status ${res.status}: ${errText}`);
                         }
-                        const json = await res.json();
-                        let encryptedText = json.payload;
-                        if (!encryptedText) return [];
+                        let encryptedText = await res.text();
+                        if (!encryptedText || encryptedText === '[]') return [];
                         
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
-                        if (encryptedText && !decryptedList) {
+                        if (encryptedText && encryptedText !== '[]' && !decryptedList) {
                             throw new Error('DECRYPTION_FAILED');
                         }
                         if (Array.isArray(decryptedList)) {
@@ -991,18 +984,16 @@ window.CloudSync = {
                         }
                         return [];
                     } else if (name === 'reports_all') {
-                        const res = await fetch(`${config.url}/api/data?id=reports_master`, { headers });
-                        if (res.status === 404) return [];
+                        const res = await fetch(`${config.url}/api/reports_all`, { headers });
                         if (!res.ok) {
                             const errText = await res.text().catch(() => '');
                             throw new Error(`GET reports_all failed with status ${res.status}: ${errText}`);
                         }
-                        const json = await res.json();
-                        let encryptedText = json.payload;
-                        if (!encryptedText) return [];
+                        let encryptedText = await res.text();
+                        if (!encryptedText || encryptedText === '[]') return [];
                         
                         const decryptedList = window.CryptoUtil.decrypt(encryptedText);
-                        if (encryptedText && !decryptedList) {
+                        if (encryptedText && encryptedText !== '[]' && !decryptedList) {
                             throw new Error('DECRYPTION_FAILED');
                         }
                         if (Array.isArray(decryptedList)) {
@@ -1013,76 +1004,47 @@ window.CloudSync = {
                         }
                         return [];
                     } else {
-                        // 提出された未処理日報 (reports) の一括取得
-                        const listRes = await fetch(`${config.url}/api/devices`, { headers });
-                        if (!listRes.ok) {
-                            const errText = await listRes.text().catch(() => '');
-                            throw new Error(`GET devices failed with status ${listRes.status}: ${errText}`);
+                        const res = await fetch(`${config.url}/api/reports`, { headers });
+                        if (!res.ok) {
+                            const errText = await res.text().catch(() => '');
+                            throw new Error(`GET reports failed with status ${res.status}: ${errText}`);
                         }
-                        const listJson = await listRes.json();
-                        const pendingIds = (listJson.ids || []).filter(id => id.startsWith('report_pending_'));
-                        
-                        const reports = [];
-                        await Promise.all(pendingIds.map(async (id) => {
-                            try {
-                                const dataRes = await fetch(`${config.url}/api/data?id=${encodeURIComponent(id)}`, { headers });
-                                if (dataRes.ok) {
-                                    const dataJson = await dataRes.json();
-                                    if (dataJson.payload) {
-                                        reports.push({
-                                            id: id.replace('report_pending_', ''),
-                                            data: () => ({ encrypted: dataJson.payload })
-                                        });
-                                    }
-                                }
-                            } catch (e) {
-                                console.warn(`Failed to fetch pending report ${id}:`, e);
-                            }
+                        const list = await res.json();
+                        return list.map(item => ({
+                            id: item.id,
+                            data: () => item.data
                         }));
-                        return reports;
                     }
                 },
                 add: async function(data) {
-                    const headers = { 'Content-Type': 'application/json' };
-                    if (config.token) {
-                        headers['X-Relay-Key'] = config.token;
-                    }
-                    const reportId = 'rep_' + String(Date.now()) + '_' + String(Math.random()).slice(2, 8);
-                    
-                    const res = await fetch(`${config.url}/api/send`, {
+                    const res = await fetch(`${config.url}/api/reports`, {
                         method: 'POST',
-                        headers,
-                        body: JSON.stringify({
-                            id: `report_pending_${reportId}`,
-                            payload: data.encrypted
-                        })
+                        headers: {
+                            'Authorization': `Bearer ${config.token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
                     });
                     if (!res.ok) {
                         const errText = await res.text().catch(() => '');
                         throw new Error(`POST report failed with status ${res.status}: ${errText}`);
                     }
-                    return { success: true, id: reportId };
+                    return await res.json();
                 },
                 doc: function(docId) {
                     return {
                         set: async function(data) {
-                            const headers = { 'Content-Type': 'application/json' };
-                            if (config.token) {
-                                headers['X-Relay-Key'] = config.token;
-                            }
-
                             if (name === 'sites') {
                                 const allSites = window.SiteDB.getAll();
                                 const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
-                                
-                                const res = await fetch(`${config.url}/api/send`, {
+                                const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
-                                    headers,
-                                    body: JSON.stringify({
-                                        id: 'sites_master',
-                                        payload: encryptedAll
-                                    })
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
@@ -1093,14 +1055,13 @@ window.CloudSync = {
                                 const allPurchases = window.PurchaseDB.getAll();
                                 const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
-                                
-                                const res = await fetch(`${config.url}/api/send`, {
+                                const res = await fetch(`${config.url}/api/purchases`, {
                                     method: 'POST',
-                                    headers,
-                                    body: JSON.stringify({
-                                        id: 'purchases_master',
-                                        payload: encryptedAll
-                                    })
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
@@ -1111,14 +1072,13 @@ window.CloudSync = {
                                 const allReports = window.ReportDB.getAll();
                                 const reportsToSync = allReports.length > 0 ? allReports : [{ id: 'verify_dummy_rep', dummy: true }];
                                 const encryptedAll = window.CryptoUtil.encrypt(reportsToSync);
-                                
-                                const res = await fetch(`${config.url}/api/send`, {
+                                const res = await fetch(`${config.url}/api/reports_all`, {
                                     method: 'POST',
-                                    headers,
-                                    body: JSON.stringify({
-                                        id: 'reports_master',
-                                        payload: encryptedAll
-                                    })
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
@@ -1129,24 +1089,48 @@ window.CloudSync = {
                             return false;
                         },
                         delete: async function() {
-                            const headers = { 'Content-Type': 'application/json' };
-                            if (config.token) {
-                                headers['X-Relay-Key'] = config.token;
-                            }
-
                             if (name === 'sites') {
-                                return await this.set({});
-                            } else if (name === 'purchases') {
-                                return await this.set({});
-                            } else if (name === 'reports_all') {
-                                return await this.set({});
-                            } else {
-                                const res = await fetch(`${config.url}/api/delete`, {
+                                const allSites = window.SiteDB.getAll();
+                                const sitesToSync = allSites.length > 0 ? allSites : [{ id: 'verify_dummy', dummy: true }];
+                                const encryptedAll = window.CryptoUtil.encrypt(sitesToSync);
+                                const res = await fetch(`${config.url}/api/sites`, {
                                     method: 'POST',
-                                    headers,
-                                    body: JSON.stringify({
-                                        id: `report_pending_${docId}`
-                                    })
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
+                                });
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`POST sites delete failed with status ${res.status}: ${errText}`);
+                                }
+                                return true;
+                            } else if (name === 'purchases') {
+                                const allPurchases = window.PurchaseDB.getAll();
+                                const purchasesToSync = allPurchases.length > 0 ? allPurchases : [{ id: 'verify_dummy_pur', dummy: true }];
+                                const encryptedAll = window.CryptoUtil.encrypt(purchasesToSync);
+                                const res = await fetch(`${config.url}/api/purchases`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'text/plain'
+                                    },
+                                    body: encryptedAll
+                                });
+                                if (!res.ok) {
+                                    const errText = await res.text().catch(() => '');
+                                    throw new Error(`POST purchases delete failed with status ${res.status}: ${errText}`);
+                                }
+                                return true;
+                            } else {
+                                const res = await fetch(`${config.url}/api/reports`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'Authorization': `Bearer ${config.token}`,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ ids: [docId] })
                                 });
                                 if (!res.ok) {
                                     const errText = await res.text().catch(() => '');
