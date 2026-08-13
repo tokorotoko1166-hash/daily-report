@@ -38,11 +38,11 @@
     <!-- キャッシュ検出ヘルスチェックバナー -->
     <div id="version-warning-banner" style="display: none; background: #ef4444; color: white; padding: 1rem; text-align: center; font-weight: bold; font-size: 0.95rem; z-index: 99999; position: sticky; top: 0; border-bottom: 2px solid #b91c1c; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
         ⚠️ 【重要】ブラウザに古いプログラムが残っているため、クラウド同期が正しく動作しません！<br>
-        キーボードの <span style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px; margin: 0 0.2rem;">Ctrl</span> + <span style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px; margin: 0 0.2rem;">F5</span> を同時に強く押して、最新プログラム(20260812_1730)をロードしてください。
+        キーボードの <span style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px; margin: 0 0.2rem;">Ctrl</span> + <span style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px; margin: 0 0.2rem;">F5</span> を同時に強く押して、最新プログラム(20260813_1815)をロードしてください。
     </div>
     <script>
         setTimeout(() => {
-            const expected = '20260812_1730';
+            const expected = '20260813_1815';
             if (window.LEDGER_MANAGER_VERSION !== expected || window.DB_V2_VERSION !== expected) {
                 document.getElementById('version-warning-banner').style.display = 'block';
                 console.error('Version mismatch! Expected:', expected, 'Actual Manager:', window.LEDGER_MANAGER_VERSION, 'Actual DB:', window.DB_V2_VERSION);
