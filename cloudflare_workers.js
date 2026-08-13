@@ -1,183 +1,114 @@
-// ==========================================================================
-// 業務日報・現場台帳 一括管理システム
-// Cloudflare Workers (エッジ関数 ＆ KV) 用 中継プログラム (仕入れAPI拡張版)
-// ==========================================================================
-// 【配置方法】
-// 1. Cloudflare のダッシュボードにて「Workers ＆ Pages」へ進み、新規 Worker を作成します。
-// 2. このプログラムコードをコピー＆ペーストして貼り付けます。
-// 3. Workersの設定の「Variables (環境変数/バインド)」の「KV Namespace Bindings」にて、
-//    名前「DATA_KV」として新しく作成したKVバインドを追加します。
-// 4. 保存してデプロイ（保存して公開）し、発行されたURLをPC管理者画面に登録します。
-// ==========================================================================
+/**
+ * SIGNAL RELAY - Cloudflare Worker (Customized)
+ * データの中身は一切見ない（暗号文をそのまま右から左へ流すだけ）。
+ * 暗号化・復号はすべてクライアント（ブラウザ）側で行う。
+ */
 
-// 不正アクセス防止用のアクセストークン（PC管理者画面およびスマホ側で一致させてください）
-const AUTH_TOKEN = "TokoroEdgeOneAuthToken2026";
+const DEVICE_LIST_KEY = "relay:devices";
+const dataKey = (id) => `relay:data:${id}`;
+
+function withCors(resp) {
+  resp.headers.set("Access-Control-Allow-Origin", "*");
+  resp.headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  resp.headers.set("Access-Control-Allow-Headers", "Content-Type,X-Relay-Key");
+  return resp;
+}
+
+function json(data, status = 200) {
+  return withCors(
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    })
+  );
+}
+
+// RELAY_API_KEY を設定していれば、そのキーを知らないクライアントの
+// 読み書きを拒否する（＝スパム書き込み防止用）。
+function isAuthorized(request, env) {
+  if (!env.RELAY_API_KEY) return true;
+  return request.headers.get("X-Relay-Key") === env.RELAY_API_KEY;
+}
+
+async function getDeviceIds(env) {
+  const raw = await env.RELAY_KV.get(DEVICE_LIST_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
-    const path = url.pathname;
-    const method = request.method;
 
-    // CORSプリフライト（OPTIONS）リクエストへの自動対応
-    if (method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: getCorsHeaders()
-      });
+    if (request.method === "OPTIONS") {
+      return withCors(new Response(null, { status: 204 }));
     }
 
-    // 1. アクセストークン認証チェック
-    const authHeader = request.headers.get('Authorization') || '';
-    const token = authHeader.replace(/^Bearer\s+/, '').trim();
-    if (token !== AUTH_TOKEN) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-      });
+    if (!isAuthorized(request, env)) {
+      return json({ error: "unauthorized" }, 401);
     }
 
-    // KVバインドチェック
-    if (!env.DATA_KV) {
-      return new Response(JSON.stringify({ error: 'DATA_KV namespace is not bound' }), {
-        status: 500,
-        headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-      });
+    // 端末一覧
+    if (url.pathname === "/api/devices" && request.method === "GET") {
+      const ids = await getDeviceIds(env);
+      return json({ ids });
     }
 
-    try {
-      // 2. エンドポイントごとのルーティング処理
+    // 特定端末の暗号化データを取得
+    if (url.pathname === "/api/data" && request.method === "GET") {
+      const id = url.searchParams.get("id");
+      if (!id) return json({ error: "id is required" }, 400);
+      const payload = await env.RELAY_KV.get(dataKey(id));
+      if (payload === null) return json({ error: "not found" }, 404);
+      return json({ payload });
+    }
+
+    // 特定端末の暗号化データを削除 (PCの回収処理用)
+    if (url.pathname === "/api/delete" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return json({ error: "invalid json body" }, 400);
+      }
+      const { id } = body || {};
+      if (!id) return json({ error: "id is required" }, 400);
       
-      // 疎通接続テスト
-      if (path === '/api/test' && method === 'GET') {
-        return new Response(JSON.stringify({ status: 'ok', message: 'Cloudflare Workers connected successfully.' }), {
-          status: 200,
-          headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-        });
-      }
-
-      // 現場サジェストリスト用API
-      if (path === '/api/sites') {
-        if (method === 'GET') {
-          // 暗号化現場リストの取得
-          const data = await env.DATA_KV.get('sites_list') || '[]';
-          return new Response(data, {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        } else if (method === 'POST') {
-          // 暗号化現場リストの保存
-          const body = await request.text();
-          await env.DATA_KV.put('sites_list', body);
-          return new Response(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        }
-      }
-
-      // 仕入れデータ（購入明細）用API
-      if (path === '/api/purchases') {
-        if (method === 'GET') {
-          // 暗号化仕入れリストの取得
-          const data = await env.DATA_KV.get('purchases_list') || '[]';
-          return new Response(data, {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        } else if (method === 'POST') {
-          // 暗号化仕入れリストの保存
-          const body = await request.text();
-          await env.DATA_KV.put('purchases_list', body);
-          return new Response(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        }
-      }
-
-      // 全日報台帳マスター用API (複数PC間での台帳共有用)
-      if (path === '/api/reports_all') {
-        if (method === 'GET') {
-          // 暗号化された全日報リストの取得
-          const data = await env.DATA_KV.get('reports_list') || '[]';
-          return new Response(data, {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        } else if (method === 'POST') {
-          // 暗号化された全日報リストの保存
-          const body = await request.text();
-          await env.DATA_KV.put('reports_list', body);
-          return new Response(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        }
-      }
-
-      // 提出日報用API
-      if (path === '/api/reports') {
-        if (method === 'POST') {
-          // スマホから暗号化日報を中継ポストへ送信
-          const body = await request.json();
-          const reportId = 'rep_' + String(Date.now()) + '_' + String(Math.random()).slice(2, 8);
-          // KVに一時保存
-          await env.DATA_KV.put(`report_pending_${reportId}`, JSON.stringify(body));
-          return new Response(JSON.stringify({ success: true, id: reportId }), {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        } else if (method === 'GET') {
-          // PCから未処理の日報を全取得
-          const list = await env.DATA_KV.list({ prefix: 'report_pending_' });
-          const reports = [];
-          for (const key of list.keys) {
-            const val = await env.DATA_KV.get(key.name);
-            if (val) {
-              reports.push({
-                id: key.name.replace('report_pending_', ''),
-                data: JSON.parse(val)
-              });
-            }
-          }
-          return new Response(JSON.stringify(reports), {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        } else if (method === 'DELETE') {
-          // 同期完了した日報をKV上から削除 (クリーンアップ)
-          const body = await request.json();
-          const docIds = body.ids || [];
-          for (const docId of docIds) {
-            await env.DATA_KV.delete(`report_pending_${docId}`);
-          }
-          return new Response(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-          });
-        }
-      }
-
-      return new Response(JSON.stringify({ error: 'Not Found' }), {
-        status: 404,
-        headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-      });
-
-    } catch (err) {
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: { ...getCorsHeaders(), 'Content-Type': 'application/json' }
-      });
+      await env.RELAY_KV.delete(dataKey(id));
+      
+      const ids = await getDeviceIds(env);
+      const filtered = ids.filter(x => x !== id);
+      await env.RELAY_KV.put(DEVICE_LIST_KEY, JSON.stringify(filtered));
+      
+      return json({ ok: true });
     }
-  }
-};
 
-// CORS制限回避用レスポンスヘッダー
-function getCorsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  };
-}
+    // 端末からの送信（暗号化済みデータのみ受け取る）
+    if (url.pathname === "/api/send" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return json({ error: "invalid json body" }, 400);
+      }
+      const { id, payload } = body || {};
+      if (!id || !payload) {
+        return json({ error: "id and payload are required" }, 400);
+      }
+      if (typeof id !== "string" || id.length > 80) {
+        return json({ error: "invalid id" }, 400);
+      }
+
+      await env.RELAY_KV.put(dataKey(id), payload);
+
+      const ids = await getDeviceIds(env);
+      if (!ids.includes(id)) {
+        ids.push(id);
+        await env.RELAY_KV.put(DEVICE_LIST_KEY, JSON.stringify(ids));
+      }
+
+      return json({ ok: true });
+    }
+
+    return json({ error: "not found" }, 404);
+  },
+};
