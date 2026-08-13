@@ -1,5 +1,5 @@
 /**
- * SIGNAL RELAY - Cloudflare Worker (Customized)
+ * SIGNAL RELAY - Cloudflare Worker (Customized & KV Bound to DATA_KV)
  * データの中身は一切見ない（暗号文をそのまま右から左へ流すだけ）。
  * 暗号化・復号はすべてクライアント（ブラウザ）側で行う。
  */
@@ -31,7 +31,8 @@ function isAuthorized(request, env) {
 }
 
 async function getDeviceIds(env) {
-  const raw = await env.RELAY_KV.get(DEVICE_LIST_KEY);
+  // 既存の KV バインド名 DATA_KV を使用します
+  const raw = await env.DATA_KV.get(DEVICE_LIST_KEY);
   return raw ? JSON.parse(raw) : [];
 }
 
@@ -57,7 +58,7 @@ export default {
     if (url.pathname === "/api/data" && request.method === "GET") {
       const id = url.searchParams.get("id");
       if (!id) return json({ error: "id is required" }, 400);
-      const payload = await env.RELAY_KV.get(dataKey(id));
+      const payload = await env.DATA_KV.get(dataKey(id));
       if (payload === null) return json({ error: "not found" }, 404);
       return json({ payload });
     }
@@ -73,11 +74,11 @@ export default {
       const { id } = body || {};
       if (!id) return json({ error: "id is required" }, 400);
       
-      await env.RELAY_KV.delete(dataKey(id));
+      await env.DATA_KV.delete(dataKey(id));
       
       const ids = await getDeviceIds(env);
       const filtered = ids.filter(x => x !== id);
-      await env.RELAY_KV.put(DEVICE_LIST_KEY, JSON.stringify(filtered));
+      await env.DATA_KV.put(DEVICE_LIST_KEY, JSON.stringify(filtered));
       
       return json({ ok: true });
     }
@@ -98,12 +99,12 @@ export default {
         return json({ error: "invalid id" }, 400);
       }
 
-      await env.RELAY_KV.put(dataKey(id), payload);
+      await env.DATA_KV.put(dataKey(id), payload);
 
       const ids = await getDeviceIds(env);
       if (!ids.includes(id)) {
         ids.push(id);
-        await env.RELAY_KV.put(DEVICE_LIST_KEY, JSON.stringify(ids));
+        await env.DATA_KV.put(DEVICE_LIST_KEY, JSON.stringify(ids));
       }
 
       return json({ ok: true });
