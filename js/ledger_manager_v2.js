@@ -1,5 +1,4 @@
 try {
-window.LEDGER_MANAGER_VERSION = '20260812_1730';
 // 🚨 深夜日付またぎ日報の自動分割処理ヘルパー
 function getSplitReports(rawReports) {
     if (!rawReports) return [];
@@ -68,8 +67,71 @@ function isEarlyDeparture(timeStr) {
     return (h * 60 + m) < (7 * 60); // 7:00未満
 }
 
+// ⏱️ 時間計算用ヘルパー (どこからでも呼び出せるグローバル定義)
+const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
+    if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
+    const parseMin = (str) => {
+        const [h, m] = str.split(':').map(Number);
+        return h * 60 + m;
+    };
+    const startMin = parseMin(startStr);
+    const endMin = parseMin(endStr);
+    if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
+        return { start: startStr, end: endStr, breakTime: '-', total: '-' };
+    }
+    
+    // その他休憩時間(分)の計算
+    let otherBreakMin = 0;
+    const addBreak = (s, e) => {
+        if (s && e) {
+            const obStart = parseMin(s);
+            const obEnd = parseMin(e);
+            if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
+                otherBreakMin += (obEnd - obStart);
+                return `${s}〜${e}`;
+            }
+        }
+        return null;
+    };
 
+    const breakRanges = [];
+    const r1 = addBreak(otherBreakStart, otherBreakEnd);
+    if (r1) breakRanges.push(r1);
+    const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
+    if (r2) breakRanges.push(r2);
+    const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
+    if (r3) breakRanges.push(r3);
 
+    const breakStart = 12 * 60; // 12:00
+    const breakEnd = 13 * 60;   // 13:00
+    const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
+    const lunchBreakMin = hasBreak ? 60 : 0;
+    const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
+    
+    let breakHours = '';
+    const otherBreakStr = breakRanges.join(', ');
+
+    if (lunchBreakMin > 0 && otherBreakStr) {
+        breakHours = `1時間 (現場待機: ${otherBreakStr})`;
+    } else if (lunchBreakMin > 0) {
+        breakHours = '1時間';
+    } else if (otherBreakStr) {
+        breakHours = `現場待機: ${otherBreakStr}`;
+    } else {
+        breakHours = '0時間';
+    }
+    let lunchBreakText = lunchBreakMin > 0 ? '1時間' : '0時間';
+    let waitingTimeText = otherBreakStr ? otherBreakStr : '-';
+    const totalH = Math.floor(totalMin / 60);
+    const totalM = totalMin % 60;
+    const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
+    return { start: startStr, end: endStr, breakTime: breakHours, lunchBreakTime: lunchBreakText, waitingTime: waitingTimeText, total: totalText, min: totalMin };
+};
+
+// 外部/グローバルから安全にアクセスできるようにwindowにエクスポート
+window.getSplitReports = getSplitReports;
+window.isEarlyDeparture = isEarlyDeparture;
+window.calculateWorkTime = calculateWorkTime;
 
 if (!window.currentPartnerDeptLimits) window.currentPartnerDeptLimits = {};
 
@@ -2242,7 +2304,7 @@ function refreshLedgerTable(filter = {}) {
 
     // 現場データをIDでハッシュマップ化して高速検索 (O(1))
     const siteMap = new Map(sites.map(s => [s.id, s]));
-    siteMap.set('site_substitute_off', { id: 'site_substitute_off', code: 'SUBSTITUTE_OFF', name: '代休 (休み取得)', client: '-' });
+    siteMap.set('site_substitute_off', { id: 'site_substitute_off', code: 'SUBSTITUTE_OFF', name: '代休消化', client: '-' });
 
     // 検索フィルタの適用
     if (filter.search) {
@@ -2295,64 +2357,7 @@ function refreshLedgerTable(filter = {}) {
         reports = reports.filter(r => r.date && getClosingMonth(r.date) === filter.month);
     }
 
-    // 時間計算用ヘルパー
-    const calculateWorkTime = (startStr, endStr, otherBreakStart = "", otherBreakEnd = "", otherBreakStart2 = "", otherBreakEnd2 = "", otherBreakStart3 = "", otherBreakEnd3 = "") => {
-        if (!startStr || !endStr) return { start: '-', end: '-', breakTime: '-', total: '-' };
-        const parseMin = (str) => {
-            const [h, m] = str.split(':').map(Number);
-            return h * 60 + m;
-        };
-        const startMin = parseMin(startStr);
-        const endMin = parseMin(endStr);
-        if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
-            return { start: startStr, end: endStr, breakTime: '-', total: '-' };
-        }
-        
-        // その他休憩時間(分)の計算
-        let otherBreakMin = 0;
-        const addBreak = (s, e) => {
-            if (s && e) {
-                const obStart = parseMin(s);
-                const obEnd = parseMin(e);
-                if (!isNaN(obStart) && !isNaN(obEnd) && obEnd > obStart) {
-                    otherBreakMin += (obEnd - obStart);
-                    return `${s}〜${e}`;
-                }
-            }
-            return null;
-        };
 
-        const breakRanges = [];
-        const r1 = addBreak(otherBreakStart, otherBreakEnd);
-        if (r1) breakRanges.push(r1);
-        const r2 = addBreak(otherBreakStart2, otherBreakEnd2);
-        if (r2) breakRanges.push(r2);
-        const r3 = addBreak(otherBreakStart3, otherBreakEnd3);
-        if (r3) breakRanges.push(r3);
-
-        const breakStart = 12 * 60; // 12:00
-        const breakEnd = 13 * 60;   // 13:00
-        const hasBreak = (startMin <= breakStart && endMin >= breakEnd);
-        const lunchBreakMin = hasBreak ? 60 : 0;
-        const totalMin = (endMin - startMin) - lunchBreakMin - otherBreakMin;
-        
-        let breakHours = '';
-        const otherBreakStr = breakRanges.join(', ');
-
-        if (lunchBreakMin > 0 && otherBreakStr) {
-            breakHours = `1時間(${otherBreakStr})`;
-        } else if (lunchBreakMin > 0) {
-            breakHours = '1時間';
-        } else if (otherBreakStr) {
-            breakHours = otherBreakStr;
-        } else {
-            breakHours = '0時間';
-        }
-        const totalH = Math.floor(totalMin / 60);
-        const totalM = totalMin % 60;
-        const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
-    };
 
     // 作業日報一覧用の行HTMLジェネレーター (11列)
     const generateLedgerRow = (rep, showHolidayWork = false) => {
@@ -4161,7 +4166,7 @@ function openReportPreviewModal(reportId) {
                     <th style="padding: 0.5rem; border: 1px solid var(--border-light); background: rgba(255,255,255,0.02); text-align: left;">勤務時間</th>
                     <td colspan="3" style="padding: 0.5rem; border: 1px solid var(--border-light); font-family: 'Inter';">
                         ${(() => {
-                            const depIsEarly = !report.isDirectGo && report.departureTime && isEarlyDeparture(report.departureTime);
+                            const depIsEarly = !report.isDirectGo && report.departureTime && window.isEarlyDeparture(report.departureTime);
                             const depText = report.isDirectGo ? '直行' : (report.departureTime || '-');
                             const depDisplay = depIsEarly 
                                 ? `<span style="color: #ef4444; font-weight: bold;">${depText} (早出)</span>` 
@@ -4171,7 +4176,7 @@ function openReportPreviewModal(reportId) {
                         })()}
                         <span style="color: var(--text-muted); margin-left: 1rem;">(現場作業時間: ${report.startTime || '-'} 〜 ${report.endTime || '-'})</span>
                         <span style="color: var(--text-muted); margin-left: 1rem;">(休憩: ${(() => {
-                            const times = calculateWorkTime(
+                            const times = window.calculateWorkTime(
                                 report.startTime, report.endTime,
                                 report.otherBreakStart || '', report.otherBreakEnd || '',
                                 report.otherBreakStart2 || '', report.otherBreakEnd2 || '',
@@ -4230,12 +4235,6 @@ function openReportPreviewModal(reportId) {
     });
 
     // 閉じるボタンと背景クリックで確実に閉じるための制御 (二重の安全ガード)
-    const closeBtn = document.getElementById('modal-close-btn');
-    if (closeBtn) {
-        closeBtn.onclick = () => {
-            backdrop.classList.remove('open');
-        };
-    }
     backdrop.onclick = (e) => {
         if (e.target === backdrop) {
             backdrop.classList.remove('open');
@@ -4363,36 +4362,36 @@ function openEditReportModal(reportId) {
                 </div>
             </div>
 
-            <!-- その他休憩時間帯 (時間指定) -->
+            <!-- 現場待機時間帯 (時間指定) -->
             <div style="margin-bottom: 1rem; background: rgba(245,158,11,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(245,158,11,0.08);">
-                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">その他休憩時間 (時間帯)</div>
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--color-warning); font-size: 0.85rem;">現場待機時間 (時間帯)</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">休憩① 開始</label>
+                        <label for="edit-rep-break-start" style="font-size: 0.75rem;">待機① 開始</label>
                         <input type="time" id="edit-rep-break-start" value="${report.otherBreakStart || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">休憩① 終了</label>
+                        <label for="edit-rep-break-end" style="font-size: 0.75rem;">待機① 終了</label>
                         <input type="time" id="edit-rep-break-end" value="${report.otherBreakEnd || ''}">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">休憩② 開始</label>
+                        <label for="edit-rep-break-start2" style="font-size: 0.75rem;">待機② 開始</label>
                         <input type="time" id="edit-rep-break-start2" value="${report.otherBreakStart2 || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">休憩② 終了</label>
+                        <label for="edit-rep-break-end2" style="font-size: 0.75rem;">待機② 終了</label>
                         <input type="time" id="edit-rep-break-end2" value="${report.otherBreakEnd2 || ''}">
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div class="form-group">
-                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">休憩③ 開始</label>
+                        <label for="edit-rep-break-start3" style="font-size: 0.75rem;">待機③ 開始</label>
                         <input type="time" id="edit-rep-break-start3" value="${report.otherBreakStart3 || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">休憩③ 終了</label>
+                        <label for="edit-rep-break-end3" style="font-size: 0.75rem;">待機③ 終了</label>
                         <input type="time" id="edit-rep-break-end3" value="${report.otherBreakEnd3 || ''}">
                     </div>
                 </div>
@@ -5026,6 +5025,13 @@ async function syncPurchasesToCloud() {
 
 // クラウド中継ポストから暗号化された日報をダウンロード ＆ 復号マージ ＆ クラウド消去
 async function syncReportsFromCloud(isAutomatic = false) {
+    if (!window.CloudSync || !window.CloudSync.init()) {
+        if (!isAutomatic) {
+            window.app.showToast('クラウド接続設定が未完了です。設定ボタンから登録してください。', 'warning');
+        }
+        return;
+    }
+
     const syncBtn = document.getElementById('btn-cloud-sync');
     if (syncBtn && !isAutomatic) {
         syncBtn.disabled = true;
@@ -5033,219 +5039,90 @@ async function syncReportsFromCloud(isAutomatic = false) {
         if (window.lucide) window.lucide.createIcons();
     }
 
-    if (window.CloudSync) { window.CloudSync.saveConfig(window.CloudSync.getConfig()); window.CloudSync.init(); }
-    if (!window.CloudSync || !window.CloudSync.init()) {
-        if (!isAutomatic && window.app) {
-            window.app.showToast('クラウド接続設定が未完了です。', 'warning');
-        }
-        if (typeof resetSyncButton === 'function') resetSyncButton();
-        return;
+    if (!isAutomatic) {
+        window.app.showToast('クラウドから提出済みの未処理日報を読み込んでいます...', 'info');
     }
-
-    // 最新データソースを取得 (メモリDBまたはStorage DB)
-    const localReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
-    const localSites = (window.SiteDB ? window.SiteDB.getAll() : []) || [];
-    const localPurchases = (window.PurchaseDB ? window.PurchaseDB.getAll() : []) || [];
-
-    if (!isAutomatic && window.app) {
-        window.app.showToast(`☁️ データ同期開始 (現場${localSites.length}件 / 日報${localReports.length}件 / 仕入${localPurchases.length}件)`, 'info');
-    }
-
-    let isFinished = false;
-    const safetyTimer = setTimeout(() => {
-        if (!isFinished) {
-            console.warn('⚠️ クラウド同期タイムアウト復帰');
-            if (typeof resetSyncButton === 'function') resetSyncButton();
-        }
-    }, 20000);
 
     try {
-        let hasNewData = false;
 
-        const reportCollection = window.CloudSync.collection('reports');
-        const reportAllCollection = window.CloudSync.collection('reports_all');
-        const siteCollection = window.CloudSync.collection('sites');
-        const purchaseCollection = window.CloudSync.collection('purchases');
 
-        // --- STEP 1: ローカルデータをクラウドへアップロード (送信) ---
-        if (localReports.length > 0 || localSites.length > 0 || localPurchases.length > 0) {
-            await Promise.all([
-                (localReports.length > 0) ? reportAllCollection.doc('all_reports').set({}).catch(e => console.warn("Reports upload warn:", e)) : Promise.resolve(),
-                (localSites.length > 0) ? siteCollection.doc('all_sites').set({}).catch(e => console.warn("Sites upload warn:", e)) : Promise.resolve(),
-                (localPurchases.length > 0) ? purchaseCollection.doc('all_purchases').set({}).catch(e => console.warn("Purchases upload warn:", e)) : Promise.resolve()
-            ]);
+
+        const collection = window.CloudSync.collection('reports');
+        const snapshot = await collection.get();
+
+        if (snapshot.empty) {
+            if (!isAutomatic) {
+                window.app.showToast('新着日報はありません (中継ポスト is 空です)', 'info');
+            }
+            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
+            updateSyncTimeDisplay();
+            if (!isAutomatic) resetSyncButton();
+            return;
         }
 
-        // --- STEP 2: クラウドから最新データをダウンロード ＆ マージ (受信) ---
+        let successCount = 0;
+        let failCount = 0;
+        const deletePromises = [];
 
-        // 2-A-1. 中継ポスト（スマホから提出された日報）の回収とローカルへのマージ
-        let reportUpdated = false;
-        try {
-            const snapshot = await Promise.race([
-                reportCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 7000))
-            ]);
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.encrypted) {
+                const report = window.CryptoUtil.decrypt(data.encrypted);
+                if (report) {
+                    const exists = window.ReportDB.getAll().some(r => 
+                        r.id === report.id || 
+                        (
+                            r.date === report.date && 
+                            r.siteId === report.siteId && 
+                            r.writer === report.writer &&
+                            r.startTime === report.startTime &&
+                            r.endTime === report.endTime &&
+                            r.content === report.content
+                        )
+                    );
 
-            if (Array.isArray(snapshot) && snapshot.length > 0) {
-                let currentReports = (window.ReportDB ? window.ReportDB.getAll() : []) || [];
-                const deletePromises = [];
-                let successCount = 0;
-
-                snapshot.forEach(doc => {
-                    const data = typeof doc.data === 'function' ? doc.data() : doc;
-                    if (data && data.encrypted) {
-                        const report = window.CryptoUtil.decrypt(data.encrypted);
-                        if (report && report.id) {
-                            const idx = currentReports.findIndex(r => r.id === report.id);
-                            if (idx === -1) {
-                                currentReports.push(report);
-                                reportUpdated = true;
-                            } else {
-                                currentReports[idx] = report;
-                                reportUpdated = true;
-                            }
-                            successCount++;
-                            deletePromises.push(reportCollection.doc(doc.id).delete().catch(() => {}));
-                        }
+                    if (!exists) {
+                        window.ReportDB.add(report);
                     }
-                });
-
-                if (successCount > 0) {
-                    await Promise.all(deletePromises);
-                    window.ReportDB.saveAll(currentReports);
-                    hasNewData = true;
+                    successCount++;
+                    deletePromises.push(collection.doc(doc.id).delete());
+                } else {
+                    console.warn('Decryption failed for doc:', doc.id);
+                    failCount++;
+                    // 復号に失敗したゴミデータも、いつまでもクラウドに居座ってエラーを出し続けないように、同期時にクラウドから消去する
+                    deletePromises.push(collection.doc(doc.id).delete());
                 }
             }
-        } catch (e) {
-            console.warn('Pending reports harvest warning:', e);
-        }
+        });
 
-        // 2-A-2. 全日報台帳マスター（reports_all）の同期 (完全上書き)
-        try {
-            const cloudReportsAll = await Promise.race([
-                reportAllCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 7000))
-            ]);
-
-            if (Array.isArray(cloudReportsAll) && cloudReportsAll.length > 0) {
-                const parsedReports = [];
-                cloudReportsAll.forEach(item => {
-                    try {
-                        const data = typeof item.data === 'function' ? item.data() : item;
-                        if (data && data.encrypted) {
-                            const report = window.CryptoUtil.decrypt(data.encrypted);
-                            if (report && report.id) {
-                                parsedReports.push(report);
-                            }
-                        }
-                    } catch (e) {}
-                });
-
-                if (parsedReports.length > 0 && window.ReportDB) {
-                    // スマホから今回新しく回収した日報（reportUpdated）がある場合は、
-                    // マスターデータで上書きせずに、マージ済みのローカルデータを使用します。
-                    // (回収した新規データも、この後の STEP 3 でクラウドのマスターに統合保存されます)
-                    if (!reportUpdated) {
-                        window.ReportDB.saveAll(parsedReports);
-                        hasNewData = true;
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('Reports master sync warning:', e);
-        }
-
-        // 2-B. 現場 (Sites) の同期 (マスターデータで完全上書き)
-        try {
-            const cloudSites = await Promise.race([
-                siteCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 6000))
-            ]);
-
-            if (Array.isArray(cloudSites) && cloudSites.length > 0) {
-                const parsedSites = [];
-                cloudSites.forEach(item => {
-                    try {
-                        const data = typeof item.data === 'function' ? item.data() : item;
-                        if (data && data.encrypted) {
-                            const site = window.CryptoUtil.decrypt(data.encrypted);
-                            if (site && site.id) {
-                                parsedSites.push(site);
-                            }
-                        }
-                    } catch (e) {}
-                });
-
-                if (parsedSites.length > 0 && window.SiteDB) {
-                    window.SiteDB.saveAll(parsedSites);
-                    hasNewData = true;
-                }
-            }
-        } catch (e) {
-            console.warn('Site download sync warning:', e);
-        }
-
-        // 2-C. 仕入れ (Purchases) の同期 (マスターデータで完全上書き)
-        try {
-            const cloudPurchases = await Promise.race([
-                purchaseCollection.get(),
-                new Promise(res => setTimeout(() => res([]), 6000))
-            ]);
-
-            if (Array.isArray(cloudPurchases) && cloudPurchases.length > 0) {
-                const parsedPurchases = [];
-                cloudPurchases.forEach(item => {
-                    try {
-                        const data = typeof item.data === 'function' ? item.data() : item;
-                        if (data && data.encrypted) {
-                            const purchase = window.CryptoUtil.decrypt(data.encrypted);
-                            if (purchase && purchase.id) {
-                                parsedPurchases.push(purchase);
-                            }
-                        }
-                    } catch (e) {}
-                });
-
-                if (parsedPurchases.length > 0 && window.PurchaseDB) {
-                    window.PurchaseDB.saveAll(parsedPurchases);
-                    hasNewData = true;
-                }
-            }
-        } catch (e) {
-            console.warn('Purchase download sync warning:', e);
-        }
-
-        // --- STEP 3: 新たに回収した日報がある場合、最新の全日報マスターをクラウドに再送信して保管庫を更新する ---
-        if (reportUpdated && window.ReportDB) {
-            const freshReports = window.ReportDB.getAll() || [];
-            if (freshReports.length > 0) {
-                await reportAllCollection.doc('all_reports').set({}).catch(e => console.warn("Reports final re-upload warn:", e));
+        if (failCount > 0) {
+            if (window.app && typeof window.app.showToast === 'function') {
+                window.app.showToast(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。スマホとPCのパスワードを一致させてください。`, 'danger');
+            } else {
+                alert(`【注意】パスワードが違うため、復号(解読)できない日報が ${failCount} 件あります。\nスマホとPCのパスワードを一致させてください。`);
             }
         }
 
-        // タイムスタンプ保存と画面全画面再描画
-        localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
-        if (typeof updateSyncTimeDisplay === 'function') updateSyncTimeDisplay();
-
-        // 画面強制リフレッシュ・ハッシュ再接続
-        const currentHash = window.location.hash || '#site-list';
-        window.location.hash = '#temp';
-        setTimeout(() => {
-            window.location.hash = currentHash;
-            if (typeof refreshCurrentView === 'function') refreshCurrentView();
-        }, 100);
-
-        if (!isAutomatic && window.app) {
-            window.app.showToast(`🎉 クラウド同期完了！ (全日報・現場・仕入れデータが同期されました)`, 'success');
+        if (successCount > 0) {
+            await Promise.all(deletePromises);
+            window.app.showToast(`${successCount}件の新着日報を取り込み、台帳に同期しました！`, 'success');
+            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
+            updateSyncTimeDisplay();
+            router();
+        } else {
+            if (!isAutomatic) {
+                window.app.showToast('新しい日報データは見つかりませんでした。', 'info');
+            }
+            localStorage.setItem('last_cloud_sync_time', new Date().toLocaleString());
+            updateSyncTimeDisplay();
         }
-    } catch (err) {
-        console.error('Error during cloud sync:', err);
+    } catch (e) {
+        console.error('Cloud report sync failed:', e);
+        if (!isAutomatic) {
+            window.app.showToast('同期中に接続エラーが発生しました。設定情報をご確認ください。', 'error');
+        }
     } finally {
-        isFinished = true;
-        clearTimeout(safetyTimer);
-        if (typeof resetSyncButton === 'function') {
-            resetSyncButton();
-        }
+        if (!isAutomatic) resetSyncButton();
     }
 }
 
@@ -6616,7 +6493,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                 <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${rep.workContent || ''}">${snippet}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                 <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
-                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.lunchBreakTime}</td>
+                <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.waitingTime}</td>
                 ${showHolidayWork ? `
                     <td style="text-align: center; padding: 0.75rem;">
                         ${rep.isHolidayWork ? (rep.holidayWorkType === 'substitute' ? '<span style="background:var(--color-primary); color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">代休</span>' : '<span style="background:#e11d48; color:white; padding:0.15rem 0.45rem; border-radius:6px; font-size:0.72rem; font-weight:bold; white-space:nowrap;">休出</span>') : '-'}
@@ -6760,18 +6638,20 @@ function refreshPartnerLedgerTable(filter = {}) {
         const otherBreakStr = breakRanges.join(', ');
 
         if (lunchBreakMin > 0 && otherBreakStr) {
-            breakHours = `1時間(${otherBreakStr})`;
+            breakHours = `1時間 (現場待機: ${otherBreakStr})`;
         } else if (lunchBreakMin > 0) {
             breakHours = '1時間';
         } else if (otherBreakStr) {
-            breakHours = otherBreakStr;
+            breakHours = `現場待機: ${otherBreakStr}`;
         } else {
             breakHours = '0時間';
         }
+        let lunchBreakText = lunchBreakMin > 0 ? '1時間' : '0時間';
+        let waitingTimeText = otherBreakStr ? otherBreakStr : '-';
         const totalH = Math.floor(totalMin / 60);
         const totalM = totalMin % 60;
         const totalText = totalM > 0 ? `${totalH}時間${totalM}分` : `${totalH}時間`;
-        return { start: startStr, end: endStr, breakTime: breakHours, total: totalText, min: totalMin };
+        return { start: startStr, end: endStr, breakTime: breakHours, lunchBreakTime: lunchBreakText, waitingTime: waitingTimeText, total: totalText, min: totalMin };
     };
 
 
@@ -6832,14 +6712,15 @@ function refreshPartnerLedgerTable(filter = {}) {
                         <td style="font-size: 0.85rem; padding: 0.75rem; color: var(--text-muted);" title="${r.workContent || ''}">${snippet}</td>
                         <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.start}</td>
                         <td style="text-align: center; font-family: 'Inter', sans-serif; padding: 0.75rem;">${times.end}</td>
-                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.breakTime}</td>
+                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.lunchBreakTime}</td>
+                        <td style="text-align: center; padding: 0.75rem; color: var(--text-muted);">${times.waitingTime}</td>
                         <td style="text-align: right; padding-right: 1.5rem; font-family: 'Inter', sans-serif; font-weight: 600; color: var(--color-primary); padding: 0.75rem;">
                             ${isOfficeWork ? '-' : times.total}
                         </td>
                         <td style="font-size: 0.85rem; padding: 0.75rem;">${r.writer || '-'}</td>
                         <td style="text-align: center; padding: 0.75rem;" class="no-print">
-                            <button class="btn btn-secondary btn-icon-only btn-view-report-detail" data-repid="${r.id}" title="詳細表示" style="width: 1.8rem; height: 1.8rem; padding:0; display: inline-flex; align-items: center; justify-content: center;">
-                                <i data-lucide="arrow-right" style="width: 0.85rem; height: 0.85rem;"></i>
+                            <button class="btn btn-primary btn-view-report-detail" data-repid="${r.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                編集
                             </button>
                         </td>
                     </tr>
@@ -6884,7 +6765,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                                 <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業開始</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">作業完了</th>
-                                <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
+                                <th style="width: 90px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                <th style="width: 120px; text-align: center; padding: 0.75rem;">現場待機</th>
                                 <th style="width: 100px; text-align: right; padding: 0.75rem; padding-right: 1.5rem;">合計時間</th>
                                 <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                 <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
@@ -6895,7 +6777,7 @@ function refreshPartnerLedgerTable(filter = {}) {
                         </tbody>
                         <tfoot class="print-only" style="display:none;">
                             <tr>
-                                <td colspan="9" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
+                                <td colspan="10" style="text-align: right; font-weight: bold; padding: 0.5rem;">総合計:</td>
                                 <td colspan="2" style="font-weight: bold; padding: 0.5rem;">${totalTimeText}</td>
                             </tr>
                         </tfoot>
@@ -6999,7 +6881,8 @@ function refreshPartnerLedgerTable(filter = {}) {
                                         <th style="text-align: left; padding: 0.75rem;">作業内容</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">開始</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">完了</th>
-                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">休憩</th>
+                                        <th style="width: 90px; text-align: center; padding: 0.75rem;">昼休憩</th>
+                                        <th style="width: 120px; text-align: center; padding: 0.75rem;">現場待機</th>
                                         <th style="width: 100px; text-align: right; padding: 0.75rem;">合計時間</th>
                                         <th style="width: 90px; text-align: center; padding: 0.75rem;">記入者</th>
                                         <th style="width: 60px; text-align: center; padding: 0.75rem;" class="no-print">操作</th>
